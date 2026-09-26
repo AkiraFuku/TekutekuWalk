@@ -114,6 +114,9 @@ public:
     const char* GetBehaviorName() const;
     // 敵が死んでいるかどうかを判定
     bool IsDead() const;
+    bool IsKnockback() const { return isKnockback_; }
+    void TakeDamage(float knockbackDirection = -1.0f, bool isDeadly = true);
+    void HandleKnockback();
 
     // ロボットを設定するメソッド（外部または派生クラスのInitializeで呼ぶ）
     void SetRobot(std::unique_ptr<Robot> robot);
@@ -202,6 +205,17 @@ protected:
     bool isDamaged_ = false;              // クールダウン中かどうかのフラグ
     float hitInvincibilityTimer_ = 0.0f;     // クールダウンタイマー
     const float kHitInvincibilityDuration_ = 1.0f; // クールダウン時間（秒単位にする場合はUpdateの計算に合わせる）
+
+    // ノックバック・放物線・のけぞり演出用変数
+    bool isKnockback_ = false;
+    float knockbackTimer_ = 0.0f;
+    const float kKnockbackDuration_ = 0.6f;  // 放物線滞空時間（秒）
+    const float kKnockbackSpeed_ = 7.0f;     // 後退速度
+    const float kKnockbackJumpForce_ = 13.0f;// 上方向への跳ね上がり力（放物線）
+    float knockbackDirection_ = -1.0f;       // レール上の移動向き（1.0f: 前進, -1.0f: 後退）
+    float knockbackTilt_ = 0.0f;             // 後ろへののけぞり角度（度数法）
+    float knockbackRoll_ = 0.0f;             // 撃破時の回転角度
+    bool isDeathFinished_ = false;           // やられ演出完了フラグ
     // 基底クラスで保持するように変更
     std::unique_ptr<Robot> robot_ = nullptr;
 

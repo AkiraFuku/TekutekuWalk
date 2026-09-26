@@ -57,7 +57,10 @@ void StateEnemyDead::Initialize(Enemy* enemy) {
 }
 
 void StateEnemyDead::Update(Enemy* enemy) {
-    // 死亡状態の毎フレーム処理（例：エフェクト更新、削除タイマー）
+    // 死亡演出中のノックバック放物線更新（安全策）
+    if (enemy && enemy->IsKnockback()) {
+        enemy->HandleKnockback();
+    }
 }
 
 void StateEnemyDead::Finalize(Enemy* enemy) {

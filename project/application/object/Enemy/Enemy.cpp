@@ -67,9 +67,14 @@ void Enemy::Update()
         }
     }
     RayCastUpdate();
-    // 1. 現在の状態を更新
-    if (state_) {
-        state_->Update(this);
+
+    if (isKnockback_) {
+        HandleKnockback();
+    } else {
+        // 1. ノックバック中でない場合のみ現在の状態を更新
+        if (state_) {
+            state_->Update(this);
+        }
     }
 
     // 3. 物理計算とレール座標の更新
@@ -213,14 +218,75 @@ void Enemy::UpdatePhysics() {
         dir = Multiply(-1.0f, dir);
     }
     float angle = atan2f(dir.x, dir.z);
-    object_->SetRotate(initialRotationOffset_ + Vector3{ 0.0f, angle, 0.0f });
+
+    // 進行方向の向きに加えて、のけぞり角度（ピッチ）と回転（ロール）を合成
+    Vector3 currentRot = initialRotationOffset_ + Vector3{ knockbackTilt_, angle, knockbackRoll_ };
+    object_->SetRotate(currentRot);
     object_->Update();
+}
+
+void Enemy::TakeDamage(float knockbackDirection, bool isDeadly)
+{
+    if (isDamaged_ || isDeathFinished_) return;
+
+    isDamaged_ = true;
+    hitInvincibilityTimer_ = kHitInvincibilityDuration_;
+    isKnockback_ = true;
+    knockbackDirection_ = knockbackDirection;
+    knockbackTimer_ = kKnockbackDuration_;
+
+    // 上方向に初速を与えて放物線ジャンプを開始
+    velocity_.y = kKnockbackJumpForce_;
+    isGrounded_ = false;
+
+    // 後ろへののけぞり姿勢を設定（仰け反る角度）
+    knockbackTilt_ = -35.0f;
+    knockbackRoll_ = 0.0f;
+
+    PlayHitEffect();
+
+    if (isDeadly) {
+        ChangeState(std::make_unique<StateEnemyDead>());
+    }
+}
+
+void Enemy::HandleKnockback()
+{
+    if (!isKnockback_) return;
+
+    // 残り時間に応じた速度減衰でレール沿いに後退
+    float ratio = (kKnockbackDuration_ > 0.0f) ? (knockbackTimer_ / kKnockbackDuration_) : 0.0f;
+    float moveAmount = knockbackDirection_ * kKnockbackSpeed_ * ratio * deltaTime_;
+    if (railMover_) {
+        railMover_->Advance(moveAmount);
+    }
+
+    // 重力計算（放物線を描いて落下）
+    UpdateGravity();
+
+    // 死亡時はきりもみ回転、生存時は徐々にのけぞり姿勢から復帰
+    if (state_ && strcmp(state_->GetName(), "Dead") == 0) {
+        knockbackRoll_ += 360.0f * deltaTime_;
+    } else {
+        knockbackTilt_ += (0.0f - knockbackTilt_) * (8.0f * deltaTime_);
+    }
+
+    knockbackTimer_ -= deltaTime_;
+
+    // 地面に着地したか、または滞空時間が終了したらノックバック完了
+    if (knockbackTimer_ <= 0.0f || (isGrounded_ && velocity_.y <= 0.0f && knockbackTimer_ < kKnockbackDuration_ * 0.7f)) {
+        isKnockback_ = false;
+        knockbackTilt_ = 0.0f;
+        if (state_ && strcmp(state_->GetName(), "Dead") == 0) {
+            isDeathFinished_ = true; // 演出完了により消滅可能フラグON
+        }
+    }
 }
 // Enemy.cpp
 void Enemy::OnCollision(GameObject* other) {
 
-    // ぶつかった相手がPlayerかどうかを確認
-    if (!other || isDamaged_ || IsDead()) return;
+    // ぶつかった相手の有効性チェック（被弾中・ノックバック中・死亡演出後はスキップ）
+    if (!other || isDamaged_ || isKnockback_ || isDeathFinished_) return;
 
     if (other->GetCategory() == CollisionCategory::Player || other->GetCategory() == CollisionCategory::PlayerAttack) {
         Player* player = dynamic_cast<Player*>(other);
@@ -247,10 +313,6 @@ void Enemy::OnCollision(GameObject* other) {
                 }
             }
 
-            PlayHitEffect();
-            isDamaged_ = true;
-            hitInvincibilityTimer_ = kHitInvincibilityDuration_;
-
             // プレイヤー側に攻撃ヒット（突進停止＆硬直解除）を通知
             player->OnAttackHit(this);
 
@@ -259,7 +321,7 @@ void Enemy::OnCollision(GameObject* other) {
                 auto factory = robot_->CreatePlayerFactory();
 
                 if (factory) {
-                    // 2. Factory を使って State を生成 (Factoryが自動で State に自身をセットしてくれる)
+                    // 2. Factory を使って State を生成
                     auto rideOnState = factory->CreateState();
 
                     // 3. プレイヤーの State を切り替える
@@ -267,16 +329,23 @@ void Enemy::OnCollision(GameObject* other) {
                 }
             }
 
-            ChangeState(std::make_unique<StateEnemyDead>());
+            // プレイヤーから見て後ろへ吹き飛ぶ向きを計算
+            float hitDir = -1.0f;
+            if (railMover_ && player->GetRailMover()) {
+                float enemyDist = railMover_->GetCurrentDistance();
+                float playerDist = player->GetRailMover()->GetCurrentDistance();
+                hitDir = (enemyDist >= playerDist) ? 1.0f : -1.0f;
+            }
+
+            TakeDamage(hitDir, true);
             return;
         }
     }
-    //　弾カテゴリの判定
+    // 弾カテゴリの判定
     if (other->GetCategory() == CollisionCategory::PlayerProjectile)
     {
-        isDamaged_ = true;
-        PlayHitEffect();
-        ChangeState(std::make_unique<StateEnemyDead>());
+        float hitDir = -moveDirection_;
+        TakeDamage(hitDir, true);
     }
 }
 
@@ -483,7 +552,7 @@ const char* Enemy::GetBehaviorName() const
 
 bool Enemy::IsDead() const
 {
-    return state_ && strcmp(state_->GetName(), "Dead") == 0;
+    return isDeathFinished_;
 }
 
 void Enemy::PlayHitEffect() {
