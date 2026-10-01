@@ -67,7 +67,6 @@ public:
     bool SetSphereOffset(const std::string& name, const Vector3& offset);
     bool SetSphereRadius(const std::string& name, float radius);
     const std::vector<CollisionSphereDef>& GetSphereDefs() const { return sphereDefs_; }
-    std::vector<CollisionSphereDef>& GetSphereDefs() { return sphereDefs_; }
 
     // ワールド座標系での全 Sphere（center, radius, rotate）を取得
     std::vector<Sphere> GetWorldSpheres() const;

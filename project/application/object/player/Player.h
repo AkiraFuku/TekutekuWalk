@@ -83,10 +83,10 @@ public:
         velocity_ = velocity;
     }
 
-    IPlayerBehavior* GetBehavior() {
+    IPlayerBehavior* GetBehavior() const {
         return baseState_ ? baseState_->GetBehavior() : nullptr;
     }
-    IPlayerState* GetState() {
+    IPlayerState* GetState() const {
         return baseState_.get();
     }
 
@@ -141,7 +141,7 @@ public:
     void RayCastUpdate() override; // 互換性のため残し、中でUpdateRayCollisionsを呼ぶ
     const CollisionRayInfo* GetRayInfo(const std::string& name) const;
 
-    Collider* GetAttackCollider() {
+    Collider* GetAttackCollider() const {
         return attackCollider_.get();
     }
     void SetAttackHitboxActive(bool active);
@@ -161,14 +161,14 @@ public:
         hitInvincibilityTimer_ = (std::max)(hitInvincibilityTimer_, duration);
     }
 
-    InputHandler* GetInputHandler() {
+    InputHandler* GetInputHandler() const {
         return inputHandler_.get();
     }
     const char* GetStateName() const;
     const char* GetBehaviorName() const;
 
     void SetScene(Scene* scene);
-    Scene* GetScene() {
+    Scene* GetScene() const {
         return scene_;
     }
 
@@ -200,11 +200,11 @@ public:
         return isGrounded_;
     }
     bool IsRayHit() const {
-        return isRayHit_;
+        return GameObject::IsRayHit();
     }
 
     const Triangle& GetRayHitTriangle() const {
-        return rayHitTriangle_;
+        return GameObject::GetRayHitTriangle();
     }
     int GetHitPoints() const {
         return hitPoints_.value;
@@ -297,7 +297,14 @@ private:
     float dropThroughTimer_ = 0.0f;          // すり抜け足場（OneWay）下層降下タイマー
     bool isCurrentGroundOneway_ = false;     // 現在乗っている床がすり抜け足場かどうか
 
-    GameObject::GroundRayPalamata rayHitPalamata_;
+    // 地面レイキャスト判定パラメータ
+    struct GroundRayParam {
+        float groundY = 0.0f;
+        float rayOffset = 1.0f;
+        const float minY = -10.0f;     // 地面の最低Y座標
+        const float kRayOffset = 2.0f; // レイの始点を上に持ち上げるオフセット
+    };
+    GroundRayParam rayHitParam_;
     float heightOffset_ = 0.0f;               // 地面からモデル原点（足元）までの高さオフセット
     float wallRayHeight_ = 0.40f;             // 壁検知レイの発射高さ（足元基準、膝〜腰の高さ）
 
@@ -309,7 +316,7 @@ private:
     std::unique_ptr<RailMover> railMover_;
     float playerAngle_ = -10.0f;
 
-    float Radius = 0.38f;                     // コライダー互換用基本半径
+    float radius_ = 0.38f;                    // コライダー互換用基本半径
     float modelRadius_ = 0.28f;               // 人型モデルの実際の幅（半径）
 
     // モデル形状（2頭身）にフィットさせた球体判定パラメータ

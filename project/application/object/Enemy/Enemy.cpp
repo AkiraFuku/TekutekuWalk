@@ -42,8 +42,9 @@ void Enemy::Initialize()
     // セット名 "GameEffects"、グループ名は空（セット内のすべてのエフェクトを発生させる）
     hitParticle_ = std::make_unique<ParticleEmitter>("GameEffects", "", object_->GetTransform(), 3, 10.0f, 0.0f);
 
-    collider_ = std::make_unique<Collider>();
-    collider_->initialize(this, radius_);
+    auto collider = std::make_unique<Collider>();
+    collider->initialize(this, radius_);
+    SetCollider(std::move(collider));
 
     object_->Update();
 
@@ -80,19 +81,21 @@ void Enemy::Update()
     // 3. 物理計算とレール座標の更新
     UpdatePhysics();
 
-    collider_->Update();
+    if (auto* col = GetCollider()) {
+        col->Update();
+    }
 
 }
 
 void Enemy::UpdateTransform()
 {
     RayCastUpdate();
-    if (isRayHit_) {
-        worldY_ = rayHitPoint_.y + kHeightOffset;
+    if (IsRayHit()) {
+        worldY_ = GetRayHitPoint().y + kHeightOffset;
     }
     UpdatePhysics();
-    if (collider_) {
-        collider_->Update();
+    if (auto* col = GetCollider()) {
+        col->Update();
     }
 }
 
@@ -101,7 +104,9 @@ void Enemy::Draw()
     if (object_) {
         object_->Draw();
     }
-    collider_->Draw();
+    if (auto* col = GetCollider()) {
+        col->Draw();
+    }
 
 #ifdef USE_IMGUI
     ImGui::Begin("Debug/Enemy");
@@ -171,8 +176,8 @@ void Enemy::SetRailPosition(const Vector2& position)
         // 3. 地面へのレイキャスト判定と高度補正（※シーンが設定済みの場合）
         if (scene_) {
             RayCastUpdate();
-            if (isRayHit_) {
-                worldY_ = rayHitPoint_.y + kHeightOffset;
+            if (IsRayHit()) {
+                worldY_ = GetRayHitPoint().y + kHeightOffset;
                 UpdatePhysics(); // 重力補正後の高度で再度トランスフォーム更新
                 object_->Update();
             }
@@ -364,31 +369,30 @@ void Enemy::RayCastUpdate()
 
     const std::vector<Triangle>& triangles = gs->GetTriangle();
     if (triangles.empty()) {
-        isRayHit_ = false;
-        rayHitDistance_ = FLT_MAX;
+        SetRayHit(false);
+        SetRayHitDistance(FLT_MAX);
         return;
     }
 
     // 始点を敵の位置から少し高めに持ち上げる（めり込み時でも確実に地面の上から下向きに照射）
-    ray_.origin = object_->GetTranslate();
-    ray_.origin.y += 2.0f;
-
-    // 下方向へ十分な長さのレイを飛ばす
-    ray_.diff = { 0.0f, -25.0f, 0.0f };
+    Vector3 rayOrigin = object_->GetTranslate();
+    rayOrigin.y += 2.0f;
+    Vector3 rayDiff = { 0.0f, -25.0f, 0.0f };
+    SetRay({ rayOrigin, rayDiff });
 
     // 毎フレーム初期化
-    isRayHit_ = false;
-    rayHitDistance_ = FLT_MAX;
-    result_ = RayTriangleCollisionResult::NoCollision;
-    rayHitPoint_ = { 0.0f, 0.0f, 0.0f };
-    rayHitTriangle_ = Triangle{};
+    SetRayHit(false);
+    SetRayHitDistance(FLT_MAX);
+    SetRayCollisionResult(RayTriangleCollisionResult::NoCollision);
+    SetRayHitPoint({ 0.0f, 0.0f, 0.0f });
+    SetRayHitTriangle(Triangle{});
 
     for (const auto& tri : triangles) {
         Vector3 tmpHit = {};
         float dist = 0.0f;
         RayTriangleCollisionResult result;
 
-        if (CheckRayTriangle(ray_, tri, &dist, &tmpHit, &result)) {
+        if (CheckRayTriangle(GetRay(), tri, &dist, &tmpHit, &result)) {
             // FrontFace と BackFace の両方を対象にする（左手系・モデルの巻き順差異への対応）
             if (result == RayTriangleCollisionResult::FrontFace || result == RayTriangleCollisionResult::BackFace) {
 
@@ -408,22 +412,22 @@ void Enemy::RayCastUpdate()
                 }
 
                 // 最も近い（最も高い位置にある）床を選択
-                if (dist < rayHitDistance_) {
-                    rayHitDistance_ = dist;
-                    rayHitTriangle_ = tri;
-                    rayHitPoint_ = tmpHit;
-                    result_ = result;
-                    isRayHit_ = true;
+                if (dist < GetRayHitDistance()) {
+                    SetRayHitDistance(dist);
+                    SetRayHitTriangle(tri);
+                    SetRayHitPoint(tmpHit);
+                    SetRayCollisionResult(result);
+                    SetRayHit(true);
                 }
             }
         }
     }
 
     // デバッグ描画
-    PrimitiveDrawer::GetInstance()->DrawLine(ray_.origin, Add(ray_.origin, ray_.diff),
-        isRayHit_ ? Vector4{ 1,0,0,1 } : Vector4{ 0,1,0,1 });
-    if (isRayHit_) {
-        PrimitiveDrawer::GetInstance()->DrawSphere({ rayHitPoint_, 0.05f, {} }, { 0,0,1,1 });
+    PrimitiveDrawer::GetInstance()->DrawLine(GetRay().origin, Add(GetRay().origin, GetRay().diff),
+        IsRayHit() ? Vector4{ 1,0,0,1 } : Vector4{ 0,1,0,1 });
+    if (IsRayHit()) {
+        PrimitiveDrawer::GetInstance()->DrawSphere({ GetRayHitPoint(), 0.05f, {} }, { 0,0,1,1 });
     }
 
     // ─── 前方壁の判定と押し戻し・反転処理 ───
@@ -501,9 +505,9 @@ void Enemy::RayCastUpdate()
 
 void Enemy::UpdateGravity()
 {
-    if (isRayHit_) {
-        rayHitPalamata_.groundY = rayHitPoint_.y;
-        float targetY = rayHitPalamata_.groundY + kHeightOffset;
+    if (IsRayHit()) {
+        rayHitParam_.groundY = GetRayHitPoint().y;
+        float targetY = rayHitParam_.groundY + kHeightOffset;
         float enemyBottomY = worldY_ - kHeightOffset;
 
         // 1. 上昇中（ジャンプ中 velocity_.y > 0.0f）の処理
@@ -515,7 +519,7 @@ void Enemy::UpdateGravity()
         else {
             // 2. 下降中または静止中（velocity_.y <= 0.0f）の着地・吸着処理
             // 地面以下に達した場合、または接地中の下り坂吸着範囲内にある場合
-            if (worldY_ <= targetY + 0.05f || (isGrounded_ && enemyBottomY <= rayHitPalamata_.groundY + 0.5f)) {
+            if (worldY_ <= targetY + 0.05f || (isGrounded_ && enemyBottomY <= rayHitParam_.groundY + 0.5f)) {
                 isGrounded_ = true;
                 worldY_ = targetY; // 地面に確実にスナップ
                 velocity_.y = 0.0f;
@@ -540,8 +544,8 @@ void Enemy::UpdateGravity()
         worldY_ += velocity_.y * deltaTime_;
 
         // 奈落の最低保証
-        if (worldY_ <= rayHitPalamata_.minY + kHeightOffset) {
-            worldY_ = rayHitPalamata_.minY + kHeightOffset;
+        if (worldY_ <= rayHitParam_.minY + kHeightOffset) {
+            worldY_ = rayHitParam_.minY + kHeightOffset;
             velocity_.y = 0.0f;
             isGrounded_ = true;
         }
@@ -576,8 +580,4 @@ float Enemy::GetCurrentDistance() const {
 
 const RailMover* Enemy::GetRailMover() const {
     return railMover_.get();
-}
-
-void Enemy::SetHitParticle(std::unique_ptr<ParticleEmitter> emitter) {
-    hitParticle_ = std::move(emitter);
 }

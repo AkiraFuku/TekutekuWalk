@@ -51,9 +51,9 @@ void Projectile::Initialize(const RailPath* path, const ProjectileSpawnParam& pa
     Vector3 railPos = railMover_->GetCurrentPosition();
     object_->SetTranslate({ railPos.x, worldY_, railPos.z });
 
-    collider_ = std::make_unique<Collider>();
-    collider_->initialize(this, radius_);
-
+    auto collider = std::make_unique<Collider>();
+    collider->initialize(this, radius_);
+    SetCollider(std::move(collider));
 }
 
 void Projectile::Update() {
@@ -80,7 +80,9 @@ void Projectile::Update() {
     object_->SetTranslate(finalPos);
 
     object_->Update();
-    collider_->Update();
+    if (auto* col = GetCollider()) {
+        col->Update();
+    }
 
     if (--lifeTimer_ <= 0) {
         isDead_ = true;

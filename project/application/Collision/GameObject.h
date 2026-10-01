@@ -34,7 +34,7 @@ class Collider;
 class GameObject
 {
 public:
-    virtual ~GameObject() = default;
+    virtual ~GameObject();
 
     // 衝突時に呼ばれる通知関数
     virtual void OnCollision(GameObject* other) {};
@@ -42,10 +42,15 @@ public:
     // 判定に必要な情報のゲッター
     virtual Vector3 GetWorldPosition() const = 0;
 
-    // Colliderのゲッター
+    // Colliderのゲッター・セッター
     virtual Collider* GetCollider() {
         return collider_.get();
     }
+    virtual const Collider* GetCollider() const {
+        return collider_.get();
+    }
+    void SetCollider(std::unique_ptr<Collider> collider);
+
     /// <summary>
     /// ぶつかった相手のカテゴリを識別するための関数
     /// </summary>
@@ -58,22 +63,25 @@ public:
     /// </summary>
     virtual void RayCastUpdate() {};
 
-    //
-    struct GroundRayPalamata
-    {
-        //レイキャスト当たり判定用の変数
-        float groundY = 0.0f;
-        float rayOffset = 1.0f;
-        const float minY = -10.0f; // 地面の最低Y座標
-        const float kRayOffset = 2.0f; // レイの始点を上に持ち上げるオフセット
+    // レイキャスト判定結果アクセサ
+    bool IsRayHit() const { return isRayHit_; }
+    void SetRayHit(bool hit) { isRayHit_ = hit; }
+    const Vector3& GetRayHitPoint() const { return rayHitPoint_; }
+    void SetRayHitPoint(const Vector3& point) { rayHitPoint_ = point; }
+    float GetRayHitDistance() const { return rayHitDistance_; }
+    void SetRayHitDistance(float distance) { rayHitDistance_ = distance; }
+    const Triangle& GetRayHitTriangle() const { return rayHitTriangle_; }
+    void SetRayHitTriangle(const Triangle& tri) { rayHitTriangle_ = tri; }
+    RayTriangleCollisionResult GetRayCollisionResult() const { return result_; }
+    void SetRayCollisionResult(RayTriangleCollisionResult res) { result_ = res; }
+    const Ray& GetRay() const { return ray_; }
+    void SetRay(const Ray& ray) { ray_ = ray; }
+    void SetRayOrigin(const Vector3& origin) { ray_.origin = origin; }
+    void SetRayDiff(const Vector3& diff) { ray_.diff = diff; }
 
-    };
 
-protected:
-
-    Vector3 Position_ = {};
-
-    Ray ray_={};
+private:
+    Ray ray_ = {};
     bool isRayHit_ = false;
     Vector3 rayHitPoint_ = {};
     float rayHitDistance_ = 0.0f;

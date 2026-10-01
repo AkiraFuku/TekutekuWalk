@@ -20,9 +20,10 @@ void Coin::Initialize(const std::string& modelName) {
     railMover_ = std::make_unique<RailMover>();
 
     // コライダーの初期化（Collectibleカテゴリ設定）
-    collider_ = std::make_unique<Collider>();
-    collider_->initialize(this, radius_);
-    collider_->SetCategory(CollisionCategory::Collectible);
+    auto collider = std::make_unique<Collider>();
+    collider->initialize(this, radius_);
+    collider->SetCategory(CollisionCategory::Collectible);
+    SetCollider(std::move(collider));
 }
 
 void Coin::SetModel(const std::string& modelName) {
@@ -34,8 +35,8 @@ void Coin::SetModel(const std::string& modelName) {
 
 void Coin::SetRadius(float radius) {
     radius_ = radius;
-    if (collider_) {
-        collider_->SetRadius(radius_);
+    if (auto* col = GetCollider()) {
+        col->SetRadius(radius_);
     }
 }
 
@@ -132,8 +133,8 @@ void Coin::Update() {
         object_->Update();
     }
 
-    if (collider_) {
-        collider_->SetPosition(position_);
+    if (auto* col = GetCollider()) {
+        col->SetPosition(position_);
     }
 }
 
@@ -159,8 +160,8 @@ void Coin::OnCollision(GameObject* other) {
     if (other->GetCategory() == CollisionCategory::Player) {
         isCollected_ = true;
         // 二重取得防止のためコライダーを即時無効化
-        if (collider_) {
-            collider_->SetCollide(false);
+        if (auto* col = GetCollider()) {
+            col->SetCollide(false);
         }
     }
 }

@@ -42,13 +42,14 @@ void Player::Initialize()
 
     InitializeRays();
 
-    collider_ = std::make_unique<Collider>();
-    collider_->initialize(this, Radius);
-    collider_->SetOffset({ 0.0f, 0.0f, 0.0f });
+    auto collider = std::make_unique<Collider>();
+    collider->initialize(this, radius_);
+    collider->SetOffset({ 0.0f, 0.0f, 0.0f });
 
     // モデル形状（2頭身）に合わせた頭部・胴体の球体判定（Sphere）を登録
-    collider_->AddSphere("Head", { 0.0f, headOffsetY_, 0.0f }, headRadius_);
-    collider_->AddSphere("Body", { 0.0f, bodyOffsetY_, 0.0f }, bodyRadius_);
+    collider->AddSphere("Head", { 0.0f, headOffsetY_, 0.0f }, headRadius_);
+    collider->AddSphere("Body", { 0.0f, bodyOffsetY_, 0.0f }, bodyRadius_);
+    SetCollider(std::move(collider));
 
     // 攻撃用ヒットボックス（Hitbox）の初期化
     attackCollider_ = std::make_unique<Collider>();
@@ -103,7 +104,9 @@ void Player::Update()
     HandleInput();
     UpdateSquashStretch();
     RayCastUpdate();
-    collider_->Update();
+    if (auto* col = GetCollider()) {
+        col->Update();
+    }
     if (attackCollider_) {
         attackCollider_->SetCollide(IsAttackHitboxActive());
         attackCollider_->Update();
@@ -133,8 +136,8 @@ void Player::UpdateTransform()
 {
     RayCastUpdate();
     UpdateRailPath();
-    if (collider_) {
-        collider_->Update();
+    if (auto* col = GetCollider()) {
+        col->Update();
     }
     if (attackCollider_) {
         attackCollider_->Update();
@@ -149,8 +152,8 @@ void Player::Draw()
     if (hitInvincibilityTimer_ > 0.0f) {
         const float kBlinkInterval = 0.08f;
         if (fmodf(hitInvincibilityTimer_, kBlinkInterval * 2.0f) < kBlinkInterval) {
-            if (collider_) {
-                collider_->Draw();
+            if (auto* col = GetCollider()) {
+                col->Draw();
             }
             return;
         }
@@ -158,8 +161,8 @@ void Player::Draw()
 
     object_->Draw();
 
-    if (collider_) {
-        collider_->Draw();
+    if (auto* col = GetCollider()) {
+        col->Draw();
     }
 
     // 攻撃ヒットボックスが有効な場合、オレンジ色のワイヤーフレーム球体を描画
@@ -188,8 +191,8 @@ void Player::SetRailPosition(const Vector2& position)
         // 4. 地面へのレイキャスト判定と高度補正（シーンが設定済みの場合）
         if (scene_) {
             RayCastUpdate();
-            if (isRayHit_) {
-                worldY_ = rayHitPoint_.y + heightOffset_;
+            if (IsRayHit()) {
+                worldY_ = GetRayHitPoint().y + heightOffset_;
                 UpdateRailPath(); // 重力補正後の高度で再度トランスフォーム更新
                 object_->Update();
             }
@@ -215,8 +218,8 @@ void Player::SetRail(RailPath* rail)
     // 地面へのレイキャスト判定と高度補正（シーンが設定済みの場合）
     if (scene_) {
         RayCastUpdate();
-        if (isRayHit_) {
-            worldY_ = rayHitPoint_.y + heightOffset_;
+        if (IsRayHit()) {
+            worldY_ = GetRayHitPoint().y + heightOffset_;
             UpdateRailPath(); // 重力補正後の高度で再度トランスフォーム更新
 
         }
@@ -336,13 +339,13 @@ void Player::UpdateRailPath()
     object_->Update();
 
     // コライダーの回転（Quaternion）およびモデル形状スフィアの同期
-    if (collider_) {
-        collider_->SetRotation(EulerToQuaternion({ 0.0f, currentAngle_, 0.0f }));
-        collider_->SetSphereOffset("Head", { 0.0f, headOffsetY_, 0.0f });
-        collider_->SetSphereRadius("Head", headRadius_);
-        collider_->SetSphereOffset("Body", { 0.0f, bodyOffsetY_, 0.0f });
-        collider_->SetSphereRadius("Body", bodyRadius_);
-        collider_->Update();
+    if (auto* col = GetCollider()) {
+        col->SetRotation(EulerToQuaternion({ 0.0f, currentAngle_, 0.0f }));
+        col->SetSphereOffset("Head", { 0.0f, headOffsetY_, 0.0f });
+        col->SetSphereRadius("Head", headRadius_);
+        col->SetSphereOffset("Body", { 0.0f, bodyOffsetY_, 0.0f });
+        col->SetSphereRadius("Body", bodyRadius_);
+        col->Update();
     }
 
     // 攻撃用ヒットボックスの回転・位置の同期（前方に突き出し配置）
@@ -365,20 +368,20 @@ void Player::CheckGroundCollision()
     if (hitFloor) {
         // 急すぎる斜面（崖・壁）は地面として扱わない（登れる傾斜角の制限: cos約49度以上で歩行可能）
         bool isWalkableSlope = (floorRay->hitNormal.y >= kMaxSlopeCos);
-        rayHitPalamata_.groundY = floorRay->crossPoint.y;
+        rayHitParam_.groundY = floorRay->crossPoint.y;
 
         if (isWalkableSlope) {
             const float kGroundEpsilon = 0.05f;
 
             // 1. 通常の接地（足元が地面付近、またはめり込んでいる場合）
-            if (playerBottomY <= rayHitPalamata_.groundY + kGroundEpsilon && velocity_.y <= 0.0f) {
+            if (playerBottomY <= rayHitParam_.groundY + kGroundEpsilon && velocity_.y <= 0.0f) {
                 isGrounded_ = true;
                 isJumping_ = false;
             }
             // 2. 下り坂・段差下り吸着（Ground Snapping）:
             // 直前に接地しており、現在ジャンプ中でなく、地面が下がった距離がスナップ範囲内であれば吸着
             else if (isGrounded_ && !isJumping_ && velocity_.y <= 0.0f &&
-                     playerBottomY <= rayHitPalamata_.groundY + kGroundSnapDistance) {
+                     playerBottomY <= rayHitParam_.groundY + kGroundSnapDistance) {
                 isGrounded_ = true;
             } else {
                 isGrounded_ = false;
@@ -389,7 +392,7 @@ void Player::CheckGroundCollision()
         }
     } else {
         isGrounded_ = false;
-        rayHitPalamata_.groundY = -FLT_MAX;
+        rayHitParam_.groundY = -FLT_MAX;
     }
 
     // ─── 絶対的地面めり込み防止ガード ─────────────────────────
@@ -405,13 +408,13 @@ void Player::CheckGroundCollision()
     }
     // めり込み補正・下り坂吸着補正（接地時に地面の高さに合わせる）
     else if (isGrounded_ && hitFloor) {
-        worldY_ = rayHitPalamata_.groundY + heightOffset_;
+        worldY_ = rayHitParam_.groundY + heightOffset_;
         velocity_.y = 0.0f;
     }
 
     // 奈落の最低保証（落下・死の防止処理：既存のコードを維持）
-    if (!hitFloor && worldY_ <= rayHitPalamata_.minY + heightOffset_) {
-        worldY_ = rayHitPalamata_.minY + heightOffset_;
+    if (!hitFloor && worldY_ <= rayHitParam_.minY + heightOffset_) {
+        worldY_ = rayHitParam_.minY + heightOffset_;
         velocity_.y = 0.0f;
         isGrounded_ = true;
         isJumping_ = false;
@@ -457,10 +460,10 @@ void Player::InitializeRays() {
     CollisionRayInfo floorRay;
     floorRay.name = "Floor";
     // 実際のoriginやdiffは毎フレーム更新
-    floorRay.ray.diff = { 0.0f, -10.0f - rayHitPalamata_.rayOffset, 0.0f };
+    floorRay.ray.diff = { 0.0f, -10.0f - rayHitParam_.rayOffset, 0.0f };
     rayList_.push_back(floorRay);
 
-    float wallLength = Radius + 0.2f;
+    float wallLength = radius_ + 0.2f;
 
     CollisionRayInfo frontRay;
     frontRay.name = "FrontWall";
@@ -743,11 +746,11 @@ void Player::UpdateRayCollisions()
     // 地面判定の更新
     auto floorRay = GetRayInfo("Floor");
     if (floorRay) {
-        isRayHit_ = floorRay->isColide;
-        rayHitDistance_ = floorRay->distance;
-        rayHitPoint_ = floorRay->crossPoint;
-        rayHitTriangle_ = floorRay->hitTriangle;
-        result_ = RayTriangleCollisionResult::FrontFace;
+        SetRayHit(floorRay->isColide);
+        SetRayHitDistance(floorRay->distance);
+        SetRayHitPoint(floorRay->crossPoint);
+        SetRayHitTriangle(floorRay->hitTriangle);
+        SetRayCollisionResult(RayTriangleCollisionResult::FrontFace);
         isCurrentGroundOneway_ = (floorRay->isColide && floorRay->hitTriangle.isOneway);
     } else {
         isCurrentGroundOneway_ = false;

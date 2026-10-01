@@ -105,11 +105,11 @@ public:
     void RayCastUpdate()override;
     void UpdateGravity(); // 重力の更新処理
     // enemy状態取得
-    IEnemyState* GetState() {
+    IEnemyState* GetState() const {
         return state_.get();
     }
     // enemy行動ビヘイビア取得
-    IEnemyBehavior* GetBehavior() {
+    IEnemyBehavior* GetBehavior() const {
         return behavior_.get();
     };
     //状態名称取得
@@ -131,7 +131,7 @@ public:
     void SetScene(Scene* scene) {
         scene_ = scene;
     }
-    Scene* GetScene() {
+    Scene* GetScene() const {
         if (scene_)
         {
             return scene_;
@@ -154,7 +154,7 @@ public:
 
         velocity_ += velocity;
     }
-    Vector3 GetVelocity() {
+    Vector3 GetVelocity() const {
         return velocity_;
     }
 
@@ -165,13 +165,13 @@ public:
     };
     float GetCurrentDistance() const;
     const RailMover* GetRailMover() const;
-    float GetDeltaTime() {
+    float GetDeltaTime() const {
         return deltaTime_;
     }
 
-    float GetGroundY() {
+    float GetGroundY() const {
 
-        return rayHitPalamata_.groundY;
+        return rayHitParam_.groundY;
     }
 
     float GetMoveDirection() const { return moveDirection_; }
@@ -179,49 +179,14 @@ public:
     void Turn() { moveDirection_ *= -1.0f; turnCooldownTimer_ = kTurnCooldown_; }
     bool IsWallHit() const { return isWallHit_; }
 
-    // --- 追加アクセッサ ---
-    // 3Dオブジェクト・テクスチャ
-    Object3d* GetObject3d() const { return object_.get(); }
+    // --- 必要なアクセサのみに整理 ---
     void SetTexture(const std::string& texturePath) { if (object_) { object_->SetTexture(texturePath); } }
-    // レールムーバー（非const版）
     RailMover* GetRailMover() { return railMover_.get(); }
-    // カメラ
     Camera* GetCamera() const { return camera_; }
-    // 移動・タイマー関連
-    float GetTurnCooldownTimer() const { return turnCooldownTimer_; }
-    void SetTurnCooldownTimer(float timer) { turnCooldownTimer_ = timer; }
-    void SetWallHit(bool hit) { isWallHit_ = hit; }
-    float GetWallRayDistance() const { return wallRayDistance_; }
-    void SetWallRayDistance(float dist) { wallRayDistance_ = dist; }
-    // 物理・接地関連
-    void SetGrounded(bool grounded) { isGrounded_ = grounded; }
-    float GetWorldY() const { return worldY_; }
-    void SetWorldY(float y) { worldY_ = y; }
     float GetGravityScale() const { return gravityScale_; }
-    // 被弾・無敵・ノックバック・死亡関連
     bool IsDamaged() const { return isDamaged_; }
-    void SetDamaged(bool damaged) { isDamaged_ = damaged; }
-    float GetHitInvincibilityTimer() const { return hitInvincibilityTimer_; }
-    void SetHitInvincibilityTimer(float timer) { hitInvincibilityTimer_ = timer; }
-    void SetKnockback(bool knockback) { isKnockback_ = knockback; }
-    float GetKnockbackTimer() const { return knockbackTimer_; }
-    void SetKnockbackTimer(float timer) { knockbackTimer_ = timer; }
-    float GetKnockbackDirection() const { return knockbackDirection_; }
-    void SetKnockbackDirection(float dir) { knockbackDirection_ = dir; }
-    float GetKnockbackTilt() const { return knockbackTilt_; }
-    void SetKnockbackTilt(float tilt) { knockbackTilt_ = tilt; }
-    float GetKnockbackRoll() const { return knockbackRoll_; }
-    void SetKnockbackRoll(float roll) { knockbackRoll_ = roll; }
     bool IsDeathFinished() const { return isDeathFinished_; }
-    void SetDeathFinished(bool finished) { isDeathFinished_ = finished; }
-    // パーティクル
-    ParticleEmitter* GetHitParticle() const { return hitParticle_.get(); }
-    void SetHitParticle(std::unique_ptr<ParticleEmitter> emitter);
-    // コリジョン・その他
     void SetRadius(float radius) { radius_ = radius; }
-    const GameObject::GroundRayPalamata& GetRayHitPalamata() const { return rayHitPalamata_; }
-    void SetGroundY(float groundY) { rayHitPalamata_.groundY = groundY; }
-    void SetRayOffset(float offset) { rayHitPalamata_.rayOffset = offset; }
     EnemyType GetEnemyType() const { return enemyType_; }
     void SetEnemyType(EnemyType type) { enemyType_ = type; }
     const Vector3& GetInitialRotationOffset() const { return initialRotationOffset_; }
@@ -280,7 +245,14 @@ private:
 
     Scene* scene_ = nullptr; // Enemyが所属するシーンへのポインタ
 
-    GameObject::GroundRayPalamata rayHitPalamata_;
+    // 地面レイキャスト判定パラメータ
+    struct GroundRayParam {
+        float groundY = 0.0f;
+        float rayOffset = 1.0f;
+        const float minY = -10.0f;     // 地面の最低Y座標
+        const float kRayOffset = 2.0f; // レイの始点を上に持ち上げるオフセット
+    };
+    GroundRayParam rayHitParam_;
     const float kHeightOffset = 0.5f; // プレイヤーの高さオフセット（地面からの距離）
     EnemyType enemyType_ = EnemyType::Normal;
     Vector3 initialRotationOffset_ = { 0.0f, 0.0f, 0.0f };

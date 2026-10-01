@@ -16,9 +16,9 @@ void GoalObject::Initialize() {
     object_->SetModel("goal.obj");
 
     railMover_ = std::make_unique<RailMover>();
-    collider_ = std::make_unique<Collider>();
-    collider_->initialize(this, radius_);
-
+    auto collider = std::make_unique<Collider>();
+    collider->initialize(this, radius_);
+    SetCollider(std::move(collider));
 }
 
 void GoalObject::SetRail(RailPath* rail) {
