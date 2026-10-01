@@ -378,6 +378,9 @@
     <ClCompile Include="application\object\Enemy\ShieldEnemy.cpp">
       <Filter>App\Object\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="application\object\Enemy\EnemyFactory.cpp">
+      <Filter>App\Object\Enemy</Filter>
+    </ClCompile>
     <ClCompile Include="application\object\Robot\HoverRobot.cpp">
       <Filter>App\Object\Robot</Filter>
     </ClCompile>
@@ -705,6 +708,9 @@
       <Filter>App\Object\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="application\object\Enemy\ShieldEnemy.h">
+      <Filter>App\Object\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="application\object\Enemy\EnemyFactory.h">
       <Filter>App\Object\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="application\object\Robot\HoverRobot.h">

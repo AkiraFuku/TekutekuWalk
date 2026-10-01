@@ -19,7 +19,9 @@ void ChaseEnemy::Initialize() {
     SetMoveSpeed(patrolSpeed_);
 
     // 追跡専用ビヘイビアを設定
-    ChangeBehavior(std::make_unique<EnemyBehaviorChase>());
+    auto chaseBehavior = std::make_unique<EnemyBehaviorChase>();
+    chaseBehavior->SetParams(searchRadius_, lostDistance_, chaseSpeed_, patrolSpeed_, retreatSpeed_, retreatDuration_);
+    ChangeBehavior(std::move(chaseBehavior));
 
     // 撃破時に出現するロボットを設定
     SetRobot(std::make_unique<TestRobot>());
@@ -29,12 +31,44 @@ void ChaseEnemy::Update() {
     Enemy::Update();
 }
 
+void ChaseEnemy::ApplyProperties(const std::unordered_map<std::string, std::string>& properties) {
+    auto itRad = properties.find("search_radius");
+    if (itRad != properties.end()) {
+        try { SetSearchRadius(std::stof(itRad->second)); } catch (...) {}
+    }
+    auto itLost = properties.find("lost_distance");
+    if (itLost != properties.end()) {
+        try { SetLostDistance(std::stof(itLost->second)); } catch (...) {}
+    }
+    auto itSpeed = properties.find("chase_speed");
+    if (itSpeed != properties.end()) {
+        try { SetChaseSpeed(std::stof(itSpeed->second)); } catch (...) {}
+    }
+    auto itPatrol = properties.find("patrol_speed");
+    if (itPatrol != properties.end()) {
+        try {
+            SetPatrolSpeed(std::stof(itPatrol->second));
+            SetMoveSpeed(patrolSpeed_);
+        } catch (...) {}
+    }
+
+    if (auto chaseBehavior = dynamic_cast<EnemyBehaviorChase*>(GetBehavior())) {
+        chaseBehavior->SetParams(searchRadius_, lostDistance_, chaseSpeed_, patrolSpeed_, retreatSpeed_, retreatDuration_);
+    }
+}
+
 void ChaseEnemy::OnCollideWithPlayer(Player* player) {
     if (!player) return;
-    // すでに離脱中、または被弾・ノックバック・死亡演出中はスキップ
-    if (isRetreating_ || IsDamaged() || IsKnockback() || IsDeathFinished()) return;
+    // すでに被弾・ノックバック・死亡演出中はスキップ
+    if (IsDamaged() || IsKnockback() || IsDeathFinished()) return;
 
-    StartRetreat(player);
+    if (auto chaseBehavior = dynamic_cast<EnemyBehaviorChase*>(GetBehavior())) {
+        if (chaseBehavior->IsRetreating()) return;
+        chaseBehavior->StartRetreat(this, player);
+    } else {
+        if (isRetreating_) return;
+        StartRetreat(player);
+    }
 }
 
 void ChaseEnemy::StartRetreat(Player* player) {

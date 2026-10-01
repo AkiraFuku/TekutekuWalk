@@ -1,8 +1,7 @@
 #include "EnemyBehavior.h"
 #include "Enemy.h"
 #include "EnemyAction.h"
-#include "ChaseEnemy.h"
-#include "GameScene.h"
+#include "Scene.h"
 #include "Player.h"
 #include "MathFunction.h"
 
@@ -32,25 +31,44 @@ void EnemyBehaviorChase::Initialize(Enemy* enemy)
     currentAction_ = std::make_unique<MoveAction>(1.0f);
 }
 
+void EnemyBehaviorChase::SetParams(float searchRad, float lostDist, float chaseSpd, float patrolSpd, float retreatSpd, float retreatDur)
+{
+    searchRadius_ = searchRad;
+    lostDistance_ = lostDist;
+    chaseSpeed_ = chaseSpd;
+    patrolSpeed_ = patrolSpd;
+    retreatSpeed_ = retreatSpd;
+    retreatDuration_ = retreatDur;
+}
+
+void EnemyBehaviorChase::StartRetreat(Enemy* enemy, Player* player)
+{
+    if (!enemy) return;
+    isRetreating_ = true;
+    retreatTimer_ = retreatDuration_;
+
+    if (player) {
+        float enemyDist = enemy->GetCurrentDistance();
+        float playerDist = player->GetCurrentDistance();
+        enemy->SetMoveDirection((playerDist >= enemyDist) ? -1.0f : 1.0f);
+    }
+    enemy->SetMoveSpeed(retreatSpeed_);
+}
+
 void EnemyBehaviorChase::Update(Enemy* enemy)
 {
     if (!enemy) return;
 
-    ChaseEnemy* chaser = dynamic_cast<ChaseEnemy*>(enemy);
-
-    float searchRadius = chaser ? chaser->GetSearchRadius() : 10.0f;
-    float lostDistance = chaser ? chaser->GetLostDistance() : 14.0f;
-    float chaseSpeed   = chaser ? chaser->GetChaseSpeed()   : 5.5f;
-    float patrolSpeed  = chaser ? chaser->GetPatrolSpeed()  : 2.0f;
-    bool isChasing     = chaser ? chaser->IsChasing()        : false;
-
-    // シーンからプレイヤーを取得
-    GameScene* gs = dynamic_cast<GameScene*>(enemy->GetScene());
-    Player* player = gs ? gs->GetPlayer() : nullptr;
+    // シーンからプレイヤーを取得（ポリモーフィック）
+    Player* player = enemy->GetScene() ? enemy->GetScene()->GetPlayer() : nullptr;
 
     // 【離脱フェーズ】プレイヤー接触後の離脱処理
-    if (chaser && chaser->IsRetreating()) {
-        chaser->UpdateRetreatTimer(enemy->GetDeltaTime());
+    if (isRetreating_) {
+        retreatTimer_ -= enemy->GetDeltaTime();
+        if (retreatTimer_ <= 0.0f) {
+            retreatTimer_ = 0.0f;
+            isRetreating_ = false;
+        }
 
         // プレイヤーから確実に離れる向きを維持
         if (player) {
@@ -58,7 +76,7 @@ void EnemyBehaviorChase::Update(Enemy* enemy)
             float playerDist = player->GetCurrentDistance();
             enemy->SetMoveDirection((playerDist >= enemyDist) ? -1.0f : 1.0f);
         }
-        enemy->SetMoveSpeed(chaser->GetRetreatSpeed());
+        enemy->SetMoveSpeed(retreatSpeed_);
 
         if (currentAction_) {
             currentAction_->Execute(enemy);
@@ -74,19 +92,15 @@ void EnemyBehaviorChase::Update(Enemy* enemy)
         float distance = Length(diff);
 
         // 索敵・追跡の判定（ヒステリシスを持たせてバタつき防止）
-        if (!isChasing && distance <= searchRadius) {
-            isChasing = true; // 検知範囲内に入ったため追跡開始
-        } else if (isChasing && distance >= lostDistance) {
-            isChasing = false; // 見失い距離を超えたため巡回復帰
+        if (!isChasing_ && distance <= searchRadius_) {
+            isChasing_ = true; // 検知範囲内に入ったため追跡開始
+        } else if (isChasing_ && distance >= lostDistance_) {
+            isChasing_ = false; // 見失い距離を超えたため巡回復帰
         }
 
-        if (chaser) {
-            chaser->SetChasing(isChasing);
-        }
-
-        if (isChasing) {
+        if (isChasing_) {
             // 【追跡中】プレイヤーの方向へ向きを変えて高速移動
-            enemy->SetMoveSpeed(chaseSpeed);
+            enemy->SetMoveSpeed(chaseSpeed_);
 
             float enemyDist = enemy->GetCurrentDistance();
             float playerDist = player->GetCurrentDistance();
@@ -98,13 +112,11 @@ void EnemyBehaviorChase::Update(Enemy* enemy)
             }
         } else {
             // 【通常巡回中】低速で移動
-            enemy->SetMoveSpeed(patrolSpeed);
+            enemy->SetMoveSpeed(patrolSpeed_);
         }
     } else {
-        if (chaser) {
-            chaser->SetChasing(false);
-        }
-        enemy->SetMoveSpeed(patrolSpeed);
+        isChasing_ = false;
+        enemy->SetMoveSpeed(patrolSpeed_);
     }
 
     if (currentAction_) {

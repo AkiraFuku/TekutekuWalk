@@ -42,6 +42,21 @@ public:
         return "Chase";
     }
 
+    void SetParams(float searchRad, float lostDist, float chaseSpd, float patrolSpd, float retreatSpd = 4.5f, float retreatDur = 2.0f);
+    void StartRetreat(Enemy* enemy, Player* player);
+    bool IsChasing() const { return isChasing_; }
+    bool IsRetreating() const { return isRetreating_; }
+
 private:
     std::unique_ptr<IEnemyAction> currentAction_;
+    float searchRadius_ = 10.0f;
+    float lostDistance_ = 14.0f;
+    float chaseSpeed_ = 5.5f;
+    float patrolSpeed_ = 2.0f;
+    bool isChasing_ = false;
+
+    float retreatSpeed_ = 4.5f;
+    float retreatDuration_ = 2.0f;
+    float retreatTimer_ = 0.0f;
+    bool isRetreating_ = false;
 };

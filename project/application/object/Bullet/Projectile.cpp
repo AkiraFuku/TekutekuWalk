@@ -3,7 +3,7 @@
 #include "RailMover.h"
 #include "ModelManager.h"
 #include "Collider.h"
-#include "GameScene.h"
+#include "Scene.h"
 #include "DrawFunction.h"
 #include "Physics.h"
 
@@ -104,10 +104,8 @@ void Projectile::OnCollision( GameObject* other) {
 
 bool Projectile::CheckMapCollision(const Vector3& prevPos, const Vector3& finalPos) {
     if (!scene_ || isDead_) return false;
-    auto gs = dynamic_cast<GameScene*>(scene_);
-    if (!gs) return false;
 
-    const auto& triangles = gs->GetTriangle();
+    const auto& triangles = scene_->GetTriangle();
     if (triangles.empty()) return false;
 
     Vector3 moveVec = Subtract(finalPos, prevPos);

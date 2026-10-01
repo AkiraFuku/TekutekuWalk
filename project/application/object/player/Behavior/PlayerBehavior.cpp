@@ -22,18 +22,20 @@ void BehaviorRoot::Update(Player* player) {
 void BehaviorRoot::Finalize(Player* player) {}
 
 void BehaviorRoot::HandleInput(Player* player, ICommand* command) {
+    if (!command) return;
     auto state = player->GetState();
     if (!state) return;
 
-    auto moveAction = state->GetMoveAction();
+    CommandType type = command->GetType();
 
-    if (dynamic_cast<DashCommand*>(command)) {
+    if (type == CommandType::Dash) {
         player->SetDashing(true);
         return;
     }
 
-    if (auto moveCmd = dynamic_cast<MoveCommand*>(command)) {
-        if (moveAction) {
+    if (type == CommandType::Move) {
+        auto moveCmd = static_cast<MoveCommand*>(command);
+        if (auto moveAction = state->GetMoveAction()) {
             static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
             moveAction->Execute(player);
         }
@@ -43,27 +45,27 @@ void BehaviorRoot::HandleInput(Player* player, ICommand* command) {
     auto factory = state->GetFactory();
     if (!factory) return;
 
-    if (dynamic_cast<SlideCommand*>(command)) {
+    if (type == CommandType::Slide) {
         if (player->IsGround()) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Slide));
             return;
         }
     }
 
-    if (dynamic_cast<JumpCommand*>(command)) {
+    if (type == CommandType::Jump) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Jump));
     }
-    if (dynamic_cast<AttackCommand*>(command)) {
+    if (type == CommandType::Attack) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
     }
-    if (dynamic_cast<GuardCommand*>(command)) {
+    if (type == CommandType::Guard) {
         if (dynamic_cast<StateShield*>(state)) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Guard));
             return;
         }
     }
 
-    if (dynamic_cast<PreShootCommand*>(command)) {
+    if (type == CommandType::PreShoot) {
         if (dynamic_cast<IStateRideOn*>(state)) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
         }
@@ -156,13 +158,15 @@ void BehaviorJump::Update(Player* player) {
 void BehaviorJump::Finalize(Player* player) {}
 
 void BehaviorJump::HandleInput(Player* player, ICommand* command) {
+    if (!command) return;
     auto state = player->GetState();
     if (!state) return;
 
-    auto moveAction = state->GetMoveAction();
+    CommandType type = command->GetType();
 
-    if (auto moveCmd = dynamic_cast<MoveCommand*>(command)) {
-        if (moveAction) {
+    if (type == CommandType::Move) {
+        auto moveCmd = static_cast<MoveCommand*>(command);
+        if (auto moveAction = state->GetMoveAction()) {
             static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
             moveAction->Execute(player);
         }
@@ -173,14 +177,14 @@ void BehaviorJump::HandleInput(Player* player, ICommand* command) {
     if (!factory) return;
 
     // 空中滞空中でもジャンプボタンの先行入力を受け付ける
-    if (dynamic_cast<JumpCommand*>(command)) {
+    if (type == CommandType::Jump) {
         player->Jump();
     }
 
-    if (dynamic_cast<AttackCommand*>(command)) {
+    if (type == CommandType::Attack) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
     }
-    if (dynamic_cast<PreShootCommand*>(command)) {
+    if (type == CommandType::PreShoot) {
         if (dynamic_cast<IStateRideOn*>(state)) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
         }
@@ -197,12 +201,17 @@ void BehaviorAim::Update(Player* player) {}
 void BehaviorAim::Finalize(Player* player) {}
 
 void BehaviorAim::HandleInput(Player* player, ICommand* command) {
-    if (auto aimCmd = dynamic_cast<AimCommand*>(command)) {
+    if (!command) return;
+
+    CommandType type = command->GetType();
+
+    if (type == CommandType::Aim) {
+        auto aimCmd = static_cast<AimCommand*>(command);
         aimX_ = aimCmd->GetX();
         aimY_ = aimCmd->GetY();
     }
 
-    if (dynamic_cast<ShootCommand*>(command)) {
+    if (type == CommandType::Shoot) {
         auto state = dynamic_cast<IStateRideOn*>(player->GetState());
         if (state) {
             auto shootAction = state->GetShootAction();
@@ -240,11 +249,15 @@ void BehaviorBound::Update(Player* player) {
 void BehaviorBound::Finalize(Player* player) {}
 
 void BehaviorBound::HandleInput(Player* player, ICommand* command) {
+    if (!command) return;
     auto state = player->GetState();
     if (!state) return;
 
+    CommandType type = command->GetType();
+
     // 空中・着地問わず左右移動は受け付ける
-    if (auto moveCmd = dynamic_cast<MoveCommand*>(command)) {
+    if (type == CommandType::Move) {
+        auto moveCmd = static_cast<MoveCommand*>(command);
         if (auto moveAction = state->GetMoveAction()) {
             static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
             moveAction->Execute(player);
@@ -254,10 +267,10 @@ void BehaviorBound::HandleInput(Player* player, ICommand* command) {
     auto factory = state->GetFactory();
     if (!factory) return;
 
-    if (dynamic_cast<AttackCommand*>(command)) {
+    if (type == CommandType::Attack) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
     }
-    if (dynamic_cast<PreShootCommand*>(command)) {
+    if (type == CommandType::PreShoot) {
         if (dynamic_cast<IStateRideOn*>(state)) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
         }
@@ -296,8 +309,9 @@ void BehaviorSlide::Finalize(Player* player) {
 }
 
 void BehaviorSlide::HandleInput(Player* player, ICommand* command) {
+    if (!command) return;
     // スライディング中にジャンプ入力でキャンセル可能（スライディングジャンプ）
-    if (dynamic_cast<JumpCommand*>(command)) {
+    if (command->GetType() == CommandType::Jump) {
         auto state = player->GetState();
         if (state && state->GetFactory()) {
             state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Jump));
@@ -354,11 +368,15 @@ void BehaviorHover::Update(Player* player) {
 void BehaviorHover::Finalize(Player* player) {}
 
 void BehaviorHover::HandleInput(Player* player, ICommand* command) {
+    if (!command) return;
     auto state = player->GetState();
     if (!state) return;
 
+    CommandType type = command->GetType();
+
     // 空中での左右移動は高速滑空
-    if (auto moveCmd = dynamic_cast<MoveCommand*>(command)) {
+    if (type == CommandType::Move) {
+        auto moveCmd = static_cast<MoveCommand*>(command);
         if (auto moveAction = state->GetMoveAction()) {
             static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
             moveAction->Execute(player);
@@ -368,10 +386,10 @@ void BehaviorHover::HandleInput(Player* player, ICommand* command) {
     auto factory = state->GetFactory();
     if (!factory) return;
 
-    if (dynamic_cast<AttackCommand*>(command)) {
+    if (type == CommandType::Attack) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
     }
-    if (dynamic_cast<PreShootCommand*>(command)) {
+    if (type == CommandType::PreShoot) {
         if (dynamic_cast<IStateRideOn*>(state)) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
         }
@@ -430,11 +448,14 @@ void BehaviorGuard::Finalize(Player* player) {
 }
 
 void BehaviorGuard::HandleInput(Player* player, ICommand* command) {
+    if (!command) return;
     auto state = player->GetState();
     if (!state) return;
 
+    CommandType type = command->GetType();
+
     // ガード中に攻撃ボタンでシールドバッシュ発動！
-    if (dynamic_cast<AttackCommand*>(command)) {
+    if (type == CommandType::Attack) {
         if (!isBashing_) {
             isBashing_ = true;
             bashTimer_ = 0.0f;
@@ -446,7 +467,7 @@ void BehaviorGuard::HandleInput(Player* player, ICommand* command) {
     }
 
     // ジャンプキーでガード解除＆ジャンプへ
-    if (dynamic_cast<JumpCommand*>(command)) {
+    if (type == CommandType::Jump) {
         if (auto factory = state->GetFactory()) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Jump));
         }

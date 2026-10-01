@@ -16,11 +16,7 @@
 #include "TextureManager.h"
 #include "RailPath.h"
 #include "Enemy.h"
-#include "TestEnemy.h"
-#include "BoundEnemy.h"
-#include "ChaseEnemy.h"
-#include "HoverEnemy.h"
-#include "ShieldEnemy.h"
+#include "EnemyFactory.h"
 #include "CollisionManager.h"
 #include "Physics.h"
 #include "Projectile.h"
@@ -681,55 +677,11 @@ Enemy* GameScene::AddEnemy(Vector2 pos, Enemy::EnemyType enemyType, const std::u
     RailPath* rail = GetStageRaill();
     if (!rail) return nullptr;
 
-    std::unique_ptr<Enemy> newEnemy = nullptr;
+    std::unique_ptr<Enemy> newEnemy = EnemyFactory::Create(enemyType);
+    if (!newEnemy) return nullptr;
 
-    // 1. タイプに応じて生成する派生クラスを切り替える (ファクトリー処理)
-    switch (enemyType)
-    {
-    case Enemy::EnemyType::Normal:
-        newEnemy = std::make_unique<TestEnemy>();
-        break;
-
-    case Enemy::EnemyType::Bound:
-        newEnemy = std::make_unique<BoundEnemy>();
-        break;
-
-    case Enemy::EnemyType::Chase:
-    {
-        auto chase = std::make_unique<ChaseEnemy>();
-        // カスタムプロパティ（索敵範囲・見失い距離・追跡速度・巡回速度）があれば反映
-        auto itRad = properties.find("search_radius");
-        if (itRad != properties.end()) {
-            try { chase->SetSearchRadius(std::stof(itRad->second)); } catch (...) {}
-        }
-        auto itLost = properties.find("lost_distance");
-        if (itLost != properties.end()) {
-            try { chase->SetLostDistance(std::stof(itLost->second)); } catch (...) {}
-        }
-        auto itSpeed = properties.find("chase_speed");
-        if (itSpeed != properties.end()) {
-            try { chase->SetChaseSpeed(std::stof(itSpeed->second)); } catch (...) {}
-        }
-        auto itPatrol = properties.find("patrol_speed");
-        if (itPatrol != properties.end()) {
-            try { chase->SetPatrolSpeed(std::stof(itPatrol->second)); } catch (...) {}
-        }
-        newEnemy = std::move(chase);
-        break;
-    }
-
-    case Enemy::EnemyType::Hover:
-        newEnemy = std::make_unique<HoverEnemy>();
-        break;
-
-    case Enemy::EnemyType::Shield:
-        newEnemy = std::make_unique<ShieldEnemy>();
-        break;
-
-    default:
-        newEnemy = std::make_unique<TestEnemy>();
-        break;
-    }
+    // 各派生クラスにパラメータ設定をポリモーフィックに委任
+    newEnemy->ApplyProperties(properties);
 
     newEnemy->Initialize();
 
@@ -799,7 +751,14 @@ void GameScene::AddTriangles(std::vector<Triangle> triangles)
     triangles_.insert(triangles_.end(), triangles.begin(), triangles.end());
 }
 
-const std::vector<Triangle>& GameScene::GetTriangle()
+void GameScene::RequestCameraShake(float duration, float power)
+{
+    if (cameraController) {
+        cameraController->RequestShake(duration, power);
+    }
+}
+
+const std::vector<Triangle>& GameScene::GetTriangle() const
 {
     if (stageManager_) {
         return stageManager_->GetAllTriangles();

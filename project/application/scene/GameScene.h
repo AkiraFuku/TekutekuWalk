@@ -43,12 +43,13 @@ public:
     void CheckPlayerFall();
 
 
-    Player* GetPlayer() {
+    Player* GetPlayer() override {
         return player.get();
     }
     CameraController* GetCamera() {
         return cameraController.get();
     }
+    void RequestCameraShake(float duration = 0.1f, float power = 1.0f) override;
     RailPath* GetStageRaill();
     const std::vector<std::unique_ptr<Enemy>>& GetEnemies() {
         return enemies_;
@@ -56,7 +57,7 @@ public:
     const std::vector<std::unique_ptr<Projectile>>& GetProjectile() {
         return projectiles_;
     }
-    const std::vector<Triangle>& GetTriangle();
+    const std::vector<Triangle>& GetTriangle() const override;
     GoalObject* GetGoal() {
         return goal_.get();
     }
@@ -153,7 +154,7 @@ private:
 
 public:
     // ヒットストップを開始する関数
-    void TriggerHitStop(float frames = 0.1f) {
+    void TriggerHitStop(float frames = 0.1f) override {
         stopTimer_ = frames;
     }
     bool IsHitStopActive() const {

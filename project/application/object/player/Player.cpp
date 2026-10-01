@@ -503,10 +503,8 @@ void Player::RayCastUpdate()
 void Player::UpdateRayCollisions()
 {
     if (!scene_) return;
-    auto gs = dynamic_cast<GameScene*>(scene_);
-    if (!gs) return;
 
-    const std::vector<Triangle>& triangles = gs->GetTriangle();
+    const std::vector<Triangle>& triangles = scene_->GetTriangle();
 
     Vector3 center = object_->GetTranslate();
 
@@ -947,21 +945,16 @@ void Player::OnCollision(GameObject* other) {
         Enemy* enemy = dynamic_cast<Enemy*>(other);
         if (!enemy) return;
 
-        const char* playerBehavior = GetBehaviorName();
-        const char* playerState = GetStateName();
-
-        const char* enemyState = enemy->GetStateName();
-
         // プレイヤーが攻撃中の場合
-        if (playerBehavior && strcmp(playerBehavior, "Attack") == 0) {
-            if (enemyState && strcmp(enemyState, "Dead") != 0) {
+        if (IsAttacking()) {
+            if (!enemy->IsDead()) {
                 OnAttackHit(enemy);
             }
             return;
         }
 
         // 敵が通常状態の場合、ダメージおよびノックバック
-        if (enemyState && strcmp(enemyState, "Normal") == 0) {
+        if (enemy->CanDamagePlayer()) {
             if (hitInvincibilityTimer_ <= 0.0f) {
                 // レール上の位置関係からノックバック方向を決定
                 int knockDir = -1;
@@ -977,9 +970,9 @@ void Player::OnCollision(GameObject* other) {
                 }
                 playHundle_ = Audio::GetInstance()->PlayAudio(DamageSE_, false, 0.75);
 
-                if (auto scene = dynamic_cast<GameScene*>(scene_))
+                if (scene_)
                 {
-                    scene->GetCamera()->ShakeCamera();
+                    scene_->RequestCameraShake();
                 }
 
                 TakeDamage(knockDir);
@@ -1017,6 +1010,13 @@ void Player::SetAttackHitboxActive(bool active) {
 
 bool Player::IsAttackHitboxActive() const {
     return isAttackHitboxActive_ || debugForceAttackHitbox_;
+}
+
+bool Player::IsAttacking() const {
+    if (baseState_ && baseState_->GetBehavior()) {
+        return baseState_->GetBehavior()->IsAttacking();
+    }
+    return false;
 }
 
 void Player::OnAttackHit(GameObject* target) {

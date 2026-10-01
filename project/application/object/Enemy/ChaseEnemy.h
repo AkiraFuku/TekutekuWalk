@@ -10,6 +10,7 @@ public:
     void Update() override;
     void Draw() override;
     void OnCollideWithPlayer(Player* player) override; // プレイヤー接触時の退避処理
+    void ApplyProperties(const std::unordered_map<std::string, std::string>& properties) override;
 
     // 追跡パラメータのゲッター・セッター
     float GetSearchRadius() const { return searchRadius_; }

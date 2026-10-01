@@ -3,10 +3,14 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 #include "Audio.h"
+#include "DrawFunction.h"
+
 class SceneManager;
 class Camera;
-class  Phase;
+class Phase;
+class Player;
 
 class Scene
 {
@@ -32,12 +36,20 @@ public:
 
    void ChangePhase(std::unique_ptr<Phase> nextPhase);
 
-
    Audio::VoiceHandle getBGMPlayHundle(){
-   return BGMHandle_;
+       return BGMHandle_;
    };
 
    void PrayBGM(Audio::SoundHandle bgmHundle);
+
+   // --- ゲームプレイ共通の仮想関数（ポリモーフィズム） ---
+   virtual void TriggerHitStop(float duration = 0.1f) {}
+   virtual void RequestCameraShake(float duration = 0.1f, float power = 1.0f) {}
+   virtual const std::vector<Triangle>& GetTriangle() const {
+       static const std::vector<Triangle> empty;
+       return empty;
+   }
+   virtual Player* GetPlayer() { return nullptr; }
 
 private:
     SceneManager* sceneManager_ = nullptr;

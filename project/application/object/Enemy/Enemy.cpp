@@ -299,23 +299,15 @@ void Enemy::OnCollision(GameObject* other) {
             return;
         }
 
-        const char* playerBehavior = player->GetBehaviorName();
-        const char* playerState = player->GetStateName();
-
         // プレイヤーの攻撃ヒットボックスに当たった場合、または攻撃中だった場合
         bool isHitByAttack = (other->GetCategory() == CollisionCategory::PlayerAttack) ||
-                             (playerBehavior && strcmp(playerBehavior, "Attack") == 0);
+                             player->IsAttacking();
 
         if (isHitByAttack) {
-            // ゲームシーンを持っているならヒットストップとシェイクを起こす
-            if (auto gs = dynamic_cast<GameScene*>(scene_)) {
-                gs->TriggerHitStop(0.1f); // 0.1秒のヒットストップ
-                if (gs->GetCamera()) {
-                    gs->GetCamera()->RequestShake(0.09f, 3.0f, [](float t) {
-                        float inv = 1.0f - t;
-                        return inv * inv * inv;
-                    });
-                }
+            // シーンのポリモーフィックなヒットストップとシェイクを要求
+            if (scene_) {
+                scene_->TriggerHitStop(0.1f);
+                scene_->RequestCameraShake(0.09f, 3.0f);
             }
 
             // プレイヤー側に攻撃ヒット（突進停止＆硬直解除）を通知
@@ -364,10 +356,8 @@ void Enemy::OnCollideWithPlayer(Player* player) {
 void Enemy::RayCastUpdate()
 {
     if (!scene_) return;
-    auto gs = dynamic_cast<GameScene*>(scene_);
-    if (!gs) return;
 
-    const std::vector<Triangle>& triangles = gs->GetTriangle();
+    const std::vector<Triangle>& triangles = scene_->GetTriangle();
     if (triangles.empty()) {
         SetRayHit(false);
         SetRayHitDistance(FLT_MAX);
@@ -563,7 +553,12 @@ const char* Enemy::GetBehaviorName() const
 
 bool Enemy::IsDead() const
 {
-    return isDeathFinished_;
+    return isDeathFinished_ || (state_ && state_->IsDead());
+}
+
+bool Enemy::CanDamagePlayer() const
+{
+    return state_ ? state_->CanDamagePlayer() : false;
 }
 
 void Enemy::PlayHitEffect() {

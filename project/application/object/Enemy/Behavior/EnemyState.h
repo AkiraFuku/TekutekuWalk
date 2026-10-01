@@ -17,6 +17,8 @@ public:
     virtual void Update(Enemy* enemy) = 0;
     virtual void Finalize(Enemy* enemy) = 0;
     virtual const char* GetName() const = 0; // 追加
+    virtual bool IsDead() const { return false; }
+    virtual bool CanDamagePlayer() const { return false; }
 };
 class StateEnemyNormal : public IEnemyState {
 public:
@@ -24,6 +26,7 @@ public:
     void Update(Enemy* enemy) override;
     void Finalize(Enemy* enemy) override;
     const char* GetName() const override { return "Normal"; }
+    bool CanDamagePlayer() const override { return true; }
 };
 
 // スタン状態（乗っ取り待機状態）
@@ -45,4 +48,5 @@ public:
     void Update(Enemy* enemy) override;
     void Finalize(Enemy* enemy) override;
     const char* GetName() const override { return "Dead"; }
+    bool IsDead() const override { return true; }
 };

@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include "Transform.h"
 #include "Object3d.h"
 #include "GameObject.h"
@@ -118,6 +120,8 @@ public:
     const char* GetBehaviorName() const;
     // 敵が死んでいるかどうかを判定
     bool IsDead() const;
+    bool CanDamagePlayer() const;
+    virtual void ApplyProperties(const std::unordered_map<std::string, std::string>& properties) {}
     bool IsKnockback() const { return isKnockback_; }
     void TakeDamage(float knockbackDirection = -1.0f, bool isDeadly = true);
     void HandleKnockback();

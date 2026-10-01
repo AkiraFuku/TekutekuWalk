@@ -146,6 +146,7 @@ public:
     }
     void SetAttackHitboxActive(bool active);
     bool IsAttackHitboxActive() const;
+    bool IsAttacking() const;
     void OnAttackHit(GameObject* target);
 
     bool IsHit() const {

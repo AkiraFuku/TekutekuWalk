@@ -10,6 +10,7 @@ public:
     virtual void Update(Player* player) = 0;
     virtual void Finalize(Player* player) = 0;
     virtual void HandleInput(Player* player, ICommand* command) = 0;
+    virtual bool IsAttacking() const { return false; }
 };
 
 class BehaviorRoot : public IPlayerBehavior {
@@ -28,6 +29,7 @@ public:
     void Finalize(Player* player) override;
     void HandleInput(Player* player, ICommand* command) override;
     const char* GetName() const override { return "Attack"; }
+    bool IsAttacking() const override { return true; }
 
 private:
     float timer_ = 0.0f;

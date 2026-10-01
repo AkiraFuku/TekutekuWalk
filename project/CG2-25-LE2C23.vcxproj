@@ -21,6 +21,7 @@
     <ClCompile Include="application\object\Enemy\ChaseEnemy.cpp" />
     <ClCompile Include="application\object\Enemy\HoverEnemy.cpp" />
     <ClCompile Include="application\object\Enemy\ShieldEnemy.cpp" />
+    <ClCompile Include="application\object\Enemy\EnemyFactory.cpp" />
     <ClCompile Include="application\object\Robot\BoundRobot.cpp" />
     <ClCompile Include="application\object\Robot\HoverRobot.cpp" />
     <ClCompile Include="application\object\Robot\ShieldRobot.cpp" />
@@ -153,6 +154,7 @@
     <ClInclude Include="application\object\Enemy\ChaseEnemy.h" />
     <ClInclude Include="application\object\Enemy\HoverEnemy.h" />
     <ClInclude Include="application\object\Enemy\ShieldEnemy.h" />
+    <ClInclude Include="application\object\Enemy\EnemyFactory.h" />
     <ClInclude Include="application\object\Robot\BoundRobot.h" />
     <ClInclude Include="application\object\Robot\HoverRobot.h" />
     <ClInclude Include="application\object\Robot\ShieldRobot.h" />
