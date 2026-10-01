@@ -14,6 +14,23 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
         commands.push_back(std::make_unique<DashCommand>());
     }
 
+    // スライディング入力の処理 (下入力 + ダッシュボタン)
+    bool isDownPressed = input->PushedKeyDown(DIK_S);
+    XINPUT_STATE padState;
+    if (input->GetJoyStick(0, padState)) {
+        float stickY = (float)padState.Gamepad.sThumbLY / 32767.0f;
+        if (stickY < -0.4f) {
+            isDownPressed = true;
+        }
+    }
+    if (isDownPressed && (input->TriggerKeyDown(DIK_LSHIFT) || input->TriggerKeyDown(DIK_RSHIFT) ||
+        input->TriggerPadDown(0, XINPUT_GAMEPAD_RIGHT_SHOULDER) ||
+        input->TriggerPadDown(0, XINPUT_GAMEPAD_LEFT_SHOULDER) ||
+        input->TriggerPadDown(0, XINPUT_GAMEPAD_LEFT_THUMB)))
+    {
+        commands.push_back(std::make_unique<SlideCommand>());
+    }
+
     // 1. スティック移動の処理
     XINPUT_STATE state;
     if (input->GetJoyStick(0, state) || (input->PushedKeyDown(DIK_A) || input->PushedKeyDown(DIK_D)))
@@ -80,6 +97,11 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
 
     if (input->TriggerMouseDown(0) || input->TriggerPadDown(0, XINPUT_GAMEPAD_B)) { // 例としてスペース
         commands.push_back(std::make_unique<AttackCommand>());
+    }
+
+    // ガードコマンド (Cキー または ゲームパッド Yボタン)
+    if (input->PushedKeyDown(DIK_C) || input->PushPadDown(0, XINPUT_GAMEPAD_Y)) {
+        commands.push_back(std::make_unique<GuardCommand>());
     }
 
     // 射出コマンド (Zキーまたはゲームパッドの特定ボタン)

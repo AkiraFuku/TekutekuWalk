@@ -48,6 +48,25 @@ void EnemyBehaviorChase::Update(Enemy* enemy)
     GameScene* gs = dynamic_cast<GameScene*>(enemy->GetScene());
     Player* player = gs ? gs->GetPlayer() : nullptr;
 
+    // 【離脱フェーズ】プレイヤー接触後の離脱処理
+    if (chaser && chaser->IsRetreating()) {
+        chaser->UpdateRetreatTimer(enemy->GetDeltaTime());
+
+        // プレイヤーから確実に離れる向きを維持
+        if (player) {
+            float enemyDist = enemy->GetCurrentDistance();
+            float playerDist = player->GetCurrentDistance();
+            enemy->SetMoveDirection((playerDist >= enemyDist) ? -1.0f : 1.0f);
+        }
+        enemy->SetMoveSpeed(chaser->GetRetreatSpeed());
+
+        if (currentAction_) {
+            currentAction_->Execute(enemy);
+        }
+        enemy->UpdateGravity();
+        return;
+    }
+
     if (player && player->IsAlive()) {
         Vector3 enemyPos = enemy->GetWorldPosition();
         Vector3 playerPos = player->GetWorldPosition();

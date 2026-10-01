@@ -14,6 +14,7 @@ void TitlePhase::Initialize(Scene* scene)
 
     // テクスチャロードとスプライト生成
     TextureManager::GetInstance()->LoadTexture("resources/Gaid/Start.png");
+    TextureManager::GetInstance()->LoadTexture("resources/Gaid/push.png");
     startSprite_ = std::make_unique<Sprite>();
     startSprite_->Initialize("resources/Gaid/Start.png");
     startSprite_->SetAnchorPoint(Anchor::Center);

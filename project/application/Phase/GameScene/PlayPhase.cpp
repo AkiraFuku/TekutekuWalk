@@ -9,6 +9,8 @@
 #include "Projectile.h"
 #include "Enemy.h"
 #include "MiniBoss.h"
+#include "StageManager.h"
+#include "Coin.h"
 
 void PlayPhase::Initialize(Scene* scene)
 {}
@@ -67,7 +69,7 @@ void PlayPhase::Update(Scene* scene)
 
 
     for (auto& enemy : enemies) {
-        if (enemy && !enemy->IsDead()) {
+        if (enemy && !enemy->IsDead() && !enemy->IsKnockback()) {
             if (Collider* col = enemy->GetCollider()) {
                 colliders.push_back(col);
             }
@@ -87,6 +89,18 @@ void PlayPhase::Update(Scene* scene)
             colliders.push_back(col);
         }
     }
+
+    // コインのコライダー登録
+    if (auto* stageMgr = gameScene->GetStageManager()) {
+        for (auto& coin : stageMgr->GetCoins()) {
+            if (coin && !coin->IsDead() && !coin->IsCollected()) {
+                if (Collider* col = coin->GetCollider()) {
+                    colliders.push_back(col);
+                }
+            }
+        }
+    }
+
     colManager->CheckAllCollisions(colliders);
 
 

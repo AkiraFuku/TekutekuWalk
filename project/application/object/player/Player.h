@@ -102,6 +102,12 @@ public:
 
     void Move(float ratio);
     void Jump();
+    bool TryExecuteBufferedJump();
+
+    // スクワッシュ＆ストレッチ（伸縮演出）のトリガーと更新
+    void TriggerSquashStretch(float intensityY, float duration);
+    void UpdateSquashStretch();
+
     void Attack();
 
     float GetRailProgress() const;
@@ -245,6 +251,28 @@ private:
     MoveState moveState_ = MoveState::Idle;
     bool isDashing_ = false;
     bool isMoving_ = false;
+
+    // スクワッシュ＆ストレッチ（Squash & Stretch）演出パラメータ
+    struct SquashStretchState {
+        float timer = 0.0f;
+        float duration = 0.0f;
+        float intensityY = 0.0f; // 正: 縦伸び(ジャンプ), 負: 縦潰れ(着地)
+        bool isActive = false;
+    };
+    SquashStretchState squashStretch_;
+    bool wasGrounded_ = true;           // 前フレームの接地フラグ（着地瞬間検知用）
+    float landingFallSpeed_ = 0.0f;     // 着地直前の落下速度
+    Vector3 baseScale_ = { 1.0f, 1.0f, 1.0f }; // 基本スケール
+    float jumpStretchIntensity_ = 0.25f;   // ジャンプ時縦伸び量 (1.25倍)
+    float jumpStretchDuration_ = 0.22f;    // ジャンプ伸縮時間(秒)
+    float landSquashIntensityMax_ = 0.32f; // 着地時最大縦潰れ量 (0.68倍)
+    float landSquashDuration_ = 0.25f;     // 着地伸縮時間(秒)
+
+    // コヨーテタイム & 先行入力用タイマー
+    float coyoteTimer_ = 0.0f;
+    float jumpBufferTimer_ = 0.0f;
+    const float kCoyoteDuration_ = 0.12f;      // 崖落ち後ジャンプ猶予時間 (秒)
+    const float kJumpBufferDuration_ = 0.15f;  // 着地前ジャンプ先行入力猶予時間 (秒)
 
     void HandleInput();
     void HandleDamage();

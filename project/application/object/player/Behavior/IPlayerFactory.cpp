@@ -20,6 +20,7 @@ std::unique_ptr<IPlayerBehavior> NormalPlayerFactory::CreateBehavior(BehaviorTyp
     switch (type) {
     case BehaviorType::Jump:   return std::make_unique<BehaviorJump>();
     case BehaviorType::Attack: return std::make_unique<BehaviorAttack>();
+    case BehaviorType::Slide:  return std::make_unique<BehaviorSlide>();
     case BehaviorType::Root:
     default:                   return std::make_unique<BehaviorRoot>();
     }
@@ -46,6 +47,7 @@ std::unique_ptr<IPlayerBehavior> RideOnPlayerFactory::CreateBehavior(BehaviorTyp
     case BehaviorType::Jump:   return std::make_unique<BehaviorJump>();
     case BehaviorType::Attack: return std::make_unique<BehaviorAttack>();
     case BehaviorType::Aim:    return std::make_unique<BehaviorAim>();
+    case BehaviorType::Slide:  return std::make_unique<BehaviorSlide>();
     case BehaviorType::Root:
     default:                   return std::make_unique<BehaviorRoot>();
     }
@@ -65,6 +67,12 @@ std::unique_ptr<IPlayerState> PlayerStateFactory::CreateState(PlayerFormType typ
         break;
     case PlayerFormType::Bound: // ★ 追加
         factory = std::make_shared<BoundPlayerFactory>();
+        break;
+    case PlayerFormType::Hover: // ★ ホバー形態
+        factory = std::make_shared<HoverPlayerFactory>();
+        break;
+    case PlayerFormType::Shield: // ★ シールド形態
+        factory = std::make_shared<ShieldPlayerFactory>();
         break;
     }
 
@@ -92,5 +100,48 @@ std::unique_ptr<IPlayerBehavior> BoundPlayerFactory::CreateBehavior(BehaviorType
     default:
         // ★ Root(デフォルト状態) を「自動跳躍ビヘイビア」にする！
         return std::make_unique<BehaviorBound>();
+    }
+}
+
+// --- HoverPlayerFactory ---
+std::unique_ptr<IPlayerState> HoverPlayerFactory::CreateState() {
+    return std::make_unique<StateHover>(shared_from_this());
+}
+std::unique_ptr<IPlayerBehavior> HoverPlayerFactory::CreateBehavior(BehaviorType type) {
+    switch (type) {
+    case BehaviorType::Jump:
+    case BehaviorType::Hover:
+        return std::make_unique<BehaviorHover>();
+    case BehaviorType::Attack:
+        return std::make_unique<BehaviorAttack>();
+    case BehaviorType::Aim:
+        return std::make_unique<BehaviorAim>();
+    case BehaviorType::Slide:
+        return std::make_unique<BehaviorSlide>();
+    case BehaviorType::Root:
+    default:
+        return std::make_unique<BehaviorRoot>();
+    }
+}
+
+// --- ShieldPlayerFactory ---
+std::unique_ptr<IPlayerState> ShieldPlayerFactory::CreateState() {
+    return std::make_unique<StateShield>(shared_from_this());
+}
+std::unique_ptr<IPlayerBehavior> ShieldPlayerFactory::CreateBehavior(BehaviorType type) {
+    switch (type) {
+    case BehaviorType::Guard:
+        return std::make_unique<BehaviorGuard>();
+    case BehaviorType::Jump:
+        return std::make_unique<BehaviorJump>();
+    case BehaviorType::Attack:
+        return std::make_unique<BehaviorAttack>();
+    case BehaviorType::Aim:
+        return std::make_unique<BehaviorAim>();
+    case BehaviorType::Slide:
+        return std::make_unique<BehaviorSlide>();
+    case BehaviorType::Root:
+    default:
+        return std::make_unique<BehaviorRoot>();
     }
 }

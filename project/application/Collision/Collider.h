@@ -82,4 +82,4 @@ private:
     bool isCollide_ = true; // 衝突可能か？
 
     std::vector<CollisionSphereDef> sphereDefs_; // モデル形状に合わせた球体定義リスト
-};
+};

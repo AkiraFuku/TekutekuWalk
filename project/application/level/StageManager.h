@@ -9,6 +9,7 @@
 #include "PbdCloth.h"
 #include "Camera.h"
 #include "MathFunction.h"
+#include "Coin.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -82,6 +83,10 @@ public:
     /// PBD 布リストへの参照
     std::vector<std::unique_ptr<PbdCloth>>& GetCloths() { return cloths_; }
 
+    /// コインリストへの参照
+    std::vector<std::unique_ptr<Coin>>& GetCoins() { return coins_; }
+    const std::vector<std::unique_ptr<Coin>>& GetCoins() const { return coins_; }
+
     /// ステージブロックリストへの参照
     std::vector<std::unique_ptr<StageBlock>>& GetBlocks() { return blocks_; }
 
@@ -115,6 +120,7 @@ private:
     std::vector<std::unique_ptr<EventTrigger>> triggers_; ///< kTrigger
     std::vector<std::unique_ptr<PbdRope>>      ropes_;    ///< kPbdRope
     std::vector<std::unique_ptr<PbdCloth>>     cloths_;   ///< kPbdCloth
+    std::vector<std::unique_ptr<Coin>>         coins_;    ///< kCoin
 
     // ─── レール ──────────────────────────────────────────────────────
     std::unique_ptr<RailPath> stageRail_;

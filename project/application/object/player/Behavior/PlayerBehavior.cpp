@@ -43,12 +43,26 @@ void BehaviorRoot::HandleInput(Player* player, ICommand* command) {
     auto factory = state->GetFactory();
     if (!factory) return;
 
+    if (dynamic_cast<SlideCommand*>(command)) {
+        if (player->IsGround()) {
+            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Slide));
+            return;
+        }
+    }
+
     if (dynamic_cast<JumpCommand*>(command)) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Jump));
     }
     if (dynamic_cast<AttackCommand*>(command)) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
     }
+    if (dynamic_cast<GuardCommand*>(command)) {
+        if (dynamic_cast<StateShield*>(state)) {
+            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Guard));
+            return;
+        }
+    }
+
     if (dynamic_cast<PreShootCommand*>(command)) {
         if (dynamic_cast<IStateRideOn*>(state)) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
@@ -125,6 +139,10 @@ void BehaviorJump::Initialize(Player* player) {
 
 void BehaviorJump::Update(Player* player) {
     if (player->IsGround()) {
+        // 着地時に先行入力が残っていれば即座に再ジャンプを実行
+        if (player->TryExecuteBufferedJump()) {
+            return;
+        }
         if (auto state = player->GetState()) {
             // ★ Factory 経由で Root に戻る
             if (auto factory = state->GetFactory()) {
@@ -153,6 +171,11 @@ void BehaviorJump::HandleInput(Player* player, ICommand* command) {
     // ★ Factory を取得して生成
     auto factory = state->GetFactory();
     if (!factory) return;
+
+    // 空中滞空中でもジャンプボタンの先行入力を受け付ける
+    if (dynamic_cast<JumpCommand*>(command)) {
+        player->Jump();
+    }
 
     if (dynamic_cast<AttackCommand*>(command)) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
@@ -237,6 +260,195 @@ void BehaviorBound::HandleInput(Player* player, ICommand* command) {
     if (dynamic_cast<PreShootCommand*>(command)) {
         if (dynamic_cast<IStateRideOn*>(state)) {
             state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
+        }
+    }
+}
+
+// --- BehaviorSlide ---
+void BehaviorSlide::Initialize(Player* player) {
+    timer_ = 0.0f;
+    slideDir_ = player->GetMoveDirection();
+    player->SetInvincible(true); // スライディング中は無敵判定
+}
+
+void BehaviorSlide::Update(Player* player) {
+    // 時間経過とともに滑らかに減速（終盤も余速を維持して自然な停止に）
+    float progress = timer_ / kSlideDuration;
+    float speedFactor = (1.0f - progress * 0.65f);
+    player->Move(-(float(slideDir_) * kSlideInitialSpeed * speedFactor * player->GetDeltaTime()));
+
+    player->RayCastUpdate();
+    player->UpdateGravity();
+    player->UpdateRailPath();
+
+    timer_ += player->GetDeltaTime();
+    if (timer_ >= kSlideDuration) {
+        auto state = player->GetState();
+        if (state && state->GetFactory()) {
+            state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
+        }
+    }
+}
+
+void BehaviorSlide::Finalize(Player* player) {
+    player->SetInvincible(false);
+    player->TriggerInvincibility(0.15f); // 終了後わずかな無敵余韻
+}
+
+void BehaviorSlide::HandleInput(Player* player, ICommand* command) {
+    // スライディング中にジャンプ入力でキャンセル可能（スライディングジャンプ）
+    if (dynamic_cast<JumpCommand*>(command)) {
+        auto state = player->GetState();
+        if (state && state->GetFactory()) {
+            state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Jump));
+        }
+    }
+}
+
+// --- BehaviorHover ---
+void BehaviorHover::Initialize(Player* player) {
+    timer_ = 0.0f;
+    isHovering_ = true;
+
+    // 初速度のYをリセットして、落下慣性を止めてホバー状態に突入
+    Vector3 v = player->GetVelocity();
+    v.y = 1.0f; // 少しフワッと浮く
+    player->SetVelocity(v);
+}
+
+void BehaviorHover::Update(Player* player) {
+    auto state = player->GetState();
+
+    // 着地したら即座にRootに戻る
+    if (player->IsGround()) {
+        if (state && state->GetFactory()) {
+            state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
+        }
+        return;
+    }
+
+    float dt = player->GetDeltaTime();
+    timer_ += dt;
+
+    if (isHovering_ && timer_ < kMaxHoverTime) {
+        // 重力を大幅に抑え、微小降下で滑空する
+        Vector3 v = player->GetVelocity();
+        v.y = kHoverFallSpeed;
+        player->SetVelocity(v);
+    } else {
+        // ホバー持続終了後は通常の重力落下
+        player->UpdateGravity();
+    }
+
+    player->RayCastUpdate();
+    player->UpdateRailPath();
+
+    // ホバー時間終了時は通常のジャンプ落下へ遷移
+    if (timer_ >= kMaxHoverTime) {
+        if (state && state->GetFactory()) {
+            state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Jump));
+        }
+    }
+}
+
+void BehaviorHover::Finalize(Player* player) {}
+
+void BehaviorHover::HandleInput(Player* player, ICommand* command) {
+    auto state = player->GetState();
+    if (!state) return;
+
+    // 空中での左右移動は高速滑空
+    if (auto moveCmd = dynamic_cast<MoveCommand*>(command)) {
+        if (auto moveAction = state->GetMoveAction()) {
+            static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
+            moveAction->Execute(player);
+        }
+    }
+
+    auto factory = state->GetFactory();
+    if (!factory) return;
+
+    if (dynamic_cast<AttackCommand*>(command)) {
+        state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
+    }
+    if (dynamic_cast<PreShootCommand*>(command)) {
+        if (dynamic_cast<IStateRideOn*>(state)) {
+            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
+        }
+    }
+}
+
+// --- BehaviorGuard ---
+void BehaviorGuard::Initialize(Player* player) {
+    guardTimer_ = 0.0f;
+    isBashing_ = false;
+    bashTimer_ = 0.0f;
+    bashDir_ = player->GetMoveDirection();
+    player->SetInvincible(true); // ガード中は完全無敵
+}
+
+void BehaviorGuard::Update(Player* player) {
+    float dt = player->GetDeltaTime();
+    auto state = player->GetState();
+
+    if (isBashing_) {
+        // シールドバッシュ突進中
+        bashTimer_ += dt;
+        float progress = bashTimer_ / kBashDuration;
+        float speedFactor = (1.0f - progress * 0.5f);
+        player->Move(float(bashDir_) * kBashSpeed * speedFactor * dt);
+
+        if (bashTimer_ >= kBashDuration) {
+            // バッシュ終了
+            isBashing_ = false;
+            player->SetAttackHitboxActive(false);
+            if (state && state->GetFactory()) {
+                state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
+            }
+            return;
+        }
+    } else {
+        // ガード構え中（停止して完全防御）
+        guardTimer_ += dt;
+        if (guardTimer_ >= kMaxGuardTime) {
+            if (state && state->GetFactory()) {
+                state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
+            }
+            return;
+        }
+    }
+
+    player->RayCastUpdate();
+    player->UpdateGravity();
+    player->UpdateRailPath();
+}
+
+void BehaviorGuard::Finalize(Player* player) {
+    player->SetInvincible(false);
+    player->SetAttackHitboxActive(false);
+    player->TriggerInvincibility(0.2f); // ガード解除後わずかな無敵余韻
+}
+
+void BehaviorGuard::HandleInput(Player* player, ICommand* command) {
+    auto state = player->GetState();
+    if (!state) return;
+
+    // ガード中に攻撃ボタンでシールドバッシュ発動！
+    if (dynamic_cast<AttackCommand*>(command)) {
+        if (!isBashing_) {
+            isBashing_ = true;
+            bashTimer_ = 0.0f;
+            bashDir_ = player->GetMoveDirection();
+            player->SetAttackHitboxActive(true); // バッシュ攻撃判定ON
+            player->PlayHitSE();
+        }
+        return;
+    }
+
+    // ジャンプキーでガード解除＆ジャンプへ
+    if (dynamic_cast<JumpCommand*>(command)) {
+        if (auto factory = state->GetFactory()) {
+            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Jump));
         }
     }
 }

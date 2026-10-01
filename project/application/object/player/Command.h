@@ -19,6 +19,8 @@ class AttackCommand : public ICommand {};
 class ShootCommand : public ICommand {};
 class PreShootCommand : public ICommand {};
 class DashCommand : public ICommand {};
+class SlideCommand : public ICommand {};
+class GuardCommand : public ICommand {};
 // Command.h
 class AimCommand : public ICommand {
 public:

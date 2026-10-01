@@ -66,3 +66,55 @@ public:
     void HandleInput(Player* player, ICommand* command) override;
     const char* GetName() const override { return "Bound"; }
 };
+
+// スライディング・回避ステップビヘイビア
+class BehaviorSlide : public IPlayerBehavior {
+public:
+    void Initialize(Player* player) override;
+    void Update(Player* player) override;
+    void Finalize(Player* player) override;
+    void HandleInput(Player* player, ICommand* command) override;
+    const char* GetName() const override { return "Slide"; }
+
+private:
+    float timer_ = 0.0f;
+    const float kSlideDuration = 0.38f;      // スライディング持続時間 (秒)
+    const float kSlideInitialSpeed = 22.0f;  // スライディング初速 (m/s)
+    int slideDir_ = 1;
+};
+
+// 空中ホバージャンプビヘイビア
+class BehaviorHover : public IPlayerBehavior {
+public:
+    void Initialize(Player* player) override;
+    void Update(Player* player) override;
+    void Finalize(Player* player) override;
+    void HandleInput(Player* player, ICommand* command) override;
+    const char* GetName() const override { return "Hover"; }
+
+private:
+    float timer_ = 0.0f;
+    const float kMaxHoverTime = 2.5f;       // 最大ホバー時間 (秒)
+    const float kHoverFallSpeed = -0.5f;    // 緩やかな微小降下 (m/s)
+    const float kHoverMoveSpeed = 10.0f;    // ホバー中の水平移動速度 (m/s)
+    bool isHovering_ = true;
+};
+
+// シールドガード＆バッシュビヘイビア
+class BehaviorGuard : public IPlayerBehavior {
+public:
+    void Initialize(Player* player) override;
+    void Update(Player* player) override;
+    void Finalize(Player* player) override;
+    void HandleInput(Player* player, ICommand* command) override;
+    const char* GetName() const override { return "Guard"; }
+
+private:
+    float guardTimer_ = 0.0f;
+    bool isBashing_ = false;
+    float bashTimer_ = 0.0f;
+    const float kMaxGuardTime = 3.0f;       // ガード最大継続時間 (秒)
+    const float kBashDuration = 0.28f;      // バッシュ突進時間 (秒)
+    const float kBashSpeed = 24.0f;         // バッシュ突進速度 (m/s)
+    int bashDir_ = 1;
+};

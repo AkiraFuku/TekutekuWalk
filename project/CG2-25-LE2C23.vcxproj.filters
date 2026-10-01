@@ -157,6 +157,9 @@
     <Filter Include="App\Object\Goal">
       <UniqueIdentifier>{41b279d9-e08e-46ef-a948-99d8e5ed0354}</UniqueIdentifier>
     </Filter>
+    <Filter Include="App\Object\Item">
+      <UniqueIdentifier>{6d8e2023-7489-49fa-9a4c-8f43c3a93db2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="シェーダー ファイル\ofScrene">
       <UniqueIdentifier>{fba86445-915a-474c-b853-40ff87b947e4}</UniqueIdentifier>
     </Filter>
@@ -369,6 +372,18 @@
     <ClCompile Include="application\object\Robot\TestRobot.cpp">
       <Filter>App\Abilities\Test</Filter>
     </ClCompile>
+    <ClCompile Include="application\object\Enemy\HoverEnemy.cpp">
+      <Filter>App\Object\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="application\object\Enemy\ShieldEnemy.cpp">
+      <Filter>App\Object\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="application\object\Robot\HoverRobot.cpp">
+      <Filter>App\Object\Robot</Filter>
+    </ClCompile>
+    <ClCompile Include="application\object\Robot\ShieldRobot.cpp">
+      <Filter>App\Object\Robot</Filter>
+    </ClCompile>
     <ClCompile Include="application\Collision\CollisionManager.cpp">
       <Filter>App\System\Colition</Filter>
     </ClCompile>
@@ -377,6 +392,9 @@
     </ClCompile>
     <ClCompile Include="application\object\Goal\GoalObject.cpp">
       <Filter>App\Object\Goal</Filter>
+    </ClCompile>
+    <ClCompile Include="application\object\Item\Coin.cpp">
+      <Filter>App\Object\Item</Filter>
     </ClCompile>
     <ClCompile Include="application\scene\GameScene.cpp">
       <Filter>App\Scene\GameScene</Filter>
@@ -698,6 +716,18 @@
     <ClInclude Include="application\object\Enemy\TestEnemy.h">
       <Filter>App\Abilities\Test</Filter>
     </ClInclude>
+    <ClInclude Include="application\object\Enemy\HoverEnemy.h">
+      <Filter>App\Object\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="application\object\Enemy\ShieldEnemy.h">
+      <Filter>App\Object\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="application\object\Robot\HoverRobot.h">
+      <Filter>App\Object\Robot</Filter>
+    </ClInclude>
+    <ClInclude Include="application\object\Robot\ShieldRobot.h">
+      <Filter>App\Object\Robot</Filter>
+    </ClInclude>
     <ClInclude Include="application\Collision\CollisionManager.h">
       <Filter>App\System\Colition</Filter>
     </ClInclude>
@@ -706,6 +736,9 @@
     </ClInclude>
     <ClInclude Include="application\object\Goal\GoalObject.h">
       <Filter>App\Object\Goal</Filter>
+    </ClInclude>
+    <ClInclude Include="application\object\Item\Coin.h">
+      <Filter>App\Object\Item</Filter>
     </ClInclude>
     <ClInclude Include="application\scene\GameScene.h">
       <Filter>App\Scene\GameScene</Filter>

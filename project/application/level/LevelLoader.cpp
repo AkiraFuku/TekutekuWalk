@@ -45,6 +45,7 @@ LevelObjectType ParseObjectType(const std::string& blenderType, const std::strin
     if (objectTypeTag == "ENEMY")         return LevelObjectType::kEnemy;
     if (objectTypeTag == "PLAYER_SPAWN")  return LevelObjectType::kPlayerSpawn;
     if (objectTypeTag == "GOAL")          return LevelObjectType::kGoal;
+    if (objectTypeTag == "COIN" || objectTypeTag == "COLLECTIBLE") return LevelObjectType::kCoin;
     if (objectTypeTag == "TRIGGER")       return LevelObjectType::kTrigger;
     if (objectTypeTag == "PBD_ROPE")      return LevelObjectType::kPbdRope;
     if (objectTypeTag == "PBD_CLOTH")     return LevelObjectType::kPbdCloth;

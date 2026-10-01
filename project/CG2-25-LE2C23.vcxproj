@@ -21,7 +21,11 @@
     <ClCompile Include="application\Phase\GameScene\defeatPhase.cpp" />
     <ClCompile Include="application\object\Enemy\BoundEnemy.cpp" />
     <ClCompile Include="application\object\Enemy\ChaseEnemy.cpp" />
+    <ClCompile Include="application\object\Enemy\HoverEnemy.cpp" />
+    <ClCompile Include="application\object\Enemy\ShieldEnemy.cpp" />
     <ClCompile Include="application\object\Robot\BoundRobot.cpp" />
+    <ClCompile Include="application\object\Robot\HoverRobot.cpp" />
+    <ClCompile Include="application\object\Robot\ShieldRobot.cpp" />
     <ClCompile Include="application\Collision\Collider.cpp" />
     <ClCompile Include="application\object\Boss\Part\BossArmorPart.cpp" />
     <ClCompile Include="application\object\Boss\Part\BossBodyPart.cpp" />
@@ -41,6 +45,7 @@
     <ClCompile Include="application\object\Enemy\Behavior\EnemyState.cpp" />
     <ClCompile Include="application\Collision\CollisionManager.cpp" />
     <ClCompile Include="application\object\Goal\GoalObject.cpp" />
+    <ClCompile Include="application\object\Item\Coin.cpp" />
     <ClCompile Include="engine\base\OffScreen.cpp" />
     <ClCompile Include="engine\base\PSOManager.cpp" />
     <ClCompile Include="engine\math\DrawFunction.cpp" />
@@ -153,7 +158,11 @@
     <ClInclude Include="application\Phase\GameScene\defeatPhase.h" />
     <ClInclude Include="application\object\Enemy\BoundEnemy.h" />
     <ClInclude Include="application\object\Enemy\ChaseEnemy.h" />
+    <ClInclude Include="application\object\Enemy\HoverEnemy.h" />
+    <ClInclude Include="application\object\Enemy\ShieldEnemy.h" />
     <ClInclude Include="application\object\Robot\BoundRobot.h" />
+    <ClInclude Include="application\object\Robot\HoverRobot.h" />
+    <ClInclude Include="application\object\Robot\ShieldRobot.h" />
     <ClInclude Include="application\Collision\Collider.h" />
     <ClInclude Include="application\Collision\Physics.h" />
     <ClInclude Include="application\object\Boss\Part\BossArmorPart.h" />
@@ -175,6 +184,7 @@
     <ClInclude Include="application\object\Enemy\Behavior\EnemyState.h" />
     <ClInclude Include="application\Collision\CollisionManager.h" />
     <ClInclude Include="application\object\Goal\GoalObject.h" />
+    <ClInclude Include="application\object\Item\Coin.h" />
     <ClInclude Include="engine\base\OffScreen.h" />
     <ClInclude Include="engine\base\PSOManager.h" />
     <ClInclude Include="engine\math\Mass.h" />

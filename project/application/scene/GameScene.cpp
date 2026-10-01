@@ -19,6 +19,8 @@
 #include "TestEnemy.h"
 #include "BoundEnemy.h"
 #include "ChaseEnemy.h"
+#include "HoverEnemy.h"
+#include "ShieldEnemy.h"
 #include "CollisionManager.h"
 #include "Physics.h"
 #include "Projectile.h"
@@ -166,6 +168,10 @@ void GameScene::Initialize() {
                 type = Enemy::EnemyType::Bound;
             } else if (data.enemyType == "Chase") {
                 type = Enemy::EnemyType::Chase;
+            } else if (data.enemyType == "Hover") {
+                type = Enemy::EnemyType::Hover;
+            } else if (data.enemyType == "Shield") {
+                type = Enemy::EnemyType::Shield;
             }
 
             float triggerDist = 25.0f;
@@ -346,6 +352,10 @@ void GameScene::Update() {
                     type = Enemy::EnemyType::Bound;
                 } else if (data.enemyType == "Chase") {
                     type = Enemy::EnemyType::Chase;
+                } else if (data.enemyType == "Hover") {
+                    type = Enemy::EnemyType::Hover;
+                } else if (data.enemyType == "Shield") {
+                    type = Enemy::EnemyType::Shield;
                 }
                 AddEnemy(data.railPos, type, data.properties);
             }
@@ -374,6 +384,10 @@ void GameScene::Update() {
                     type = Enemy::EnemyType::Bound;
                 } else if (data.enemyType == "Chase") {
                     type = Enemy::EnemyType::Chase;
+                } else if (data.enemyType == "Hover") {
+                    type = Enemy::EnemyType::Hover;
+                } else if (data.enemyType == "Shield") {
+                    type = Enemy::EnemyType::Shield;
                 }
                 AddEnemy(data.railPos, type, data.properties);
             }
@@ -703,6 +717,14 @@ Enemy* GameScene::AddEnemy(Vector2 pos, Enemy::EnemyType enemyType, const std::u
         newEnemy = std::move(chase);
         break;
     }
+
+    case Enemy::EnemyType::Hover:
+        newEnemy = std::make_unique<HoverEnemy>();
+        break;
+
+    case Enemy::EnemyType::Shield:
+        newEnemy = std::make_unique<ShieldEnemy>();
+        break;
 
     default:
         newEnemy = std::make_unique<TestEnemy>();

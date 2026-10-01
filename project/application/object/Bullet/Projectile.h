@@ -64,7 +64,7 @@ protected:
     Scene* scene_ = nullptr;
 
     // 地形・壁との衝突判定
-    void CheckMapCollision(const Vector3& prevPos, const Vector3& finalPos);
+    bool CheckMapCollision(const Vector3& prevPos, const Vector3& finalPos);
 
 private:
     ProjectileOwner owner_=ProjectileOwner::Unknown; // 持ち主を保持

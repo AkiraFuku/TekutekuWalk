@@ -26,6 +26,7 @@ enum class LevelObjectType {
     kEnemy,        ///< 敵スポーン位置・設定
     kPlayerSpawn,  ///< プレイヤー初期位置（Emptyオブジェクト）
     kGoal,         ///< ゴール位置・オブジェクト
+    kCoin,         ///< 収集アイテム（コイン）
     kTrigger,      ///< イベントトリガー（侵入検知）
     kPbdRope,      ///< PBDロープ物理ギミック
     kPbdCloth,     ///< PBD布物理ギミック

@@ -74,6 +74,20 @@ public:
     const char* GetName() const override { return "Bound"; }
 };
 
+// --- ライドオンホバーロボ状態 ---
+class StateHover : public IStateRideOn {
+public:
+    explicit StateHover(std::shared_ptr<IPlayerFactory> factory) : IStateRideOn(std::move(factory)) {}
+    const char* GetName() const override { return "Hover"; }
+};
+
+// --- ライドオンシールドロボ状態 ---
+class StateShield : public IStateRideOn {
+public:
+    explicit StateShield(std::shared_ptr<IPlayerFactory> factory) : IStateRideOn(std::move(factory)) {}
+    const char* GetName() const override { return "Shield"; }
+};
+
 
 // --- 死亡状態 ---
 class StateDead : public IPlayerState {

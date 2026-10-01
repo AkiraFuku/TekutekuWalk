@@ -9,6 +9,8 @@ enum class PlayerFormType {
     Normal,
     RideOnTest,
     Bound,
+    Hover,
+    Shield,
 };
 
 enum class BehaviorType {
@@ -16,6 +18,9 @@ enum class BehaviorType {
     Jump,
     Attack,
     Aim,
+    Slide,
+    Hover,
+    Guard,
 };
 
 // 抽象ファクトリー
@@ -59,6 +64,20 @@ public:
 
 // --- BoundPlayerFactory ---
 class BoundPlayerFactory : public RideOnPlayerFactory {
+public:
+    std::unique_ptr<IPlayerState> CreateState() override;
+    std::unique_ptr<IPlayerBehavior> CreateBehavior(BehaviorType type) override;
+};
+
+// --- HoverPlayerFactory ---
+class HoverPlayerFactory : public RideOnPlayerFactory {
+public:
+    std::unique_ptr<IPlayerState> CreateState() override;
+    std::unique_ptr<IPlayerBehavior> CreateBehavior(BehaviorType type) override;
+};
+
+// --- ShieldPlayerFactory ---
+class ShieldPlayerFactory : public RideOnPlayerFactory {
 public:
     std::unique_ptr<IPlayerState> CreateState() override;
     std::unique_ptr<IPlayerBehavior> CreateBehavior(BehaviorType type) override;

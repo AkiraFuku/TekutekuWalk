@@ -340,6 +340,9 @@ void Enemy::OnCollision(GameObject* other) {
             TakeDamage(hitDir, true);
             return;
         }
+
+        // プレイヤーの攻撃以外での接触（体当たりなど）
+        OnCollideWithPlayer(player);
     }
     // 弾カテゴリの判定
     if (other->GetCategory() == CollisionCategory::PlayerProjectile)
@@ -347,6 +350,10 @@ void Enemy::OnCollision(GameObject* other) {
         float hitDir = -moveDirection_;
         TakeDamage(hitDir, true);
     }
+}
+
+void Enemy::OnCollideWithPlayer(Player* player) {
+    (void)player; // 基底クラスでは何もしない
 }
 
 void Enemy::RayCastUpdate()

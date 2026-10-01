@@ -116,6 +116,10 @@ class MYADDON_OT_set_enemy_type(bpy.types.Operator):
             obj["prop_patrol_speed"] = str(obj["patrol_speed"])
         elif self.target_type == "Bound":
             obj["texture"] = "resources/taru/taru2.png"
+        elif self.target_type == "Hover":
+            obj["texture"] = "resources/taru/taru2.png"
+        elif self.target_type == "Shield":
+            obj["texture"] = "resources/taru/taru.png"
         else:
             obj["texture"] = "resources/taru/taru.png"
 
@@ -149,6 +153,8 @@ class MYADDON_OT_add_enemy(bpy.types.Operator):
             ("Normal", "通常敵 (Normal)", "標準の樽エネミー (taru.png)"),
             ("Bound", "バウンド敵 (Bound)", "跳ねるエネミー (taru2.png)"),
             ("Chase", "追跡敵 (Chase)", "プレイヤー接近で追跡・突進するエネミー (taru3.png)"),
+            ("Hover", "ホバー敵 (Hover)", "空中に浮遊するエネミー (taru2.png)"),
+            ("Shield", "シールド敵 (Shield)", "前面に盾を構えるエネミー (taru.png)"),
         ],
         default="Normal"
     )
@@ -190,6 +196,10 @@ class MYADDON_OT_add_enemy(bpy.types.Operator):
             obj["prop_patrol_speed"] = "2.0"
         elif self.enemy_type == "Bound":
             obj["texture"] = "resources/taru/taru2.png"
+        elif self.enemy_type == "Hover":
+            obj["texture"] = "resources/taru/taru2.png"
+        elif self.enemy_type == "Shield":
+            obj["texture"] = "resources/taru/taru.png"
         else:
             obj["texture"] = "resources/taru/taru.png"
 
@@ -238,6 +248,10 @@ class OBJECT_PT_enemy_spawn_settings(bpy.types.Panel):
         op_bnd.target_type = "Bound"
         op_chs = row_t.operator(MYADDON_OT_set_enemy_type.bl_idname, text="追跡 (Chase)", icon='LAYER_ACTIVE' if cur_type == 'Chase' else 'BLANK1')
         op_chs.target_type = "Chase"
+        op_hvr = row_t.operator(MYADDON_OT_set_enemy_type.bl_idname, text="ホバー (Hover)", icon='LAYER_ACTIVE' if cur_type == 'Hover' else 'BLANK1')
+        op_hvr.target_type = "Hover"
+        op_shd = row_t.operator(MYADDON_OT_set_enemy_type.bl_idname, text="シールド (Shield)", icon='LAYER_ACTIVE' if cur_type == 'Shield' else 'BLANK1')
+        op_shd.target_type = "Shield"
 
         # Chase固有パラメータ
         if cur_type == "Chase":
@@ -329,6 +343,10 @@ class OBJECT_PT_file_name(bpy.types.Panel):
         op_e2.enemy_type = 'Bound'
         op_e3 = row_e.operator(MYADDON_OT_add_enemy.bl_idname, text="追跡敵 (Chase - taru3)", icon='TRACKING')
         op_e3.enemy_type = 'Chase'
+        op_e4 = row_e.operator(MYADDON_OT_add_enemy.bl_idname, text="ホバー (Hover)", icon='OUTLINER_OB_LIGHT')
+        op_e4.enemy_type = 'Hover'
+        op_e5 = row_e.operator(MYADDON_OT_add_enemy.bl_idname, text="シールド (Shield)", icon='SHIELD')
+        op_e5.enemy_type = 'Shield'
 
         # 傾斜・段差ブロックの追加
         self.layout.separator()

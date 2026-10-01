@@ -22,6 +22,8 @@ public:
         Normal,
         Bound,
         Chase,
+        Hover,
+        Shield,
     };
 
 
@@ -33,6 +35,7 @@ public:
         return radius_;
     }
     virtual void OnCollision(GameObject* other) override; // Enemy側
+    virtual void OnCollideWithPlayer(Player* player);     // プレイヤーと通常接触（体当たり）した際のコールバック
     Vector3 GetWorldPosition() const override {
         return object_->GetTranslate();
     }

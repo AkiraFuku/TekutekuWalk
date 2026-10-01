@@ -63,7 +63,7 @@ void ShootRobotAction::Execute(Player* player) {
 
     // 弾のパラメータを設定
     Projectile::ProjectileSpawnParam param;
-    param.position = { player->GetRailProgress(), player->GetWorldY() };
+    param.position = { player->GetRailProgress(), player->GetCenterPosition().y };
     param.direction = finalDir; // ここで上下(y)も含まれたベクトルを渡す
     param.speed = baseSpeed;
 

@@ -80,9 +80,28 @@ void Player::Update()
         }
     }
 
+    // コヨーテタイマーの更新（接地中は常に満タン、離れたらカウントダウン）
+    if (isGrounded_) {
+        coyoteTimer_ = kCoyoteDuration_;
+    } else if (coyoteTimer_ > 0.0f) {
+        coyoteTimer_ -= deltaTime_;
+        if (coyoteTimer_ < 0.0f) {
+            coyoteTimer_ = 0.0f;
+        }
+    }
+
+    // 先行入力タイマーの減衰
+    if (jumpBufferTimer_ > 0.0f) {
+        jumpBufferTimer_ -= deltaTime_;
+        if (jumpBufferTimer_ < 0.0f) {
+            jumpBufferTimer_ = 0.0f;
+        }
+    }
+
     HandleDamage();
     HandleKnockback();
     HandleInput();
+    UpdateSquashStretch();
     RayCastUpdate();
     collider_->Update();
     if (attackCollider_) {
@@ -91,6 +110,11 @@ void Player::Update()
     }
 
     if (baseState_) baseState_->Update(this);
+
+    // 接地時に先行入力が残っていれば即座にジャンプを実行
+    if (isGrounded_ && jumpBufferTimer_ > 0.0f) {
+        TryExecuteBufferedJump();
+    }
 
     // 接地状態と移動入力から歩き・ダッシュ・待機の移動状態を決定
     if (!isGrounded_ || !isMoving_) {
@@ -210,39 +234,68 @@ void Player::Move(float ratio)
 
 void Player::Jump()
 {
-    if (isGrounded_) {
-        // すり抜け足場の上で「下入力＋ジャンプ」を行った場合は下層へすり抜け降下
-        Input* input = Input::GetInstance();
-        bool isDownPressed = false;
-        if (input) {
-            if (input->PushedKeyDown(DIK_S) || input->PushedKeyDown(DIK_DOWN)) {
-                isDownPressed = true;
-            }
-            XINPUT_STATE state;
-            if (input->GetJoyStick(0, state)) {
-                float rawY = (float)state.Gamepad.sThumbLY / 32767.0f;
-                if (rawY < -0.5f) {
-                    isDownPressed = true;
-                }
-            }
-            if (input->PushPadDown(0, XINPUT_GAMEPAD_DPAD_DOWN)) {
-                isDownPressed = true;
-            }
-        }
+    // ジャンプボタンが押されたら先行入力タイマーをチャージ
+    jumpBufferTimer_ = kJumpBufferDuration_;
+    TryExecuteBufferedJump();
+}
 
-        if (isDownPressed && isCurrentGroundOneway_) {
-            // 下層へすり抜け降下
-            isGrounded_ = false;
-            isJumping_ = false;
-            dropThroughTimer_ = 0.3f; // 0.3秒間すり抜け足場の床判定を無視
-            velocity_.y = -6.0f;     // 下向き初速を与えてスムーズに降りる
-            worldY_ -= 0.1f;
-        } else {
-            // 通常ジャンプ
-            velocity_.y = kJumpAcceleration;
-            isGrounded_ = false;
-            isJumping_ = true;
+bool Player::TryExecuteBufferedJump()
+{
+    if (jumpBufferTimer_ <= 0.0f) {
+        return false;
+    }
+
+    // 接地中、または崖を踏み外した直後（コヨーテタイム中）ならジャンプ許可
+    bool canJump = isGrounded_ || (coyoteTimer_ > 0.0f && !isJumping_);
+    if (!canJump) {
+        return false;
+    }
+
+    // すり抜け足場の上で「下入力＋ジャンプ」を行った場合は下層へすり抜け降下
+    Input* input = Input::GetInstance();
+    bool isDownPressed = false;
+    if (input) {
+        if (input->PushedKeyDown(DIK_S) || input->PushedKeyDown(DIK_DOWN)) {
+            isDownPressed = true;
         }
+        XINPUT_STATE state;
+        if (input->GetJoyStick(0, state)) {
+            float rawY = (float)state.Gamepad.sThumbLY / 32767.0f;
+            if (rawY < -0.5f) {
+                isDownPressed = true;
+            }
+        }
+        if (input->PushPadDown(0, XINPUT_GAMEPAD_DPAD_DOWN)) {
+            isDownPressed = true;
+        }
+    }
+
+    if (isDownPressed && isCurrentGroundOneway_) {
+        // 下層へすり抜け降下
+        isGrounded_ = false;
+        isJumping_ = false;
+        dropThroughTimer_ = 0.3f; // 0.3秒間すり抜け足場の床判定を無視
+        velocity_.y = -6.0f;     // 下向き初速を与えてスムーズに降りる
+        worldY_ -= 0.1f;
+        coyoteTimer_ = 0.0f;
+        jumpBufferTimer_ = 0.0f;
+        return true;
+    } else {
+        // 通常ジャンプ実行！
+        velocity_.y = kJumpAcceleration;
+        isGrounded_ = false;
+        isJumping_ = true;
+        coyoteTimer_ = 0.0f;      // コヨーテタイムを消費
+        jumpBufferTimer_ = 0.0f;  // 先行入力を消費
+        TriggerSquashStretch(jumpStretchIntensity_, jumpStretchDuration_); // ジャンプ縦伸び発動！
+
+        // ジャンプビヘイビアへ遷移
+        if (baseState_) {
+            if (auto factory = baseState_->GetFactory()) {
+                baseState_->ChangeBehavior(this, factory->CreateBehavior(BehaviorType::Jump));
+            }
+        }
+        return true;
     }
 }
 
@@ -367,8 +420,23 @@ void Player::CheckGroundCollision()
 
 void Player::UpdateGravity()
 {
+    // 落下速度を着地直前判定用に記録
+    landingFallSpeed_ = (velocity_.y < 0.0f) ? -velocity_.y : 0.0f;
+
     // 1. 地面の当たり判定
     CheckGroundCollision();
+
+    // 着地（空中から地面に触れた瞬間）を検知してスクワッシュ（縦潰れ）を発動！
+    if (!wasGrounded_ && isGrounded_) {
+        const float kMinFallSpeed = 1.2f;
+        if (landingFallSpeed_ >= kMinFallSpeed) {
+            // 落下速度が大きいほど潰れを強くする（最大1.0）
+            float speedFactor = std::clamp((landingFallSpeed_ - kMinFallSpeed) / 12.0f, 0.35f, 1.0f);
+            float squashIntensity = -landSquashIntensityMax_ * speedFactor;
+            TriggerSquashStretch(squashIntensity, landSquashDuration_);
+        }
+    }
+    wasGrounded_ = isGrounded_;
 
     // 2. 重力加速度の適用
     if (!isGrounded_) {
@@ -809,6 +877,20 @@ void Player::ImGuiDrawDebugInfo() {
     ImGui::ProgressBar(hitInvincibilityTimer_ / kHitInvincibilityDuration_, ImVec2(0, 0), "Hit Timer");
 
     ImGui::Separator();
+    ImGui::Text("--- Squash & Stretch (Juice) ---");
+    ImGui::SliderFloat("Jump Stretch", &jumpStretchIntensity_, 0.05f, 0.60f, "%.2f");
+    ImGui::SliderFloat("Jump Duration", &jumpStretchDuration_, 0.05f, 0.50f, "%.2f s");
+    ImGui::SliderFloat("Land Squash Max", &landSquashIntensityMax_, 0.05f, 0.60f, "%.2f");
+    ImGui::SliderFloat("Land Duration", &landSquashDuration_, 0.05f, 0.50f, "%.2f s");
+    if (ImGui::Button("Test Jump Stretch")) {
+        TriggerSquashStretch(jumpStretchIntensity_, jumpStretchDuration_);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Test Land Squash")) {
+        TriggerSquashStretch(-landSquashIntensityMax_, landSquashDuration_);
+    }
+
+    ImGui::Separator();
     ImGui::Text("--- Ground & Raycast Settings ---");
     ImGui::SliderFloat("Height Offset", &heightOffset_, -0.5f, 1.0f, "%.3f m");
     ImGui::SliderFloat("Wall Ray Height", &wallRayHeight_, 0.1f, 1.2f, "%.3f m");
@@ -944,4 +1026,47 @@ void Player::OnAttackHit(GameObject* target) {
     }
     TriggerInvincibility(0.4f); // 撃破後0.4秒間の無敵余韻を付与
     SetAttackHitboxActive(false); // ヒット後は直ちに攻撃判定を解除
+}
+
+void Player::TriggerSquashStretch(float intensityY, float duration) {
+    squashStretch_.intensityY = intensityY;
+    squashStretch_.duration = duration;
+    squashStretch_.timer = 0.0f;
+    squashStretch_.isActive = true;
+}
+
+void Player::UpdateSquashStretch() {
+    if (!object_) return;
+
+    float currentOffsetY = 0.0f;
+
+    if (squashStretch_.isActive && squashStretch_.duration > 0.0f) {
+        squashStretch_.timer += deltaTime_;
+        float progress = squashStretch_.timer / squashStretch_.duration;
+
+        if (progress >= 1.0f) {
+            squashStretch_.isActive = false;
+            currentOffsetY = 0.0f;
+        } else {
+            // 減衰サイン波（ゴムのようにポヨンと揺れ戻って収束）
+            float damp = expf(-4.2f * progress);
+            float wave = cosf(progress * std::numbers::pi_v<float> * 2.5f) * damp;
+            currentOffsetY = squashStretch_.intensityY * wave;
+        }
+    } else if (!isGrounded_ && velocity_.y < -6.0f) {
+        // 空中高速落下中の風圧ストレッチ（微小な縦伸び予兆）
+        float fallFactor = std::clamp((-velocity_.y - 6.0f) / 15.0f, 0.0f, 1.0f);
+        currentOffsetY = 0.10f * fallFactor;
+    }
+
+    // 体積保存則: ScaleY が変化した分、ScaleX と ScaleZ を反比例させて体積を一定に保つ
+    float targetScaleY = (std::max)(1.0f + currentOffsetY, 0.35f);
+    float targetScaleXZ = sqrtf(1.0f / targetScaleY);
+
+    Vector3 finalScale = {
+        baseScale_.x * targetScaleXZ,
+        baseScale_.y * targetScaleY,
+        baseScale_.z * targetScaleXZ
+    };
+    object_->SetScale(finalScale);
 }
