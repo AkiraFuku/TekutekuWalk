@@ -4,6 +4,7 @@
 #include "Object3d.h"
 #include "GameObject.h"
 #include "Scene.h"
+
 class Camera;
 class RailMover;
 class RailPath;
@@ -178,7 +179,59 @@ public:
     void Turn() { moveDirection_ *= -1.0f; turnCooldownTimer_ = kTurnCooldown_; }
     bool IsWallHit() const { return isWallHit_; }
 
+    // --- 追加アクセッサ ---
+    // 3Dオブジェクト・テクスチャ
+    Object3d* GetObject3d() const { return object_.get(); }
+    void SetTexture(const std::string& texturePath) { if (object_) { object_->SetTexture(texturePath); } }
+    // レールムーバー（非const版）
+    RailMover* GetRailMover() { return railMover_.get(); }
+    // カメラ
+    Camera* GetCamera() const { return camera_; }
+    // 移動・タイマー関連
+    float GetTurnCooldownTimer() const { return turnCooldownTimer_; }
+    void SetTurnCooldownTimer(float timer) { turnCooldownTimer_ = timer; }
+    void SetWallHit(bool hit) { isWallHit_ = hit; }
+    float GetWallRayDistance() const { return wallRayDistance_; }
+    void SetWallRayDistance(float dist) { wallRayDistance_ = dist; }
+    // 物理・接地関連
+    void SetGrounded(bool grounded) { isGrounded_ = grounded; }
+    float GetWorldY() const { return worldY_; }
+    void SetWorldY(float y) { worldY_ = y; }
+    float GetGravityScale() const { return gravityScale_; }
+    // 被弾・無敵・ノックバック・死亡関連
+    bool IsDamaged() const { return isDamaged_; }
+    void SetDamaged(bool damaged) { isDamaged_ = damaged; }
+    float GetHitInvincibilityTimer() const { return hitInvincibilityTimer_; }
+    void SetHitInvincibilityTimer(float timer) { hitInvincibilityTimer_ = timer; }
+    void SetKnockback(bool knockback) { isKnockback_ = knockback; }
+    float GetKnockbackTimer() const { return knockbackTimer_; }
+    void SetKnockbackTimer(float timer) { knockbackTimer_ = timer; }
+    float GetKnockbackDirection() const { return knockbackDirection_; }
+    void SetKnockbackDirection(float dir) { knockbackDirection_ = dir; }
+    float GetKnockbackTilt() const { return knockbackTilt_; }
+    void SetKnockbackTilt(float tilt) { knockbackTilt_ = tilt; }
+    float GetKnockbackRoll() const { return knockbackRoll_; }
+    void SetKnockbackRoll(float roll) { knockbackRoll_ = roll; }
+    bool IsDeathFinished() const { return isDeathFinished_; }
+    void SetDeathFinished(bool finished) { isDeathFinished_ = finished; }
+    // パーティクル
+    ParticleEmitter* GetHitParticle() const { return hitParticle_.get(); }
+    void SetHitParticle(std::unique_ptr<ParticleEmitter> emitter);
+    // コリジョン・その他
+    void SetRadius(float radius) { radius_ = radius; }
+    const GameObject::GroundRayPalamata& GetRayHitPalamata() const { return rayHitPalamata_; }
+    void SetGroundY(float groundY) { rayHitPalamata_.groundY = groundY; }
+    void SetRayOffset(float offset) { rayHitPalamata_.rayOffset = offset; }
+    EnemyType GetEnemyType() const { return enemyType_; }
+    void SetEnemyType(EnemyType type) { enemyType_ = type; }
+    const Vector3& GetInitialRotationOffset() const { return initialRotationOffset_; }
+    void SetInitialRotationOffset(const Vector3& offset) { initialRotationOffset_ = offset; }
+
 protected:
+    void UpdatePhysics(); // 重力やレール座標の合成処理
+    void PlayHitEffect(); // パーティクルを発生させるヘルパー関数
+
+private:
     float deltaTime_ = DXCommon::kDeltaTime; // フレームレートに合わせたデルタタイム
 
     float moveDirection_ = 1.0f;             // 進行方向 (1.0f: 順方向, -1.0f: 逆方向)
@@ -202,9 +255,6 @@ protected:
     float gravityScale_ = 1.0f; // 重力のスケール
     const float kGravity = -50.0f;           // 重力加速度（毎フレーム引く値）
 
-
-    void UpdatePhysics(); // 重力やレール座標の合成処理
-
     bool isDamaged_ = false;              // クールダウン中かどうかのフラグ
     float hitInvincibilityTimer_ = 0.0f;     // クールダウンタイマー
     const float kHitInvincibilityDuration_ = 1.0f; // クールダウン時間（秒単位にする場合はUpdateの計算に合わせる）
@@ -225,16 +275,13 @@ protected:
     // パーティクルエミッタの保持
     std::unique_ptr<ParticleEmitter> hitParticle_;
 
-    // パーティクルを発生させるヘルパー関数
-    void PlayHitEffect();
     //enemyの当たり判定
-
     float radius_ = 1.0f; // 当たり判定の半径
 
     Scene* scene_ = nullptr; // Enemyが所属するシーンへのポインタ
 
     GameObject::GroundRayPalamata rayHitPalamata_;
     const float kHeightOffset = 0.5f; // プレイヤーの高さオフセット（地面からの距離）
-    EnemyType enemyType;
+    EnemyType enemyType_ = EnemyType::Normal;
     Vector3 initialRotationOffset_ = { 0.0f, 0.0f, 0.0f };
 };

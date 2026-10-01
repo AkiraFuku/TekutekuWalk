@@ -10,10 +10,7 @@ HoverEnemy::~HoverEnemy() = default;
 void HoverEnemy::Initialize() {
     Enemy::Initialize();
 
-    // ホバーエネミー用の外観設定
-    if (object_) {
-        object_->SetTexture("resources/taru/taru2.png");
-    }
+    SetTexture("resources/taru/taru2.png");
 
     baseWorldY_ = GetWorldPosition().y;
     // 地面近くにスポーンした場合は浮遊高度を確保

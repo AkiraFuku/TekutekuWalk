@@ -13,8 +13,7 @@ ChaseEnemy::~ChaseEnemy() = default;
 void ChaseEnemy::Initialize() {
     Enemy::Initialize();
 
-    // ユーザー指定の taru3.png を適用
-    object_->SetTexture("resources/taru/taru3.png");
+    SetTexture("resources/taru/taru3.png");
 
     // 初期移動速度を巡回速度に設定
     SetMoveSpeed(patrolSpeed_);
@@ -33,7 +32,7 @@ void ChaseEnemy::Update() {
 void ChaseEnemy::OnCollideWithPlayer(Player* player) {
     if (!player) return;
     // すでに離脱中、または被弾・ノックバック・死亡演出中はスキップ
-    if (isRetreating_ || isDamaged_ || isKnockback_ || isDeathFinished_) return;
+    if (isRetreating_ || IsDamaged() || IsKnockback() || IsDeathFinished()) return;
 
     StartRetreat(player);
 }

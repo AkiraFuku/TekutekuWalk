@@ -14,7 +14,7 @@ BoundEnemy::~BoundEnemy() = default;
 void BoundEnemy::Initialize() {
     Enemy::Initialize();
 
-    object_->SetTexture("resources/taru/taru2.png");
+    SetTexture("resources/taru/taru2.png");
     // バウンドエネミー専用のビヘイビアに上書き！
     ChangeBehavior(std::make_unique<EnemyBehaviorBounce>());
 

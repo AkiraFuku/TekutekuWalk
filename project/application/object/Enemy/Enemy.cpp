@@ -577,3 +577,7 @@ float Enemy::GetCurrentDistance() const {
 const RailMover* Enemy::GetRailMover() const {
     return railMover_.get();
 }
+
+void Enemy::SetHitParticle(std::unique_ptr<ParticleEmitter> emitter) {
+    hitParticle_ = std::move(emitter);
+}
