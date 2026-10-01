@@ -8,9 +8,7 @@
 #include "RailPath.h"
 #include "Projectile.h"
 #include "Enemy.h"
-#include "MiniBoss.h"
 #include "StageManager.h"
-#include "Coin.h"
 
 void PlayPhase::Initialize(Scene* scene)
 {}
@@ -90,16 +88,16 @@ void PlayPhase::Update(Scene* scene)
         }
     }
 
-    // コインのコライダー登録
-    if (auto* stageMgr = gameScene->GetStageManager()) {
-        for (auto& coin : stageMgr->GetCoins()) {
-            if (coin && !coin->IsDead() && !coin->IsCollected()) {
-                if (Collider* col = coin->GetCollider()) {
-                    colliders.push_back(col);
-                }
-            }
-        }
-    }
+    //// コインのコライダー登録
+    //if (auto* stageMgr = gameScene->GetStageManager()) {
+    //    for (auto& coin : stageMgr->GetCoins()) {
+    //        if (coin && !coin->IsDead() && !coin->IsCollected()) {
+    //            if (Collider* col = coin->GetCollider()) {
+    //                colliders.push_back(col);
+    //            }
+    //        }
+    //    }
+    //}
 
     colManager->CheckAllCollisions(colliders);
 

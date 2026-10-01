@@ -23,7 +23,7 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     triggers_.clear();
     ropes_.clear();
     cloths_.clear();
-    coins_.clear();
+    //coins_.clear();
     stageRail_.reset();
     cameraRail_.reset();
     allTriangles_.clear();
@@ -99,37 +99,37 @@ void StageManager::ProcessObject(const LevelObjectData& data, Camera* camera, Sp
         break;
 
     // ─── コイン ───────────────────────────────────────────────────
-    case LevelObjectType::kCoin:
-    {
-        auto coin = std::make_unique<Coin>();
-        coin->Initialize(data.modelName);
-        coin->SetCamera(camera);
+    //case LevelObjectType::kCoin:
+    //{
+    //    auto coin = std::make_unique<Coin>();
+    //    coin->Initialize(data.modelName);
+    //    coin->SetCamera(camera);
 
-        // レール配置指定がある場合
-        if (data.railPos.x != 0.0f || data.railPos.y != 0.0f) {
-            if (stageRail_) {
-                coin->SetRail(stageRail_.get());
-                coin->SetRailPosition(data.railPos);
-            } else {
-                coin->SetPosition(data.transform.translation);
-            }
-        } else {
-            coin->SetPosition(data.transform.translation);
-        }
+    //    // レール配置指定がある場合
+    //    if (data.railPos.x != 0.0f || data.railPos.y != 0.0f) {
+    //        if (stageRail_) {
+    //            coin->SetRail(stageRail_.get());
+    //            coin->SetRailPosition(data.railPos);
+    //        } else {
+    //            coin->SetPosition(data.transform.translation);
+    //        }
+    //    } else {
+    //        coin->SetPosition(data.transform.translation);
+    //    }
 
-        // プロパティ設定
-        auto itScore = data.properties.find("score");
-        if (itScore != data.properties.end()) {
-            try { coin->SetScoreValue(std::stoi(itScore->second)); } catch (...) {}
-        }
-        auto itRadius = data.properties.find("radius");
-        if (itRadius != data.properties.end()) {
-            try { coin->SetRadius(std::stof(itRadius->second)); } catch (...) {}
-        }
+    //    // プロパティ設定
+    //    auto itScore = data.properties.find("score");
+    //    if (itScore != data.properties.end()) {
+    //        try { coin->SetScoreValue(std::stoi(itScore->second)); } catch (...) {}
+    //    }
+    //    auto itRadius = data.properties.find("radius");
+    //    if (itRadius != data.properties.end()) {
+    //        try { coin->SetRadius(std::stof(itRadius->second)); } catch (...) {}
+    //    }
 
-        coins_.push_back(std::move(coin));
-        break;
-    }
+    //    coins_.push_back(std::move(coin));
+    //    break;
+    //}
 
     // ─── 敵 ───────────────────────────────────────────────────────
     case LevelObjectType::kEnemy:
@@ -309,10 +309,10 @@ void StageManager::Update(const Vector3& playerPos)
         cloth->Update();
     }
 
-    // コイン更新
-    for (auto& coin : coins_) {
-        coin->Update();
-    }
+    //// コイン更新
+    //for (auto& coin : coins_) {
+    //    coin->Update();
+    //}
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -354,9 +354,9 @@ void StageManager::Draw()
 
     for (auto& rope  : ropes_)   rope->Draw();
     for (auto& cloth : cloths_)  cloth->Draw();
-    for (auto& coin  : coins_) {
-        coin->Draw();
-    }
+    //for (auto& coin  : coins_) {
+    //    coin->Draw();
+    //}
 }
 
 // ─────────────────────────────────────────────────────────────────────
