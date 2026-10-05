@@ -17,23 +17,7 @@ void NormalJumpAction::Execute(Player* player) {
 }
 // PlayerAction.cpp
 void NormalAttackAction::Execute(Player* player) {
-
-    EffectManager::GetInstance()->TriggerEffect(PostEffectFlag::RadialBlur, 0.75f,EffectManager::CreateRadialBlurFunctional(0.03f, 0.0f));
-
-    // 進行方向（1 or -1）を取得
-    int attackDir = player->GetMoveDirection();
-
-    // レールの進行方向ベクトルを取得
-    Vector3 railForward = player->GetDirection();
-
-    // 【修正ポイント】
-    // 単純なMoveではなく、攻撃用の「瞬間的な移動量」を計算する
-    // dashSpeed_ を現在の 0.5f から大幅に上げ（例: 2.0f）、
-    // BehaviorAttack のタイマーに合わせて減衰させる処理を Behavior 側で行うのが理想です
-    float moveAmount = float(attackDir) * dashSpeed_ * DXCommon::kDeltaTime;
-
-    player->Move(moveAmount);
-
+    EffectManager::GetInstance()->TriggerEffect(PostEffectFlag::RadialBlur, 0.75f, EffectManager::CreateRadialBlurFunctional(0.03f, 0.0f));
     player->PlayHitSE();
 }
 

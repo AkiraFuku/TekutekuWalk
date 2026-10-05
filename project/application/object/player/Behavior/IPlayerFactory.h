@@ -66,6 +66,7 @@ public:
 class BoundPlayerFactory : public RideOnPlayerFactory {
 public:
     std::unique_ptr<IPlayerState> CreateState() override;
+    std::unique_ptr<IPlayerAction> CreateMoveAction() override;
     std::unique_ptr<IPlayerBehavior> CreateBehavior(BehaviorType type) override;
 };
 
@@ -73,6 +74,7 @@ public:
 class HoverPlayerFactory : public RideOnPlayerFactory {
 public:
     std::unique_ptr<IPlayerState> CreateState() override;
+    std::unique_ptr<IPlayerAction> CreateMoveAction() override;
     std::unique_ptr<IPlayerBehavior> CreateBehavior(BehaviorType type) override;
 };
 
@@ -80,6 +82,7 @@ public:
 class ShieldPlayerFactory : public RideOnPlayerFactory {
 public:
     std::unique_ptr<IPlayerState> CreateState() override;
+    std::unique_ptr<IPlayerAction> CreateMoveAction() override;
     std::unique_ptr<IPlayerBehavior> CreateBehavior(BehaviorType type) override;
 };
 

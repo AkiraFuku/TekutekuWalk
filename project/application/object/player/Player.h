@@ -293,6 +293,12 @@ private:
     float gravityScale_ = 1.0f;
     const float kGravity = -50.0f;
     const float kJumpAcceleration = 24.0f;
+
+    // ジャンプ手触り（Juice）パラメータ
+    const float kApexGravityScale = 0.45f;    // ジャンプ頂点付近の重力軽減倍率（浮遊感）
+    const float kFallGravityScale = 1.35f;    // 下降中の重力増加倍率（キレのある落下）
+    const float kApexThreshold = 3.5f;        // 頂点判定の垂直速度しきい値 (|velocity.y| < 3.5)
+
     bool isGrounded_ = true;
     bool isJumping_ = false; // ジャンプ中フラグ（吸着解除用）
     float dropThroughTimer_ = 0.0f;          // すり抜け足場（OneWay）下層降下タイマー

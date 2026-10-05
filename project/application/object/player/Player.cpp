@@ -232,6 +232,10 @@ void Player::Move(float ratio)
         isMoving_ = true;
     }
     float speed = isDashing_ ? kDashSpeed_ : kWalkSpeed_;
+    if (!isGrounded_) {
+        // 空中はダッシュジャンプの勢いを残しつつ、適度な微調整（エアコントロール）が可能な速度に設定
+        speed = isDashing_ ? (kDashSpeed_ * 0.95f) : (kWalkSpeed_ * 0.85f);
+    }
     railMover_->Advance(ratio * (speed * deltaTime_));
 }
 
@@ -441,9 +445,17 @@ void Player::UpdateGravity()
     }
     wasGrounded_ = isGrounded_;
 
-    // 2. 重力加速度の適用
+    // 2. 重力加速度の適用（頂点浮遊感・落下加速）
     if (!isGrounded_) {
-        velocity_.y += (kGravity * gravityScale_) * deltaTime_;
+        float currentGravityMultiplier = 1.0f;
+        if (std::abs(velocity_.y) < kApexThreshold) {
+            // 頂点付近: 重力を緩めてフワッとした滞空感を演出（Apex Floating）
+            currentGravityMultiplier = kApexGravityScale;
+        } else if (velocity_.y < 0.0f) {
+            // 下降中: 重力を強めてスパッと落ちるキレを演出（Fall Gravity Multiplier）
+            currentGravityMultiplier = kFallGravityScale;
+        }
+        velocity_.y += (kGravity * gravityScale_ * currentGravityMultiplier) * deltaTime_;
     } else {
         if (velocity_.y < 0.0f) {
             velocity_.y = 0.0f;

@@ -288,7 +288,9 @@ void BehaviorSlide::Update(Player* player) {
     // 時間経過とともに滑らかに減速（終盤も余速を維持して自然な停止に）
     float progress = timer_ / kSlideDuration;
     float speedFactor = (1.0f - progress * 0.65f);
-    player->Move(-(float(slideDir_) * kSlideInitialSpeed * speedFactor * player->GetDeltaTime()));
+    // WalkSpeed基準の比率を算出し、進行方向へ力強くスライディング
+    float speedRatio = (kSlideInitialSpeed * speedFactor) / player->GetWalkSpeed();
+    player->Move(float(slideDir_) * speedRatio);
 
     player->RayCastUpdate();
     player->UpdateGravity();
@@ -414,7 +416,9 @@ void BehaviorGuard::Update(Player* player) {
         bashTimer_ += dt;
         float progress = bashTimer_ / kBashDuration;
         float speedFactor = (1.0f - progress * 0.5f);
-        player->Move(float(bashDir_) * kBashSpeed * speedFactor * dt);
+        // WalkSpeed基準の比率を算出して力強く前進突進
+        float speedRatio = (kBashSpeed * speedFactor) / player->GetWalkSpeed();
+        player->Move(float(bashDir_) * speedRatio);
 
         if (bashTimer_ >= kBashDuration) {
             // バッシュ終了

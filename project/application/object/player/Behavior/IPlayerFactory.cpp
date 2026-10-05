@@ -31,7 +31,7 @@ std::unique_ptr<IPlayerState> RideOnPlayerFactory::CreateState() {
     return std::make_unique<StateRideOnTest>(shared_from_this());
 }
 std::unique_ptr<IPlayerAction> RideOnPlayerFactory::CreateMoveAction() {
-    return std::make_unique<NormalMoveAction>(0.15f);
+    return std::make_unique<NormalMoveAction>(1.0f);
 }
 std::unique_ptr<IPlayerAction> RideOnPlayerFactory::CreateJumpAction() {
     return std::make_unique<NormalJumpAction>();
@@ -92,6 +92,9 @@ std::unique_ptr<IPlayerState> BoundPlayerFactory::CreateState() {
     // 乗り物用の StateRideOnTest（または専用の StateRideOnBound）を返す
     return std::make_unique<StateBound>(shared_from_this());
 }
+std::unique_ptr<IPlayerAction> BoundPlayerFactory::CreateMoveAction() {
+    return std::make_unique<NormalMoveAction>(1.0f); // 跳ねながら快適に移動
+}
 std::unique_ptr<IPlayerBehavior> BoundPlayerFactory::CreateBehavior(BehaviorType type) {
     switch (type) {
     case BehaviorType::Aim:
@@ -106,6 +109,9 @@ std::unique_ptr<IPlayerBehavior> BoundPlayerFactory::CreateBehavior(BehaviorType
 // --- HoverPlayerFactory ---
 std::unique_ptr<IPlayerState> HoverPlayerFactory::CreateState() {
     return std::make_unique<StateHover>(shared_from_this());
+}
+std::unique_ptr<IPlayerAction> HoverPlayerFactory::CreateMoveAction() {
+    return std::make_unique<NormalMoveAction>(1.1f); // ホバー形態は滑空機動力を強化(1.1倍)
 }
 std::unique_ptr<IPlayerBehavior> HoverPlayerFactory::CreateBehavior(BehaviorType type) {
     switch (type) {
@@ -127,6 +133,9 @@ std::unique_ptr<IPlayerBehavior> HoverPlayerFactory::CreateBehavior(BehaviorType
 // --- ShieldPlayerFactory ---
 std::unique_ptr<IPlayerState> ShieldPlayerFactory::CreateState() {
     return std::make_unique<StateShield>(shared_from_this());
+}
+std::unique_ptr<IPlayerAction> ShieldPlayerFactory::CreateMoveAction() {
+    return std::make_unique<NormalMoveAction>(0.9f); // 重装甲のため適度な重厚感(0.9倍)
 }
 std::unique_ptr<IPlayerBehavior> ShieldPlayerFactory::CreateBehavior(BehaviorType type) {
     switch (type) {

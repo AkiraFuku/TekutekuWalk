@@ -23,25 +23,30 @@ void HoverEnemy::Initialize() {
 }
 
 void HoverEnemy::Update() {
-    float dt = DXCommon::kDeltaTime;
-    hoverTimer_ += dt;
-    patrolTimer_ += dt;
+    float dt = GetDeltaTime();
 
-    // 一定時間ごとに左右反転
-    if (patrolTimer_ >= kPatrolSwitchInterval) {
-        patrolTimer_ = 0.0f;
-        patrolDir_ = -patrolDir_;
+    if (!IsKnockback()) {
+        hoverTimer_ += dt;
+        patrolTimer_ += dt;
+
+        // 一定時間ごとに左右反転
+        if (patrolTimer_ >= kPatrolSwitchInterval) {
+            patrolTimer_ = 0.0f;
+            patrolDir_ = -patrolDir_;
+        }
+
+        // レールに沿って左右パトロール移動 (MoveSpeedに対する比率を渡す)
+        float moveRatio = (GetMoveSpeed() > 0.001f) ? (patrolSpeed_ / GetMoveSpeed()) : 1.0f;
+        Move(float(patrolDir_) * moveRatio);
+
+        // 空中でふわふわ浮遊する上下サイン波運動
+        Vector3 pos = GetWorldPosition();
+        pos.y = baseWorldY_ + std::sin(hoverTimer_ * hoverFrequency_) * hoverAmplitude_;
+        SetPosition(pos);
     }
 
-    // レールに沿って左右パトロール移動
-    Move(float(patrolDir_) * patrolSpeed_ * dt);
-
-    // 空中でふわふわ浮遊する上下サイン波運動
-    Vector3 pos = GetWorldPosition();
-    pos.y = baseWorldY_ + std::sin(hoverTimer_ * hoverFrequency_) * hoverAmplitude_;
-    SetPosition(pos);
-
-    UpdateTransform();
+    // 基底クラスのUpdateを実行（被弾クールダウン・ノックバック・死亡処理の更新）
+    Enemy::Update();
 }
 
 void HoverEnemy::Draw() {
