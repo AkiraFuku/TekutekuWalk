@@ -37,7 +37,7 @@ void Model::Initialize(const std::string& directoryPath, const std::string& file
     // Model.cpp の初期化フロー（イメージ）
     if (!modelData_.skinClusterData.empty()) {
         skeleton_ = CreateSkelton(modelData_.rootNode);
-        skinCluster_ = CreateSkinCluster(skeleton_, modelData_);
+        skinCluster_ = CreateSkinCluster(skeleton_, modelData_, vertexResource_);
         hasSkinning_ = true; // 新しくフラグを追加しておくと便利
     } else {
         hasSkinning_ = false;
@@ -103,13 +103,8 @@ void Model::Draw(const Matrix4x4& worldMatrix, std::optional<uint32_t> customTex
 
     if (hasSkinning_)
     {
-        D3D12_VERTEX_BUFFER_VIEW  vbvs[2] = {
-          vertexBufferView_,
-          skinCluster_.influenceBufferView
-        };
-        DXCommon::GetInstance()->GetCommandList()->IASetVertexBuffers(0, 2, vbvs);
-
-        SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, skinCluster_.paletteSrvIndex);
+        // 変形後の出力頂点バッファをセット
+        DXCommon::GetInstance()->GetCommandList()->IASetVertexBuffers(0, 1, &skinCluster_.outputVertexBufferView);
 
     } else
     {
@@ -581,7 +576,7 @@ int32_t Model::CreateJoint(const Node& node, std::optional<int32_t> parent, std:
     return joint.index;
 }
 
-Model::SkinCluster Model::CreateSkinCluster(const Skeleton& skeleton, const ModelData& modelData)
+Model::SkinCluster Model::CreateSkinCluster(const Skeleton& skeleton, const ModelData& modelData, const Microsoft::WRL::ComPtr<ID3D12Resource>& vertexResource)
 {
 
     auto dxCommon = DXCommon::GetInstance();
@@ -645,10 +640,99 @@ Model::SkinCluster Model::CreateSkinCluster(const Skeleton& skeleton, const Mode
 
     }
 
+    // ==========================================
+    // コンピュートスキニング用リソースの初期化
+    // ==========================================
+    // 1. インフルエンスのSRV作成 (t2)
+    skinCluster.influenceSrvIndex = srv->AllocateSRV();
+    srv->CreateSRVForStructuredBuffer(
+        skinCluster.influenceSrvIndex,
+        skinCluster.influenceResource.Get(),
+        UINT(modelData.vertices.size()),
+        sizeof(VertexInfluence));
 
+    // 2. 入力頂点バッファのSRV作成 (t1)
+    skinCluster.inputVerticesSrvIndex = srv->AllocateSRV();
+    srv->CreateSRVForStructuredBuffer(
+        skinCluster.inputVerticesSrvIndex,
+        vertexResource.Get(),
+        UINT(modelData.vertices.size()),
+        sizeof(VertexData));
+
+    // 3. 出力頂点バッファ (UAV) 生成 (u0)
+    size_t vertexBufferSize = sizeof(VertexData) * modelData.vertices.size();
+    uint32_t dummyUav = 0;
+    skinCluster.outputVertexResource = dxCommon->CreateUAVBufferResource(vertexBufferSize, dummyUav);
+    skinCluster.outputVerticesUavIndex = srv->AllocateSRV();
+    srv->CreateUAVForStructuredBuffer(
+        skinCluster.outputVerticesUavIndex,
+        skinCluster.outputVertexResource.Get(),
+        UINT(modelData.vertices.size()),
+        sizeof(VertexData));
+
+    // 4. 出力頂点のVBV設定 (描画用)
+    skinCluster.outputVertexBufferView.BufferLocation = skinCluster.outputVertexResource->GetGPUVirtualAddress();
+    skinCluster.outputVertexBufferView.SizeInBytes = UINT(vertexBufferSize);
+    skinCluster.outputVertexBufferView.StrideInBytes = sizeof(VertexData);
+
+    // 5. スキニング情報定数バッファ (CBV b0) 生成 (256バイトアライメント)
+    size_t infoBufferSize = (sizeof(SkinningInformation) + 0xff) & ~0xff;
+    skinCluster.skinningInfoResource = dxCommon->CreateBufferResource(infoBufferSize);
+    SkinningInformation* mappedInfo = nullptr;
+    skinCluster.skinningInfoResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedInfo));
+    mappedInfo->numVertices = static_cast<uint32_t>(modelData.vertices.size());
+    skinCluster.skinningInfoResource->Unmap(0, nullptr);
 
     return skinCluster;
-    ;
+}
+
+void Model::SkinningDispatch()
+{
+    auto commandList = DXCommon::GetInstance()->GetCommandList();
+    auto psoSet = PSOManager::GetInstance()->GetComputePso("SkinningCS");
+
+    // 1. リソースバリア: 初回はCOMMON、2回目以降はVERTEX_AND_CONSTANT_BUFFERからUAVへ遷移
+    D3D12_RESOURCE_BARRIER preBarrier{};
+    preBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    preBarrier.Transition.pResource = skinCluster_.outputVertexResource.Get();
+    preBarrier.Transition.StateBefore = skinCluster_.isFirstDispatch ? D3D12_RESOURCE_STATE_COMMON : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    preBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    preBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    commandList->ResourceBarrier(1, &preBarrier);
+    skinCluster_.isFirstDispatch = false;
+
+    // 2. パイプラインステートとルートシグネチャのセット
+    commandList->SetComputeRootSignature(psoSet.rootSignature.Get());
+    commandList->SetPipelineState(psoSet.pipelineState.Get());
+
+    // 3. ディスクリプタヒープのセット
+    ID3D12DescriptorHeap* heaps[] = { SrvManager::GetInstance()->GetDescriptorHeap().Get() };
+    commandList->SetDescriptorHeaps(1, heaps);
+
+    // 4. 各パラメータをバインド
+    // b0: スキニング情報 (CBV)
+    commandList->SetComputeRootConstantBufferView(0, skinCluster_.skinningInfoResource->GetGPUVirtualAddress());
+    // t0: 行列パレット (SRV)
+    SrvManager::GetInstance()->SetComputeRootDescriptorTable(1, skinCluster_.paletteSrvIndex);
+    // t1: 入力頂点 (SRV)
+    SrvManager::GetInstance()->SetComputeRootDescriptorTable(2, skinCluster_.inputVerticesSrvIndex);
+    // t2: インフルエンス (SRV)
+    SrvManager::GetInstance()->SetComputeRootDescriptorTable(3, skinCluster_.influenceSrvIndex);
+    // u0: 出力頂点 (UAV)
+    SrvManager::GetInstance()->SetComputeRootDescriptorTable(4, skinCluster_.outputVerticesUavIndex);
+
+    // 5. ディスパッチ実行 (スレッドグループサイズ: 1024)
+    UINT numVertices = static_cast<UINT>(modelData_.vertices.size());
+    commandList->Dispatch((numVertices + 1023) / 1024, 1, 1);
+
+    // 6. リソースバリア: UAV書き込み完了待ち → 描画用頂点バッファ状態へ遷移
+    D3D12_RESOURCE_BARRIER postBarrier{};
+    postBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    postBarrier.Transition.pResource = skinCluster_.outputVertexResource.Get();
+    postBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    postBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    postBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    commandList->ResourceBarrier(1, &postBarrier);
 }
 
 void Model::DebugDrawSkeleton(const Matrix4x4& worldMatrix)

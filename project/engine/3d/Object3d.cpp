@@ -78,14 +78,12 @@ void Object3d::Draw()
         return;
     }
 
-    if (model_ && model_->HasSkinning())
-    {
-        psoName_ = "SkiningObj3d";
-
-    } else
-    {
-        psoName_ = "Object3d";
+    // スキニングモデルの場合は、描画パイプライン設定の前にコンピュートスキニングを実行！
+    if (model_ && model_->HasSkinning()) {
+        model_->SkinningDispatch();
     }
+
+    psoName_ = "Object3d";
     Object3dCommon::GetInstance()->Object3dCommonDraw();
     auto psoSet = PSOManager::GetInstance()->GetPso(psoName_, blendMode_, fillMode_);
 

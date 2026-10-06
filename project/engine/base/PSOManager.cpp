@@ -58,12 +58,63 @@ D3D12_STATIC_SAMPLER_DESC PSOManager::StaticSamplers()
 }
 
 const PsoSet& PSOManager::GetPso(const std::string& name, BlendMode blend, FillMode fill, Toporogy type) {
-    CacheKey key{ name, blend, fill,type };
+    CacheKey key{ name, blend, fill, type };
     if (psoCache_.contains(key)) {
         return psoCache_[key];
     }
+
+    // 設定に CS が含まれている場合は Compute PSO を取得
+    if (psoConfigs_.contains(name)) {
+        const auto& config = psoConfigs_.at(name);
+        for (const auto& sp : config.shaderPaths) {
+            if (sp.type == ShaderType::CS) {
+                return GetComputePso(name);
+            }
+        }
+    }
+
     CreatePso(name, blend, fill, type);
     return psoCache_.at(key);
+}
+
+const PsoSet& PSOManager::GetComputePso(const std::string& name) {
+    CacheKey key{ name, BlendMode::None, FillMode::kSolid, Toporogy::TriangleList };
+    if (psoCache_.contains(key)) {
+        return psoCache_[key];
+    }
+    CreateComputePso(name);
+    return psoCache_.at(key);
+}
+
+void PSOManager::CreateComputePso(const std::string& name) {
+    auto device = DXCommon::GetInstance()->GetDevice();
+    const auto& config = psoConfigs_.at(name);
+
+    // 1. RootSignature のキャッシュ確認と生成
+    if (!rootSigCache_.contains(name)) {
+        assert(config.rootSignatureGenerator && "RootSignatureGenerator is null");
+        rootSigCache_[name] = config.rootSignatureGenerator();
+    }
+    auto rootSignature = rootSigCache_[name];
+
+    // 2. CS シェーダーの取得
+    ShaderSet shaders;
+    EnsureShaders(name, shaders);
+    assert(shaders.blobs.contains(ShaderType::CS) && "Compute Shader Blob not found");
+
+    // 3. Compute PSO 構築
+    D3D12_COMPUTE_PIPELINE_STATE_DESC computeDesc{};
+    computeDesc.pRootSignature = rootSignature.Get();
+    auto& csBlob = shaders.blobs[ShaderType::CS];
+    computeDesc.CS = { csBlob->GetBufferPointer(), csBlob->GetBufferSize() };
+
+    PsoSet psoSet;
+    psoSet.rootSignature = rootSignature;
+    HRESULT hr = device->CreateComputePipelineState(&computeDesc, IID_PPV_ARGS(&psoSet.pipelineState));
+    assert(SUCCEEDED(hr) && "Failed to create Compute Pipeline State");
+
+    CacheKey key{ name, BlendMode::None, FillMode::kSolid, Toporogy::TriangleList };
+    psoCache_[key] = psoSet;
 }
 
 

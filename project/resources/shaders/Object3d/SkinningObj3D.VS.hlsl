@@ -1,10 +1,4 @@
 #include "Object3d.hlsli"
-struct TransformationMatrix
-{
-    float4x4 WVP;
-    float4x4 World;
-    float4x4 WorldInverseTranspose;
-};
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
 //
 struct VertexShaderInput
@@ -17,18 +11,9 @@ struct VertexShaderInput
     int4 index : INDEX0;
 };
 
-struct Well
-{
-    float4x4 skeletonSpaceMatrix;
-    float4x4 skeletonSpaceInverseTranspaseMatrix;
-};
 StructuredBuffer<Well> gMatrixPalette : register(t0);
 
-struct Skinned
-{
-    float4 position;
-    float3 normal;
-};
+
 Skinned Skinning(VertexShaderInput input)
 {
     Skinned skinned;

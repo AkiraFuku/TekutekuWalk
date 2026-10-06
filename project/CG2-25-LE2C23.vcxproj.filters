@@ -917,5 +917,6 @@
       <Filter>シェーダー ファイル\ofScrene</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\CopyImage\PostEfect.PS.hlsl" />
+    <FxCompile Include="resources\shaders\Compute\Skinning.CS.hlsl" />
   </ItemGroup>
 </Project>

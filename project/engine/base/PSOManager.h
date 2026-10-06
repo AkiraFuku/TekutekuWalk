@@ -77,6 +77,7 @@ public:
 
     void RegisterPsoGenerator(const std::string& name, const PsoConfig& psoConfig);
     const PsoSet& GetPso(const std::string& name, BlendMode blendMode = BlendMode::None, FillMode fillMode = FillMode::kSolid, Toporogy type = Toporogy::TriangleList);
+    const PsoSet& GetComputePso(const std::string& name);
 
     D3D12_STATIC_SAMPLER_DESC StaticSamplers();
 
@@ -85,6 +86,7 @@ private:
     ~PSOManager() = default;
 
     void CreatePso(const std::string& name, BlendMode blend, FillMode fill, Toporogy type);
+    void CreateComputePso(const std::string& name);
     D3D12_BLEND_DESC CreateBlendDesc(BlendMode mode);
     void EnsureShaders(const std::string& name, ShaderSet& outSet);
     D3D12_PRIMITIVE_TOPOLOGY_TYPE GetPrimitiveTopologyType(Toporogy type);

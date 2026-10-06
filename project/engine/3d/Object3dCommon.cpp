@@ -203,6 +203,35 @@ void Object3dCommon::Initialize()
 
     // PSOManagerに名前を付けて登録
     PSOManager::GetInstance()->RegisterPsoGenerator("SkiningObj3d", config);
+
+    // ==========================================
+    // コンピュートシェーダースキニング用 PSO 登録
+    // ==========================================
+    PsoConfig csConfig;
+    PsoConfig::ShaderPath csPath = {
+        ShaderType::CS,
+        L"resources/shaders/Compute/Skinning.CS.hlsl",
+        "main",
+        L"cs_6_0"
+    };
+    csConfig.shaderPaths.push_back(csPath);
+    csConfig.rootSignatureGenerator = []() {
+        return RootSignatureBuilder()
+            // 0. gSkinningInformation (CBV b0)
+            .AddCBV(0)
+            // 1. gMatrixPalette (SRV Table t0)
+            .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0)
+            // 2. gInputVertices (SRV Table t1)
+            .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1)
+            // 3. gInfluences (SRV Table t2)
+            .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2)
+            // 4. gOutputVertices (UAV Table u0)
+            .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0)
+            .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_NONE)
+            .Build(DXCommon::GetInstance()->GetDevice().Get());
+    };
+    PSOManager::GetInstance()->RegisterPsoGenerator("SkinningCS", csConfig);
+
     auto psoSet = PSOManager::GetInstance()->GetPso("Object3d");
     rootSignature_ = psoSet.rootSignature;
     graphicsPipelineState_ = psoSet.pipelineState;

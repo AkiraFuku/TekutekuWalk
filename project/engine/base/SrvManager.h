@@ -77,6 +77,13 @@ public:
                                  UINT structureByteStride,
                                  D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptor);
 
+
+  void  CreateUAVForStructuredBuffer(uint32_t uavIndex, ID3D12Resource* pResource, UINT numElements,
+      UINT structureByteStride);
+
+
+  void SetComputeRootDescriptorTable(UINT RootParameterIndex, uint32_t srvIndex);
+
   void SetGraphicsRootDescriptorTable(UINT RootParameterIndex,
                                       uint32_t srvIndex);
   void PreDraw();

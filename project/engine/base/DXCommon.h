@@ -91,6 +91,9 @@ public:
         return depthTexture_.srvIndex;
     }
 
+
+     Microsoft::WRL::ComPtr<ID3D12Resource> CreateUAVBufferResource(size_t sizeInBytes, uint32_t& uavIndex);
+
 private:
     // コンストラクタ・デストラクタをprivateにして外部生成を禁止
     DXCommon() = default;

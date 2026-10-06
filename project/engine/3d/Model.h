@@ -97,6 +97,9 @@ public:
         Matrix4x4 skeletonInverseTransposeMatrix;
 
     };
+    struct SkinningInformation {
+        uint32_t numVertices;
+    };
     struct SkinCluster
     {
         std::vector<Matrix4x4> inverseBindMatrices; // ジョイントの逆バインド行列の配列
@@ -104,12 +107,20 @@ public:
         Microsoft::WRL::ComPtr<ID3D12Resource> influenceResource; // ジョイントの影響データを格納するGPUリソース
         D3D12_VERTEX_BUFFER_VIEW influenceBufferView; // ジョイントの影響データのバッファビュー
         std::span<VertexInfluence> mappedInfluences; // 頂点の影響データのスパン
+        uint32_t influenceSrvIndex = 0; // インフルエンスのSRVインデックス
         //
         Microsoft::WRL::ComPtr<ID3D12Resource> paletteResource;
         std::span<WellForGPU> mappedPalette;
         std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE>paletteSrvHandle;
-            uint32_t paletteSrvIndex;
+        uint32_t paletteSrvIndex;
 
+        // コンピュートスキニング用
+        uint32_t inputVerticesSrvIndex = 0; // 入力頂点バッファのSRV
+        Microsoft::WRL::ComPtr<ID3D12Resource> outputVertexResource; // 出力頂点バッファ (UAV)
+        uint32_t outputVerticesUavIndex = 0; // 出力頂点のUAVインデックス
+        D3D12_VERTEX_BUFFER_VIEW outputVertexBufferView{}; // 出力頂点のVBV
+        Microsoft::WRL::ComPtr<ID3D12Resource> skinningInfoResource; // スキニング情報定数バッファ (CBV)
+        bool isFirstDispatch = true; // 初回バリア判定用
     };
 
     enum  DiffuseType
@@ -130,6 +141,7 @@ public:
 
     void Draw(const Matrix4x4& worldMatrix = Makeidentity4x4(), std::optional<uint32_t> customTextureIndex = std::nullopt);
     void DrawInstanced(uint32_t instanceCount);
+    void SkinningDispatch();
     void SetAnimation(Animation* animation) {
         animation_ = animation;
     }
@@ -156,7 +168,7 @@ public:
     static Node ReadNode(aiNode* node);
     static Skeleton CreateSkelton(const Node& rootNode);
     static int32_t CreateJoint(const Node& node, std::optional<int32_t> parent, std::vector<Joint>& joints);
-    static SkinCluster CreateSkinCluster(const Skeleton& skeleton, const ModelData& modelData);
+    static SkinCluster CreateSkinCluster(const Skeleton& skeleton, const ModelData& modelData, const Microsoft::WRL::ComPtr<ID3D12Resource>& vertexResource);
 public:
     bool HasSkinning() const {
         return !modelData_.skinClusterData.empty() ;

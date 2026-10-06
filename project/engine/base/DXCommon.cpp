@@ -146,6 +146,35 @@ void DXCommon::SwapChainDraw()
 
     commandList_->ResourceBarrier(1, &depthBarrier_);
 }
+ Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateUAVBufferResource(size_t sizeInBytes, uint32_t& uavIndex)
+{
+ // 1. DEFAULT ヒープ (GPU専用の高速メモリ)
+    D3D12_HEAP_PROPERTIES heapProperties{};
+    heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    // 2. リソース設定
+    D3D12_RESOURCE_DESC resourceDesc{};
+    resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    resourceDesc.Width = sizeInBytes;
+    resourceDesc.Height = 1;
+    resourceDesc.DepthOrArraySize = 1;
+    resourceDesc.MipLevels = 1;
+    resourceDesc.SampleDesc.Count = 1;
+    resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    // ★重要: UAV（アンオーダードアクセス）を許可するフラグ
+    resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    // 3. リソース生成 (初期ステートは COMMON)
+    Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
+    HRESULT hr = device_->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&resource)
+    );
+    assert(SUCCEEDED(hr) && "Failed to create UAV Buffer Resource");
+    return resource;
+}
 void DXCommon::RenderTextureDraw(size_t index)
 {
     assert(index < renderTextures_.size());
