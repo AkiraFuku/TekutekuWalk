@@ -872,6 +872,7 @@
     <None Include="resources\shaders\PostEfect\GaussianBlur.hlsli" />
     <None Include="resources\shaders\PostEfect\LuminanceOutline.hlsli" />
     <None Include="resources\shaders\Fade\Fade.hlsli" />
+    <None Include="resources\shaders\GPUParticle\GPUParticle.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d\Object3d.PS.hlsl">
@@ -918,5 +919,6 @@
     </FxCompile>
     <FxCompile Include="resources\shaders\CopyImage\PostEfect.PS.hlsl" />
     <FxCompile Include="resources\shaders\Compute\Skinning.CS.hlsl" />
+    <FxCompile Include="resources\shaders\GPUParticle\GPUParticleEmit.CS.hlsl" />
   </ItemGroup>
 </Project>

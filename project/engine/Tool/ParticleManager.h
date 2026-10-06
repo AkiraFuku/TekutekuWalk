@@ -47,6 +47,15 @@ public:
         UVTransform uvTransform;
 
     };
+    struct ParticleCS
+    {
+        Vector3 position;
+        float scale;
+        Vector3 velocity;
+        Vector4 color;
+        float lifeTime;
+        float currentTime;
+    };
 
     struct CylinderData
     {
@@ -198,7 +207,7 @@ private:
     std::random_device seedGen_;
     std::mt19937 randomEngine_;
     HRESULT hr_ = 0;
-   
+
 
     //頂点リソース
     std::map<EffectType, PrimitiveResource> primitiveResources_;
