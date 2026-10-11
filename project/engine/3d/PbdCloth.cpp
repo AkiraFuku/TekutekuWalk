@@ -154,7 +154,7 @@ void PbdCloth::Draw() {
         camera_ = PbdCommon::GetInstance()->GetDefaultCamera();
     }
 
-    Matrix4x4 worldMatrix = Makeidentity4x4();
+    Matrix4x4 worldMatrix = MakeAffineMatrix(scale_, rotate_, translate_);
     Matrix4x4 wvpMatrix = worldMatrix;
 
     if (camera_) {

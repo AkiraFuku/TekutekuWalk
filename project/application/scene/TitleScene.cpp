@@ -10,7 +10,7 @@
 #include "Phase.h"
 #include "Fade.h"
 #include "TitlePhase.h"
-#include "PbdCloth.h"
+#include "PbdCloth2D.h"
 #include <cmath>
 
 
@@ -37,7 +37,7 @@ void TitleScene::Initialize() {
 
     // Audio::GetInstance()->PlayAudio(handle_, true);
 
-    TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
+    TextureManager::GetInstance()->LoadTexture("resources/Stagemap/863603.png");
     TextureManager::GetInstance()->LoadTexture("resources/Title/tekutekuTitle.png");
 
     LightManager::GetInstance()->AddDirectionalLight({ 0.0f,-1.0f,0.0f }, { 1.0f,1.0f,1.0f }, 1.0f);
@@ -50,19 +50,37 @@ void TitleScene::Initialize() {
 
     Fade::GetInstance()->StartFadeIn(5.0f);
 
+    // 道（地面ブロック）の生成と配置
+    ModelManager::GetInstance()->CreateBoxModel("TitleRoad");
+    roadObject_ = std::make_unique<Object3d>();
+    roadObject_->Initialize();
+    roadObject_->SetModel("TitleRoad");
+    roadObject_->SetTexture("resources/Stagemap/863603.png");
+    roadObject_->SetScale(roadScale_);
+    roadObject_->SetTranslate({ characterPos_.x, characterPos_.y - 0.1f, characterPos_.z });
+    roadObject_->SetCamera(activeCamera_);
 
-  /*  sprite = std::make_unique<Sprite>();
-    sprite->Initialize("resources/Title/tekutekuTitle.png");
-    sprite->SetAnchorPoint(Anchor::Center);
-    sprite->SetPosition(WinApp::GetInstance()->GetWindowCenter());*/
+    object3d = std::make_unique<Object3d>();
+    ModelManager::GetInstance()->LoadModel("resources/human/", "walk.gltf");
+    object3d->Initialize();
+    //object_->SetModel("player.obj");
+    object3d->SetModel("walk.gltf");
+    object3d->SetTexture("resources/Yellow.png");
+    object3d->SetTranslate(characterPos_);
+    object3d->SetCamera(activeCamera_);
+    animation = std::make_unique<Animation>();
 
-    // PBD 布オブジェクトの初期化
-    cloth_ = std::make_unique<PbdCloth>();
-    // 幅: 4.0 (x: -2.0 ~ 2.0), 高さ: 3.0 (y: 1.5 ~ -1.5), 格子数: 16x16
-    cloth_->Initialize({ -2.0f, 2.0f, 0.0f }, { 2.0f, -1.5f, 0.0f }, 16, 16, 0.3f, 1.0f / 60.0f, 0.03f, { 0.0f, -9.8f, 0.0f });
-    cloth_->SetTexture("resources/Title/tekutekuTitle.png");
-    cloth_->SetCamera(activeCamera_);
-    cloth_->GetSolver().SetSolverIterations(15);
+    animation->Initialize("resources/human", "walk.gltf");
+    animation->SetCurrentTime(0.0f);
+    object3d->SetAnimations(animation.get());
+
+
+    // 2D PBD 布（画面全体・四隅固定タイトル幕）オブジェクトの初期化
+    cloth2D_ = std::make_unique<PbdCloth2D>();
+    cloth2D_->SetAnchorPoint(cloth2DAnchor_);
+    cloth2D_->Initialize(cloth2DPos_, cloth2DSize_, 20, 16, cloth2DK_, cloth2DPinMode_);
+    cloth2D_->SetGravity(cloth2DGravity_);
+    cloth2D_->SetTexture("resources/Title/tekutekuTitle.png");
     ChangePhase(std::make_unique<TitlePhase>());
 
     handle_ = Audio::GetInstance()->LoadAudio("resources/Audio/BGM/bgm.mp3");
@@ -78,51 +96,109 @@ void TitleScene::Finalize() {
 
 }
 void TitleScene::Update() {
+    // カメラの旋回（オービット）計算
+    if (activeCamera_ && !isDebugCamera_) {
+        cameraOrbitAngle_ += cameraOrbitSpeed_ * (1.0f / 60.0f);
+
+        // キャラクター中心の円軌道上のカメラ位置
+        Vector3 camPos;
+        camPos.x = characterPos_.x + std::sin(cameraOrbitAngle_) * cameraOrbitRadius_;
+        camPos.z = characterPos_.z + std::cos(cameraOrbitAngle_) * cameraOrbitRadius_;
+        camPos.y = characterPos_.y + cameraHeight_;
+        activeCamera_->SetTranslate(camPos);
+
+        // キャラクターの注視点
+        Vector3 lookTarget = { characterPos_.x, characterPos_.y + cameraTargetHeight_, characterPos_.z };
+        Vector3 diff = { lookTarget.x - camPos.x, lookTarget.y - camPos.y, lookTarget.z - camPos.z };
+        float horizontalDist = std::sqrt(diff.x * diff.x + diff.z * diff.z);
+
+        // 注視点に向く回転角（Yaw, Pitch）
+        float yaw = std::atan2(diff.x, diff.z);
+        float pitch = std::atan2(-diff.y, horizontalDist);
+        activeCamera_->SetRotate({ pitch, yaw, 0.0f });
+    }
+
     if (activeCamera_) {
         activeCamera_->Update();
         activeCamera_->UpdateViewProjection();
     }
     skyBox->Update();
 
-    // 布の更新（風シミュレーション付き）
-    if (cloth_) {
-        clothTimer_ += 1.0f / 60.0f;
-        if (clothWindEnabled_) {
-            // 自然な風の揺れをサイン・コサインの合成波で生成
-            float windZ = std::sin(clothTimer_ * 2.5f) * clothWindStrength_ + std::cos(clothTimer_ * 4.7f) * (clothWindStrength_ * 0.4f);
-            float windX = std::cos(clothTimer_ * 1.8f) * (clothWindStrength_ * 0.3f);
-            cloth_->SetGravity({ windX, -9.8f, windZ });
-        } else {
-            cloth_->SetGravity({ 0.0f, -9.8f, 0.0f });
-        }
-
-        cloth_->SetCamera(activeCamera_);
-        cloth_->Update();
+    // 2D PBD 布の更新
+    if (cloth2D_) {
+        cloth2D_->SetPosition(cloth2DPos_);
+        cloth2D_->SetSize(cloth2DSize_);
+        cloth2D_->SetRotation(cloth2DRotation_);
+        cloth2D_->SetGravity(cloth2DGravity_);
+        cloth2D_->SetWindEnabled(cloth2DWindEnabled_);
+        cloth2D_->SetWindStrength(cloth2DWindStrength_);
+        cloth2D_->Update();
     }
 
-  //  sprite->Update();
+    // 道（地面）の更新
+    if (roadObject_) {
+        roadObject_->SetCamera(activeCamera_);
+        roadObject_->SetScale(roadScale_);
+        roadObject_->SetTranslate({ characterPos_.x, characterPos_.y - 0.1f, characterPos_.z });
+        roadObject_->Update();
+    }
+
+    object3d->SetCamera(activeCamera_);
+    object3d->SetTranslate(characterPos_);
+    object3d->Update();
     currentPhase_->Update(this);
 
 #ifdef USE_IMGUI
-    ImGui::Begin("PBD Cloth Debug");
-    if (ImGui::Button("Reset Cloth")) {
-        cloth_->Initialize({ -2.0f, 1.5f, 0.0f }, { 2.0f, -1.5f, 0.0f }, 16, 16, 0.3f, 1.0f / 60.0f, 0.03f, { 0.0f, -9.8f, 0.0f });
-        cloth_->SetTexture("resources/uvChecker.png");
-        cloth_->SetCamera(activeCamera_);
-    }
-    ImGui::Checkbox("Enable Wind", &clothWindEnabled_);
-    ImGui::SliderFloat("Wind Strength", &clothWindStrength_, 0.0f, 20.0f);
+    ImGui::Begin("Title Scene Camera & Road");
+    ImGui::DragFloat("Orbit Speed", &cameraOrbitSpeed_, 0.01f, -2.0f, 2.0f);
+    ImGui::DragFloat("Orbit Radius", &cameraOrbitRadius_, 0.1f, 1.0f, 30.0f);
+    ImGui::DragFloat("Camera Height", &cameraHeight_, 0.1f, -5.0f, 15.0f);
+    ImGui::DragFloat("Target Height", &cameraTargetHeight_, 0.1f, 0.0f, 5.0f);
+    ImGui::Separator();
+    ImGui::DragFloat3("Character Pos", &characterPos_.x, 0.1f);
+    ImGui::DragFloat3("Road Scale", &roadScale_.x, 0.1f);
+    ImGui::End();
 
-    if (cloth_) {
-        if (ImGui::Button("Apply Gust Push (+Z)")) {
-            auto& solver = cloth_->GetSolver();
-            int w = solver.GetWidth();
-            int h = solver.GetHeight();
-            for (int i = 0; i < w; ++i) {
-                for (int j = 1; j < h; ++j) {
-                    solver.GetPoint(i, j).velocity.z += 8.0f;
-                }
-            }
+    ImGui::Begin("Title 2D Cloth Debug");
+    ImGui::DragFloat2("Position", &cloth2DPos_.x, 1.0f, 0.0f, 1280.0f);
+    ImGui::DragFloat2("Size", &cloth2DSize_.x, 1.0f, 50.0f, 1280.0f);
+    ImGui::DragFloat("Rotation", &cloth2DRotation_, 0.02f, -3.14f, 3.14f);
+
+    const char* pinModes[] = { "Top Corners Only (2 Points)", "Top Edge All", "Four Corners (4 Points)" };
+    if (ImGui::Combo("Pin Mode", &cloth2DPinMode_, pinModes, IM_ARRAYSIZE(pinModes))) {
+        if (cloth2D_) {
+            cloth2D_->SetPinMode(cloth2DPinMode_);
+        }
+    }
+
+    if (ImGui::SliderFloat("Stiffness (k)", &cloth2DK_, 0.05f, 1.0f)) {
+        if (cloth2D_) {
+            cloth2D_->SetK(cloth2DK_);
+        }
+    }
+
+    ImGui::DragFloat2("Base Gravity", &cloth2DGravity_.x, 5.0f, -1000.0f, 1000.0f);
+    ImGui::Checkbox("Enable Wind", &cloth2DWindEnabled_);
+    ImGui::SliderFloat("Wind Strength", &cloth2DWindStrength_, 0.0f, 800.0f);
+
+    if (ImGui::Button("Reset Cloth")) {
+        if (cloth2D_) {
+            cloth2D_->SetAnchorPoint(cloth2DAnchor_);
+            cloth2D_->Initialize(cloth2DPos_, cloth2DSize_, 20, 16, cloth2DK_, cloth2DPinMode_);
+            cloth2D_->SetGravity(cloth2DGravity_);
+            cloth2D_->SetTexture("resources/Title/tekutekuTitle.png");
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Gust Left (-X)")) {
+        if (cloth2D_) {
+            cloth2D_->ApplyGust(-400.0f);
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Gust Right (+X)")) {
+        if (cloth2D_) {
+            cloth2D_->ApplyGust(400.0f);
         }
     }
     ImGui::End();
@@ -130,12 +206,17 @@ void TitleScene::Update() {
 }
 void TitleScene::Draw() {
     skyBox->Draw();
-    if (cloth_) {
-        cloth_->Draw();
+    if (roadObject_) {
+        roadObject_->Draw();
+    }
+    object3d->Draw();
+    if (cloth2D_) {
+        cloth2D_->Draw();
     }
     if (currentPhase_) {
         currentPhase_->Draw(this);
     }
+   
 }
 
 

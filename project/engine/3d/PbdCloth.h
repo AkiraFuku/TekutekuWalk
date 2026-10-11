@@ -46,6 +46,15 @@ public:
     void SetColor(const Vector4& color);
     void SetEnableLighting(bool enable);
     void SetCamera(Camera* camera) { camera_ = camera; }
+
+    // トランスフォーム制御
+    void SetTranslate(const Vector3& translate) { translate_ = translate; }
+    void SetRotate(const Vector3& rotate) { rotate_ = rotate; }
+    void SetScale(const Vector3& scale) { scale_ = scale; }
+    const Vector3& GetTranslate() const { return translate_; }
+    const Vector3& GetRotate() const { return rotate_; }
+    const Vector3& GetScale() const { return scale_; }
+
     /// 物理パラメータのセッター
     /// <summary>
     /// スタート地点
@@ -73,6 +82,10 @@ private:
     PbdSolver solver_;
 
     Camera* camera_ = nullptr;
+
+    Vector3 translate_ = { 0.0f, 0.0f, 0.0f };
+    Vector3 rotate_    = { 0.0f, 0.0f, 0.0f };
+    Vector3 scale_     = { 1.0f, 1.0f, 1.0f };
 
     // 頂点バッファ (動的更新・UPLOAD)
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;

@@ -228,6 +228,9 @@
     <ClCompile Include="engine\2d\Sprite.cpp">
       <Filter>engine\2d</Filter>
     </ClCompile>
+    <ClCompile Include="engine\2d\PbdCloth2D.cpp">
+      <Filter>engine\2d</Filter>
+    </ClCompile>
     <ClCompile Include="engine\3d\Vector3.cpp">
       <Filter>engine\3d</Filter>
     </ClCompile>
@@ -549,6 +552,9 @@
       <Filter>engine\2d</Filter>
     </ClInclude>
     <ClInclude Include="engine\2d\Sprite.h">
+      <Filter>engine\2d</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\2d\PbdCloth2D.h">
       <Filter>engine\2d</Filter>
     </ClInclude>
     <ClInclude Include="engine\2d\Vector2.h">
