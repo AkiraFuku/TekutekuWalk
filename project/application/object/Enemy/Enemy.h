@@ -42,6 +42,11 @@ public:
     Vector3 GetWorldPosition() const override {
         return object_->GetTranslate();
     }
+    void AddPosition(const Vector3& delta) override {
+        if (object_) {
+            object_->SetTranslate(object_->GetTranslate() + delta);
+        }
+    }
     CollisionCategory GetCategory() const override {
         return CollisionCategory::Enemy;
     }

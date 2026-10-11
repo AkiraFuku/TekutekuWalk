@@ -288,6 +288,56 @@ bool Physics::Intersect(const Ray& ray, const AABB& aabb, float* outDistance, Ve
     return true;
 }
 
+namespace {
+    // 内部計算用の正規化済みレイとAABBの高速スラブ交差判定
+    inline bool FastRayAABBIntersect(const Ray& normRay, const AABB& aabb, float maxDist, float* outTmin = nullptr) {
+        float tmin = 0.0f;
+        float tmax = maxDist;
+
+        // X軸
+        if (std::abs(normRay.diff.x) < 1e-6f) {
+            if (normRay.origin.x < aabb.min.x || normRay.origin.x > aabb.max.x) return false;
+        } else {
+            float invD = 1.0f / normRay.diff.x;
+            float t1 = (aabb.min.x - normRay.origin.x) * invD;
+            float t2 = (aabb.max.x - normRay.origin.x) * invD;
+            if (t1 > t2) std::swap(t1, t2);
+            tmin = (std::max)(tmin, t1);
+            tmax = (std::min)(tmax, t2);
+            if (tmin > tmax) return false;
+        }
+
+        // Y軸
+        if (std::abs(normRay.diff.y) < 1e-6f) {
+            if (normRay.origin.y < aabb.min.y || normRay.origin.y > aabb.max.y) return false;
+        } else {
+            float invD = 1.0f / normRay.diff.y;
+            float t1 = (aabb.min.y - normRay.origin.y) * invD;
+            float t2 = (aabb.max.y - normRay.origin.y) * invD;
+            if (t1 > t2) std::swap(t1, t2);
+            tmin = (std::max)(tmin, t1);
+            tmax = (std::min)(tmax, t2);
+            if (tmin > tmax) return false;
+        }
+
+        // Z軸
+        if (std::abs(normRay.diff.z) < 1e-6f) {
+            if (normRay.origin.z < aabb.min.z || normRay.origin.z > aabb.max.z) return false;
+        } else {
+            float invD = 1.0f / normRay.diff.z;
+            float t1 = (aabb.min.z - normRay.origin.z) * invD;
+            float t2 = (aabb.max.z - normRay.origin.z) * invD;
+            if (t1 > t2) std::swap(t1, t2);
+            tmin = (std::max)(tmin, t1);
+            tmax = (std::min)(tmax, t2);
+            if (tmin > tmax) return false;
+        }
+
+        if (outTmin) *outTmin = tmin;
+        return true;
+    }
+}
+
 // ─── 1. レイキャスト判定 (Raycast) ───────────────────────────
 
 bool Physics::Raycast(const Ray& ray, RaycastHit* hitInfo, float maxDistance, uint32_t layerMask) {
@@ -321,7 +371,40 @@ bool Physics::Raycast(const Ray& ray, const std::vector<Triangle>& triangles, Ra
     float closestDist = maxDistance;
     RaycastHit bestHit;
 
+    // レイの到達範囲を表す外接AABB（探索ボリューム）を計算するラムダ
+    auto CalcRayAABB = [&](float maxDist) -> AABB {
+        Vector3 endPoint = Add(normRay.origin, Multiply(maxDist, normRay.diff));
+        AABB box;
+        box.min.x = (std::min)(normRay.origin.x, endPoint.x);
+        box.min.y = (std::min)(normRay.origin.y, endPoint.y);
+        box.min.z = (std::min)(normRay.origin.z, endPoint.z);
+        box.max.x = (std::max)(normRay.origin.x, endPoint.x);
+        box.max.y = (std::max)(normRay.origin.y, endPoint.y);
+        box.max.z = (std::max)(normRay.origin.z, endPoint.z);
+        return box;
+    };
+
+    AABB rayAABB = CalcRayAABB(closestDist);
+
     for (const auto& tri : triangles) {
+        // 【AABBカリング Step 1】三角形のAABBを取得
+        AABB triAABB = GetTriangleAABB(tri);
+
+        // 【AABBカリング Step 2】レイ探索AABBと三角形AABBが重なっていなければ即破棄（float大小比較のみ）
+        if (!IsOverlapAABB(rayAABB, triAABB)) {
+            continue;
+        }
+
+        // 【AABBカリング Step 3】レイと三角形AABBのスラブ判定（ボックス自体を外れるものは除外）
+        float boxDist = 0.0f;
+        if (!FastRayAABBIntersect(normRay, triAABB, closestDist, &boxDist)) {
+            continue;
+        }
+        if (boxDist > closestDist) {
+            continue;
+        }
+
+        // 【詳細判定】AABBを通過した三角形のみ高コストな三角形交差計算を実行
         float t = 0.0f;
         Vector3 hitPoint = {};
         RayTriangleCollisionResult result = RayTriangleCollisionResult::NoCollision;
@@ -342,6 +425,9 @@ bool Physics::Raycast(const Ray& ray, const std::vector<Triangle>& triangles, Ra
 
                 closestDist = t;
                 found = true;
+
+                // 【動的枝刈り】より近い面が見つかったので、レイAABBの探索範囲を縮小
+                rayAABB = CalcRayAABB(closestDist);
 
                 bestHit.hit = true;
                 bestHit.distance = t;
@@ -368,25 +454,24 @@ bool Physics::Raycast(const Ray& ray, const std::vector<Triangle>& triangles, Ra
 
             if ((colLayer & layerMask) == 0) continue;
 
-            Sphere sphere;
-            sphere.center = col->GetWorldPosition();
-            sphere.radius = col->GetRadius();
+            auto spheres = col->GetWorldSpheres();
+            for (const auto& sphere : spheres) {
+                float dist = 0.0f;
+                Vector3 hitPoint = {};
+                if (Intersect(normRay, sphere, &dist, &hitPoint)) {
+                    if (dist >= 0.0f && dist < closestDist) {
+                        closestDist = dist;
+                        found = true;
 
-            float dist = 0.0f;
-            Vector3 hitPoint = {};
-            if (Intersect(normRay, sphere, &dist, &hitPoint)) {
-                if (dist >= 0.0f && dist < closestDist) {
-                    closestDist = dist;
-                    found = true;
-
-                    bestHit.hit = true;
-                    bestHit.distance = dist;
-                    bestHit.point = hitPoint;
-                    bestHit.normal = (dist > 0.0001f) ? Normalize(Subtract(hitPoint, sphere.center)) : Vector3{ 0,1,0 };
-                    bestHit.collider = col;
-                    bestHit.gameObject = col->GetOwner();
-                    bestHit.layer = colLayer;
-                    bestHit.faceResult = RayTriangleCollisionResult::FrontFace;
+                        bestHit.hit = true;
+                        bestHit.distance = dist;
+                        bestHit.point = hitPoint;
+                        bestHit.normal = (dist > 0.0001f) ? Normalize(Subtract(hitPoint, sphere.center)) : Vector3{ 0,1,0 };
+                        bestHit.collider = col;
+                        bestHit.gameObject = col->GetOwner();
+                        bestHit.layer = colLayer;
+                        bestHit.faceResult = RayTriangleCollisionResult::FrontFace;
+                    }
                 }
             }
         }
@@ -419,7 +504,35 @@ std::vector<RaycastHit> Physics::RaycastAll(const Ray& ray, const std::vector<Tr
     normRay.origin = ray.origin;
     normRay.diff = dir;
 
+    // レイ全体の探索AABBを事前計算
+    Vector3 endPoint = Add(normRay.origin, Multiply(maxDistance, normRay.diff));
+    AABB rayAABB;
+    rayAABB.min.x = (std::min)(normRay.origin.x, endPoint.x);
+    rayAABB.min.y = (std::min)(normRay.origin.y, endPoint.y);
+    rayAABB.min.z = (std::min)(normRay.origin.z, endPoint.z);
+    rayAABB.max.x = (std::max)(normRay.origin.x, endPoint.x);
+    rayAABB.max.y = (std::max)(normRay.origin.y, endPoint.y);
+    rayAABB.max.z = (std::max)(normRay.origin.z, endPoint.z);
+
     for (const auto& tri : triangles) {
+        // 【AABBカリング Step 1】三角形のAABBを取得
+        AABB triAABB = GetTriangleAABB(tri);
+
+        // 【AABBカリング Step 2】レイ探索AABBと三角形AABBのオーバーラップ判定
+        if (!IsOverlapAABB(rayAABB, triAABB)) {
+            continue;
+        }
+
+        // 【AABBカリング Step 3】レイと三角形AABBのスラブ判定
+        float boxDist = 0.0f;
+        if (!FastRayAABBIntersect(normRay, triAABB, maxDistance, &boxDist)) {
+            continue;
+        }
+        if (boxDist > maxDistance) {
+            continue;
+        }
+
+        // 【詳細判定】AABB通過三角形のみ交差判定を実行
         float t = 0.0f;
         Vector3 hitPoint = {};
         RayTriangleCollisionResult result = RayTriangleCollisionResult::NoCollision;
@@ -460,23 +573,22 @@ std::vector<RaycastHit> Physics::RaycastAll(const Ray& ray, const std::vector<Tr
 
             if ((colLayer & layerMask) == 0) continue;
 
-            Sphere sphere;
-            sphere.center = col->GetWorldPosition();
-            sphere.radius = col->GetRadius();
-
-            float dist = 0.0f;
-            Vector3 hitPoint = {};
-            if (Intersect(normRay, sphere, &dist, &hitPoint)) {
-                if (dist >= 0.0f && dist <= maxDistance) {
-                    RaycastHit hit;
-                    hit.hit = true;
-                    hit.distance = dist;
-                    hit.point = hitPoint;
-                    hit.normal = (dist > 0.0001f) ? Normalize(Subtract(hitPoint, sphere.center)) : Vector3{ 0,1,0 };
-                    hit.collider = col;
-                    hit.gameObject = col->GetOwner();
-                    hit.layer = colLayer;
-                    hits.push_back(hit);
+            auto spheres = col->GetWorldSpheres();
+            for (const auto& sphere : spheres) {
+                float dist = 0.0f;
+                Vector3 hitPoint = {};
+                if (Intersect(normRay, sphere, &dist, &hitPoint)) {
+                    if (dist >= 0.0f && dist <= maxDistance) {
+                        RaycastHit hit;
+                        hit.hit = true;
+                        hit.distance = dist;
+                        hit.point = hitPoint;
+                        hit.normal = (dist > 0.0001f) ? Normalize(Subtract(hitPoint, sphere.center)) : Vector3{ 0,1,0 };
+                        hit.collider = col;
+                        hit.gameObject = col->GetOwner();
+                        hit.layer = colLayer;
+                        hits.push_back(hit);
+                    }
                 }
             }
         }
@@ -580,8 +692,10 @@ bool Physics::CheckSphere(const Vector3& position, float radius, uint32_t layerM
             else if (col->GetCategory() == CollisionCategory::Enemy) colLayer = CollisionLayer::Enemy;
             if ((colLayer & layerMask) == 0) continue;
 
-            Sphere colSphere = { col->GetWorldPosition(), col->GetRadius() };
-            if (Intersect(s, colSphere)) return true;
+            auto spheres = col->GetWorldSpheres();
+            for (const auto& cs : spheres) {
+                if (Intersect(s, cs)) return true;
+            }
         }
     }
 
@@ -601,9 +715,12 @@ std::vector<Collider*> Physics::OverlapSphere(const Vector3& position, float rad
         else if (col->GetCategory() == CollisionCategory::Enemy) colLayer = CollisionLayer::Enemy;
         if ((colLayer & layerMask) == 0) continue;
 
-        Sphere colSphere = { col->GetWorldPosition(), col->GetRadius() };
-        if (Intersect(s, colSphere)) {
-            result.push_back(col);
+        auto spheres = col->GetWorldSpheres();
+        for (const auto& cs : spheres) {
+            if (Intersect(s, cs)) {
+                result.push_back(col);
+                break;
+            }
         }
     }
     return result;

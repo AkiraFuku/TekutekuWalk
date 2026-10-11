@@ -61,12 +61,10 @@ float DistanceSqPointToSegment(const Vector3& p, const Vector3& a, const Vector3
 // sphereとsphereの衝突判定
 bool IsCollision(const Sphere& s1, const Sphere& s2)
 {
-    float distance = Length(Subtract(s2.center, s1.center));
-    if (distance <= s1.radius + s2.radius)
-    {
-        return true;
-    }
-    return false;
+    Vector3 diff = Subtract(s2.center, s1.center);
+    float distSq = Dot(diff, diff);
+    float rSum = s1.radius + s2.radius;
+    return distSq <= (rSum * rSum);
 }
 //SphereとPlaneの衝突判定
 bool IsCollision(const Sphere& sphere, const Plane& plane)

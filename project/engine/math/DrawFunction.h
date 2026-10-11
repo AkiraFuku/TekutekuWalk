@@ -32,10 +32,31 @@ struct Triangle
 	Vector3 vertices[3];//頂点1
 	bool isOneway = false; // すり抜け足場フラグ
 };
+#include <algorithm>
 struct AABB{
 	Vector3 min;
 	Vector3 max;
 };
+
+// 三角形の3頂点から外接AABBを取得する関数
+inline AABB GetTriangleAABB(const Triangle& tri) {
+	AABB box;
+	box.min.x = (std::min)({ tri.vertices[0].x, tri.vertices[1].x, tri.vertices[2].x });
+	box.min.y = (std::min)({ tri.vertices[0].y, tri.vertices[1].y, tri.vertices[2].y });
+	box.min.z = (std::min)({ tri.vertices[0].z, tri.vertices[1].z, tri.vertices[2].z });
+
+	box.max.x = (std::max)({ tri.vertices[0].x, tri.vertices[1].x, tri.vertices[2].x });
+	box.max.y = (std::max)({ tri.vertices[0].y, tri.vertices[1].y, tri.vertices[2].y });
+	box.max.z = (std::max)({ tri.vertices[0].z, tri.vertices[1].z, tri.vertices[2].z });
+	return box;
+}
+
+// 2つのAABBが重なっているかの高速判定
+inline bool IsOverlapAABB(const AABB& a, const AABB& b) {
+	return (a.min.x <= b.max.x && a.max.x >= b.min.x) &&
+	       (a.min.y <= b.max.y && a.max.y >= b.min.y) &&
+	       (a.min.z <= b.max.z && a.max.z >= b.min.z);
+}
 // レイと三角形の交差判定結果を表す列挙型
 enum class RayTriangleCollisionResult
 {

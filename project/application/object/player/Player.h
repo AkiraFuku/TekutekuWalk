@@ -63,6 +63,11 @@ public:
             object_->SetTranslate(position);
         }
     }
+    void AddPosition(const Vector3& delta) override {
+        if (object_) {
+            object_->SetTranslate(object_->GetTranslate() + delta);
+        }
+    }
     void SetTransform(const EulerTransform& transform) {
         if (object_) {
             object_->SetScale(transform.scale);

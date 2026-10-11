@@ -42,6 +42,9 @@ public:
     // 判定に必要な情報のゲッター
     virtual Vector3 GetWorldPosition() const = 0;
 
+    // 押し出し（めり込み防止）用の位置加算処理（Block応答時に呼ばれる）
+    virtual void AddPosition(const Vector3& delta) {}
+
     // Colliderのゲッター・セッター
     virtual Collider* GetCollider() {
         return collider_.get();
