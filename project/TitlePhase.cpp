@@ -78,9 +78,9 @@ void TitlePhase::Update(Scene* scene)
             startSprite_->SetColor({ 1.0f, 1.0f, 1.0f, fastAlpha });
         }
 
-        // フェードアウトが完了したらゲームシーンへ遷移
+        // フェードアウトが完了したらステージセレクトシーンへ遷移
         if (!Fade::GetInstance()->IsFading()) {
-            SceneManager::GetInstance()->ChangeScene("GameScene");
+            SceneManager::GetInstance()->ChangeScene("StageSelectScene");
         }
     }
 

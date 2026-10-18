@@ -157,7 +157,7 @@ void GameScene::Initialize() {
     enemySpawnTriggers_.clear();
     stageManager_ = std::make_unique<StageManager>
         ();
-    stageManager_->Load("resources/Stagemap/stage5.json", activeCamera_,
+    stageManager_->Load(selectedStagePath_, activeCamera_,
         [this](const LevelObjectData& data) {
             Enemy::EnemyType type = Enemy::EnemyType::Normal;
             if (data.enemyType == "Bound") {

@@ -68,6 +68,9 @@ public:
         return stageManager_.get();
     }
 
+    static void SetSelectedStagePath(const std::string& path) { selectedStagePath_ = path; }
+    static const std::string& GetSelectedStagePath() { return selectedStagePath_; }
+
     GameScene();
     ~GameScene() override;
 
@@ -149,6 +152,9 @@ private:
         bool hasSpawned = false;       // 一度出現したら機能停止
         std::unordered_map<std::string, std::string> properties;
     };
+    // 選択されたステージファイルパス
+    static inline std::string selectedStagePath_ = "resources/Stagemap/stage1.json";
+
     std::vector<EnemySpawnTrigger> enemySpawnTriggers_;
     void UpdateEnemySpawners();
 

@@ -150,6 +150,10 @@ void TitleScene::Update() {
 
 #ifdef USE_IMGUI
     ImGui::Begin("Title Scene Camera & Road");
+    if (ImGui::Button("Go to Stage Select Scene", ImVec2(200, 30))) {
+        SceneManager::GetInstance()->ChangeScene("StageSelectScene");
+    }
+    ImGui::Separator();
     ImGui::DragFloat("Orbit Speed", &cameraOrbitSpeed_, 0.01f, -2.0f, 2.0f);
     ImGui::DragFloat("Orbit Radius", &cameraOrbitRadius_, 0.1f, 1.0f, 30.0f);
     ImGui::DragFloat("Camera Height", &cameraHeight_, 0.1f, -5.0f, 15.0f);
