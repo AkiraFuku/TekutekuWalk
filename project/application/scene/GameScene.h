@@ -14,6 +14,7 @@
 #include "Animation.h"
 #include "Enemy.h"
 #include "GaidUI.h"
+#include "WeaponContainer.h"
 class StageManager;
 class ParticleEmitter;
 class RailPath;
@@ -160,5 +161,12 @@ public:
     bool IsHitStopActive() const {
         return stopTimer_ > 0;
     }
+
+    // 武器コンテナ（std::map課題）
+    WeaponContainer weaponContainer_;
+    std::vector<std::string> weaponActionLogs_;
+    int selectedWeaponIndex_ = 0;
+    int addBulletInput_ = 10;
+    void AddWeaponActionLog(const std::string& log);
 };
 

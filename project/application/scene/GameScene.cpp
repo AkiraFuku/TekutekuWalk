@@ -257,6 +257,16 @@ void GameScene::Initialize() {
 
     ChangePhase(std::make_unique<StartPhase>());
 
+    // 武器コンテナ（std::map課題）の初期登録
+    weaponContainer_.AddWeapon(WeaponId::Handgun, 15);
+    AddWeaponActionLog("Initial: Registered Handgun (Ammo: 15)");
+}
+
+void GameScene::AddWeaponActionLog(const std::string& log) {
+    weaponActionLogs_.push_back(log);
+    if (weaponActionLogs_.size() > 50) {
+        weaponActionLogs_.erase(weaponActionLogs_.begin());
+    }
 }
 void GameScene::Finalize() {
 
@@ -525,8 +535,107 @@ void GameScene::Update() {
 
     }
 
+    // ==========================================
+    // 武器コンテナデバッグ (std::map 課題UI)
+    // ==========================================
+    ImGui::Begin("Weapon Inventory (std::map Assignment)");
 
+    // --- 1. 所持中武器一覧 ---
+    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "[ Owned Weapons List (std::map) ]");
+    const auto& ownedWeapons = weaponContainer_.GetAll();
+    if (ownedWeapons.empty()) {
+        ImGui::TextDisabled("  (No weapons in inventory)");
+    } else {
+        WeaponId weaponToDrop = static_cast<WeaponId>(-1);
+        bool doDrop = false;
 
+        for (const auto& entry : ownedWeapons) {
+            WeaponId id = entry.first;
+            int count = entry.second;
+            std::string name = GetWeaponName(id);
+
+            ImGui::BulletText("ID: %d | %s | Ammo: %d", static_cast<int>(id), name.c_str(), count);
+            ImGui::SameLine();
+
+            // 使用ボタン（弾数を消費）
+            std::string useBtnLabel = "Fire##" + std::to_string(static_cast<int>(id));
+            if (ImGui::Button(useBtnLabel.c_str())) {
+                int res = weaponContainer_.UseWeapon(id, 1);
+                if (res == 1) {
+                    AddWeaponActionLog("Fired " + name + " (Remaining Ammo: " + std::to_string(weaponContainer_.GetBulletCount(id)) + ")");
+                } else if (res == 2) {
+                    AddWeaponActionLog("Fired " + name + " - OUT OF AMMO!");
+                } else {
+                    AddWeaponActionLog(name + " is empty! Cannot fire.");
+                }
+            }
+            ImGui::SameLine();
+
+            // 弾薬追加ボタン
+            std::string addBulletBtn = "+10 Ammo##" + std::to_string(static_cast<int>(id));
+            if (ImGui::Button(addBulletBtn.c_str())) {
+                weaponContainer_.AddBullets(id, 10);
+                AddWeaponActionLog("Added +10 ammo to " + name + " (Current: " + std::to_string(weaponContainer_.GetBulletCount(id)) + ")");
+            }
+            ImGui::SameLine();
+
+            // 放棄ボタン（コンテナから削除）
+            std::string dropBtnLabel = "Drop##" + std::to_string(static_cast<int>(id));
+            if (ImGui::Button(dropBtnLabel.c_str())) {
+                weaponToDrop = id;
+                doDrop = true;
+            }
+        }
+
+        if (doDrop) {
+            weaponContainer_.DropWeapon(weaponToDrop);
+            AddWeaponActionLog("Dropped " + GetWeaponName(weaponToDrop) + " from inventory.");
+        }
+    }
+
+    ImGui::Separator();
+
+    // --- 2. 武器の取得・登録操作 ---
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "[ Weapon Management / Pickup ]");
+    const char* weaponItems[] = { "Handgun (ID: 100)", "SubmachineGun (ID: 300)", "RocketLauncher (ID: 900)" };
+    WeaponId weaponEnums[] = { WeaponId::Handgun, WeaponId::SubmachineGun, WeaponId::RocketLauncher };
+    ImGui::Combo("Select Weapon", &selectedWeaponIndex_, weaponItems, IM_ARRAYSIZE(weaponItems));
+    ImGui::InputInt("Ammo Amount", &addBulletInput_);
+    if (addBulletInput_ < 1) addBulletInput_ = 1;
+
+    WeaponId currentSelectedId = weaponEnums[selectedWeaponIndex_];
+    if (ImGui::Button("Pickup / Add Weapon")) {
+        bool isNew = weaponContainer_.AddWeapon(currentSelectedId, addBulletInput_);
+        if (isNew) {
+            AddWeaponActionLog("Acquired NEW weapon: " + GetWeaponName(currentSelectedId) + " (Ammo: " + std::to_string(addBulletInput_) + ")");
+        } else {
+            AddWeaponActionLog("Added ammo to " + GetWeaponName(currentSelectedId) + " (Total: " + std::to_string(weaponContainer_.GetBulletCount(currentSelectedId)) + ")");
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Check Owned (find)")) {
+        if (weaponContainer_.HasWeapon(currentSelectedId)) {
+            AddWeaponActionLog("[find Result] " + GetWeaponName(currentSelectedId) + " is OWNED (Ammo: " + std::to_string(weaponContainer_.GetBulletCount(currentSelectedId)) + ")");
+        } else {
+            AddWeaponActionLog("[find Result] " + GetWeaponName(currentSelectedId) + " is NOT owned.");
+        }
+    }
+
+    ImGui::Separator();
+
+    // --- 3. 操作ログ表示 ---
+    ImGui::TextColored(ImVec4(0.6f, 1.0f, 0.6f, 1.0f), "[ Action Logs ]");
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Logs")) {
+        weaponActionLogs_.clear();
+    }
+    ImGui::BeginChild("WeaponLogs", ImVec2(0, 160), true);
+    for (int i = static_cast<int>(weaponActionLogs_.size()) - 1; i >= 0; --i) {
+        ImGui::TextUnformatted(weaponActionLogs_[i].c_str());
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
 
 #endif // USE_IMGUI
 
