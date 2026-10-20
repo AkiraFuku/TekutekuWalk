@@ -92,6 +92,9 @@ void StageSelectScene::Initialize()
     targetAngle_ = 0.0f;
     isDecided_ = false;
     decisionBlinkTimer_ = 0.0f;
+    exitDirection_ = ExitDirection::None;
+    exitTimer_ = 0.0f;
+    isFadeStarted_ = false;
 
     // フェードイン開始
     Fade::GetInstance()->StartFadeIn(0.5f);
@@ -115,8 +118,8 @@ void StageSelectScene::Update()
     auto* input = Input::GetInstance();
     const int itemCount = static_cast<int>(itemList_.size());
 
-    // 遷移中でなければ入力を受け付ける
-    if (!isTransitioning_ && !Fade::GetInstance()->IsFading() && itemCount > 0) {
+    // 決定前かつフェード中でなければ入力を受け付ける
+    if (!isDecided_ && !Fade::GetInstance()->IsFading() && itemCount > 0) {
         // 左右キー / 上下キー / ゲームパッドで選択切り替え
         if (input->TriggerKeyDown(DIK_LEFT) || input->TriggerKeyDown(DIK_UP) ||
             input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_LEFT) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_UP)) {
@@ -129,28 +132,55 @@ void StageSelectScene::Update()
 
         // 決定 (Enter / Space / Aボタン)
         if (input->TriggerKeyDown(DIK_RETURN) || input->TriggerKeyDown(DIK_SPACE) || input->TriggerPadDown(0, XINPUT_GAMEPAD_A)) {
-            isTransitioning_ = true;
             isDecided_ = true;
             decisionBlinkTimer_ = 0.0f;
+            exitTimer_ = 0.0f;
+            isFadeStarted_ = false;
             if (itemList_[selectedIndex_].type == ItemType::Stage) {
                 nextSceneName_ = "GameScene";
                 GameScene::SetSelectedStagePath(itemList_[selectedIndex_].filePath);
+                exitDirection_ = ExitDirection::Right; // 右へ退場
             } else {
                 nextSceneName_ = "TitleScene";
+                exitDirection_ = ExitDirection::Left;  // 方向転換して左へ退場
             }
-            Fade::GetInstance()->StartFadeOut(0.6f);
         }
 
         // 戻る (Escape / Bボタン) は直接タイトル戻り
         if (input->TriggerKeyDown(DIK_ESCAPE) || input->TriggerPadDown(0, XINPUT_GAMEPAD_B)) {
-            isTransitioning_ = true;
+            isDecided_ = true;
+            decisionBlinkTimer_ = 0.0f;
+            exitTimer_ = 0.0f;
+            isFadeStarted_ = false;
             nextSceneName_ = "TitleScene";
+            exitDirection_ = ExitDirection::Left; // 方向転換して左へ退場
+        }
+    }
+
+    // --- プレイヤー退場演出の更新 ---
+    if (exitDirection_ != ExitDirection::None) {
+        exitTimer_ += 1.0f / 60.0f;
+        const float exitSpeed = 7.5f; // 画面外へ走る速度
+
+        if (exitDirection_ == ExitDirection::Right) {
+            // 右へ前進
+            playerRotate_.y = playerBaseRotateY_;
+            playerPos_.x += exitSpeed * (1.0f / 60.0f);
+        } else if (exitDirection_ == ExitDirection::Left) {
+            // 逆方向（左）へ方向転換して前進
+            playerRotate_.y = -playerBaseRotateY_;
+            playerPos_.x -= exitSpeed * (1.0f / 60.0f);
+        }
+
+        // 一定時間経過（画面外へ向かった頃）でフェードアウト開始
+        if (!isFadeStarted_ && exitTimer_ >= 0.8f) {
+            isFadeStarted_ = true;
             Fade::GetInstance()->StartFadeOut(0.5f);
         }
     }
 
     // フェード完了後のシーン遷移
-    if (isTransitioning_ && !Fade::GetInstance()->IsFading()) {
+    if (isFadeStarted_ && !Fade::GetInstance()->IsFading()) {
         SceneManager::GetInstance()->ChangeScene(nextSceneName_);
         return;
     }
@@ -253,17 +283,19 @@ void StageSelectScene::Update()
 
     ImGui::Separator();
     if (ImGui::Button("Decide / Start", ImVec2(120, 30))) {
-        if (!isTransitioning_) {
-            isTransitioning_ = true;
+        if (!isDecided_) {
             isDecided_ = true;
             decisionBlinkTimer_ = 0.0f;
+            exitTimer_ = 0.0f;
+            isFadeStarted_ = false;
             if (itemList_[selectedIndex_].type == ItemType::Stage) {
                 nextSceneName_ = "GameScene";
                 GameScene::SetSelectedStagePath(itemList_[selectedIndex_].filePath);
+                exitDirection_ = ExitDirection::Right;
             } else {
                 nextSceneName_ = "TitleScene";
+                exitDirection_ = ExitDirection::Left;
             }
-            Fade::GetInstance()->StartFadeOut(0.6f);
         }
     }
     ImGui::End();

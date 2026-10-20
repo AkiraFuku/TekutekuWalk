@@ -54,6 +54,17 @@ private:
     bool isDecided_ = false;
     float decisionBlinkTimer_ = 0.0f;
 
+    // プレイヤー退場演出用変数
+    enum class ExitDirection {
+        None,
+        Right, // ステージ決定時（右へ退場）
+        Left   // タイトル戻り時（左へ振り返って退場）
+    };
+    ExitDirection exitDirection_ = ExitDirection::None;
+    float exitTimer_ = 0.0f;
+    bool isFadeStarted_ = false;
+    float playerBaseRotateY_ = 1.5707963f; // 通常時の向き (右向き)
+
     // プレイヤーオブジェクト＆アニメーション (カメラから離し、右側面がカメラ側を向く設定)
     std::unique_ptr<Object3d> playerObject_;
     std::unique_ptr<Animation> playerAnimation_;
