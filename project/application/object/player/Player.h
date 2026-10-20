@@ -253,8 +253,8 @@ private:
     std::unique_ptr<Object3d> object_;
     std::unique_ptr<Animation> animation;
 
-    const float kWalkSpeed_ = 7.5f;   // 通常歩き速度 (m/s)
-    const float kDashSpeed_ = 15.0f;  // ダッシュ走り速度 (m/s)
+    const float kWalkSpeed_ = 7.0f;   // 通常歩き速度 (m/s) ★演出速度と完全一致
+    const float kDashSpeed_ = 13.0f;  // ダッシュ走り速度 (m/s)
     const float kMoveSpeed_ = 12.0f;  // 互換用
 
     MoveState moveState_ = MoveState::Idle;
