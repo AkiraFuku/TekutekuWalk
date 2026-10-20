@@ -38,14 +38,15 @@ void StageSelectScene::Initialize()
     Object3dCommon::GetInstance()->SetDefaultSkyBox(skyBox_.get());
 
     // ステージ＆タイトル戻る項目の構築
+    const std::string kTextureDir = "resources/stageTitle/";
     itemList_ = {
-        { ItemType::Stage, "Stage 1", "resources/Stagemap/stage1.json", "チュートリアル・基本ステージ" },
-        { ItemType::Stage, "Stage 2", "resources/Stagemap/stage2.json", "中級ステージ 2" },
-        { ItemType::Stage, "Stage 3", "resources/Stagemap/stage3.json", "上級ステージ 3" },
-        { ItemType::Stage, "Stage 4", "resources/Stagemap/stage4.json", "高難易度ステージ 4" },
-        { ItemType::Stage, "Stage 5", "resources/Stagemap/stage5.json", "巨大ステージ 5" },
-        { ItemType::Stage, "Test Stage", "resources/Stagemap/test_stage.json", "開発・テスト用ステージ" },
-        { ItemType::BackToTitle, "Title に戻る", "", "タイトル画面に戻ります" },
+        { ItemType::Stage, "Stage 1", "resources/Stagemap/stage1.json", "チュートリアル・基本ステージ", "Stage1.png" },
+        { ItemType::Stage, "Stage 2", "resources/Stagemap/stage2.json", "中級ステージ 2", "Stage2.png" },
+        { ItemType::Stage, "Stage 3", "resources/Stagemap/stage3.json", "上級ステージ 3", "Stage3.png" },
+        { ItemType::Stage, "Stage 4", "resources/Stagemap/stage4.json", "高難易度ステージ 4", "Stage4.png" },
+        { ItemType::Stage, "Stage 5", "resources/Stagemap/stage5.json", "巨大ステージ 5", "Stage5.png" },
+        { ItemType::Stage, "Test Stage", "resources/Stagemap/test_stage.json", "開発・テスト用ステージ", "Test.png" },
+        { ItemType::BackToTitle, "Title に戻る", "", "タイトル画面に戻ります", "Back.png" },
     };
 
     // ModelManager を使ってキューブモデルを生成
@@ -57,6 +58,9 @@ void StageSelectScene::Initialize()
         auto cube = std::make_unique<Object3d>();
         cube->Initialize();
         cube->SetModel("StageSelectCube");
+        if (!itemList_[i].textureName.empty()) {
+            cube->SetTexture(kTextureDir + itemList_[i].textureName);
+        }
         cube->SetCamera(activeCamera_);
         cubeObjects_.push_back(std::move(cube));
     }

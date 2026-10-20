@@ -54,10 +54,10 @@ void StartPhase::Initialize(Scene* scene)
 
     // 画面上部の左から右へ流れる演出スプライトの初期化
     bannerSprite_ = std::make_unique<Sprite>();
-    bannerSprite_->Initialize("resources/gradationLine.png");
+    bannerSprite_->Initialize("resources/Gaid/GameStart.png");
     bannerSprite_->SetAnchorPoint(Anchor::Center);
 
-    bannerStartY_ = 100.0f;
+    bannerStartY_ = 120.0f;
 
     // スプライトの横幅を取得し、全体が完全に画面外に出る開始・終了座標を動的に計算
     float spriteWidth = bannerSprite_->GetSize().x;
@@ -133,18 +133,7 @@ void StartPhase::Update(Scene* scene)
             if (auto* col = player->GetCollider()) {
                 col->Update();
             }
-        } else if (!isArrived_) {
-            // 目標位置に物理的に到着した瞬間にレール位置へ正式同期
-            isArrived_ = true;
-            player->SetRailPosition(targetRailPos_);
-            player->UpdateTransform();
-            player->GetObject3d()->Update();
         }
-    }
-
-    // カメラコントローラーを更新してプレイヤーを追尾・注視
-    if (gameScene->GetCamera()) {
-        gameScene->GetCamera()->Update();
     }
 
     // 画面上部スプライトの移動アニメーション更新（プレイヤー加速に影響されず等速でゆっくり流す）
@@ -175,18 +164,19 @@ void StartPhase::Update(Scene* scene)
             isArrived_ = true;
             player->SetRailPosition(targetRailPos_);
             player->UpdateTransform();
-            player->GetObject3d()->Update();
         }
         // スプライトが途中で消えないよう、残りの移動を GameScene に引き継ぐ
         if (bannerSprite_) {
             gameScene->SetBannerSprite(std::move(bannerSprite_), bannerStartX_, bannerEndX_, bannerStartY_, kBannerDuration_, bannerTimer_);
         }
-        auto playPhase = std::make_unique<PlayPhase>();
-        auto* playPhasePtr = playPhase.get();
-        gameScene->ChangePhase(std::move(playPhase));
-        // 切り替わった同一フレームで即座にPlayPhaseの更新を実行し、1フレームの停止すら発生させずシームレスに走り抜ける
-        playPhasePtr->Update(gameScene);
+        // PlayPhaseに移行し、同一フレーム内での二重更新（重複アニメーション・二重Lerp）を排除
+        gameScene->ChangePhase(std::make_unique<PlayPhase>());
         return;
+    }
+
+    // カメラコントローラーを更新してプレイヤーを追尾・注視（未遷移フレームのみ実行）
+    if (gameScene->GetCamera()) {
+        gameScene->GetCamera()->Update();
     }
 }
 

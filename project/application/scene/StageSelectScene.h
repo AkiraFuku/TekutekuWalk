@@ -33,6 +33,7 @@ private:
         std::string name;        // 表示名 (例: "Stage 1", "タイトルに戻る")
         std::string filePath;    // JSONファイルパス (ステージの場合)
         std::string description; // 説明
+        std::string textureName; // stageTitle内の画像ファイル名 (例: "Stage1.png")
     };
 
     // 選択項目リスト
