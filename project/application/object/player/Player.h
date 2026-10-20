@@ -241,6 +241,9 @@ public:
 
     }
 
+    Object3d* GetObject3d() const {
+        return object_.get();
+    }
 private:
     float deltaTime_ = DXCommon::kDeltaTime;
 
