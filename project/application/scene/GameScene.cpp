@@ -296,10 +296,10 @@ void GameScene::Update() {
 
 
 
-    // 死んだ敵を削除
+    // 死亡演出が完了した敵を削除
     enemies_.erase(
         std::remove_if(enemies_.begin(), enemies_.end(),
-            [](const std::unique_ptr<Enemy>& e) { return e->IsDead(); }),
+            [](const std::unique_ptr<Enemy>& e) { return e->IsDeathFinished(); }),
         enemies_.end()
     );
 
