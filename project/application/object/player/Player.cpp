@@ -96,6 +96,47 @@ void Player::LoadConfig(const std::string& filePath)
             config_.collider.attackRadius = jc["attack"].value("radius", config_.collider.attackRadius);
         }
     }
+
+    // Slide
+    if (j.contains("slide")) {
+        const auto& js = j["slide"];
+        config_.slide.duration = js.value("duration", config_.slide.duration);
+        config_.slide.initialSpeed = js.value("initialSpeed", config_.slide.initialSpeed);
+        config_.slide.invincibilityAfter = js.value("invincibilityAfter", config_.slide.invincibilityAfter);
+    }
+
+    // Hover
+    if (j.contains("hover")) {
+        const auto& jh = j["hover"];
+        config_.hover.maxDuration = jh.value("maxDuration", config_.hover.maxDuration);
+        config_.hover.fallSpeed = jh.value("fallSpeed", config_.hover.fallSpeed);
+        config_.hover.initialBoostY = jh.value("initialBoostY", config_.hover.initialBoostY);
+    }
+
+    // Guard
+    if (j.contains("guard")) {
+        const auto& jg = j["guard"];
+        config_.guard.maxDuration = jg.value("maxDuration", config_.guard.maxDuration);
+        config_.guard.bashDuration = jg.value("bashDuration", config_.guard.bashDuration);
+        config_.guard.bashSpeed = jg.value("bashSpeed", config_.guard.bashSpeed);
+        config_.guard.invincibilityAfter = jg.value("invincibilityAfter", config_.guard.invincibilityAfter);
+    }
+
+    // AttackAction
+    if (j.contains("attackAction")) {
+        const auto& ja = j["attackAction"];
+        config_.attackAction.duration = ja.value("duration", config_.attackAction.duration);
+        config_.attackAction.rushDuration = ja.value("rushDuration", config_.attackAction.rushDuration);
+        config_.attackAction.rushSpeedMultiplier = ja.value("rushSpeedMultiplier", config_.attackAction.rushSpeedMultiplier);
+        config_.attackAction.invincibilityAfter = ja.value("invincibilityAfter", config_.attackAction.invincibilityAfter);
+    }
+
+    // DropThrough
+    if (j.contains("dropThrough")) {
+        const auto& jd = j["dropThrough"];
+        config_.dropThrough.duration = jd.value("duration", config_.dropThrough.duration);
+        config_.dropThrough.downVelocity = jd.value("downVelocity", config_.dropThrough.downVelocity);
+    }
 }
 
 void Player::SaveConfig(const std::string& filePath)
@@ -154,6 +195,37 @@ void Player::SaveConfig(const std::string& filePath)
             { "offsetForward", config_.collider.attackOffsetForward },
             { "radius", config_.collider.attackRadius }
         }}
+    };
+
+    j["slide"] = {
+        { "duration", config_.slide.duration },
+        { "initialSpeed", config_.slide.initialSpeed },
+        { "invincibilityAfter", config_.slide.invincibilityAfter }
+    };
+
+    j["hover"] = {
+        { "maxDuration", config_.hover.maxDuration },
+        { "fallSpeed", config_.hover.fallSpeed },
+        { "initialBoostY", config_.hover.initialBoostY }
+    };
+
+    j["guard"] = {
+        { "maxDuration", config_.guard.maxDuration },
+        { "bashDuration", config_.guard.bashDuration },
+        { "bashSpeed", config_.guard.bashSpeed },
+        { "invincibilityAfter", config_.guard.invincibilityAfter }
+    };
+
+    j["attackAction"] = {
+        { "duration", config_.attackAction.duration },
+        { "rushDuration", config_.attackAction.rushDuration },
+        { "rushSpeedMultiplier", config_.attackAction.rushSpeedMultiplier },
+        { "invincibilityAfter", config_.attackAction.invincibilityAfter }
+    };
+
+    j["dropThrough"] = {
+        { "duration", config_.dropThrough.duration },
+        { "downVelocity", config_.dropThrough.downVelocity }
     };
 
     JsonManager::GetInstance()->Save(filePath, j);
@@ -424,8 +496,8 @@ bool Player::TryExecuteBufferedJump()
         // 下層へすり抜け降下
         isGrounded_ = false;
         isJumping_ = false;
-        dropThroughTimer_ = 0.3f; // 0.3秒間すり抜け足場の床判定を無視
-        velocity_.y = -6.0f;     // 下向き初速を与えてスムーズに降りる
+        dropThroughTimer_ = config_.dropThrough.duration; // すり抜け足場の床判定を無視
+        velocity_.y = config_.dropThrough.downVelocity;  // 下向き初速を与えてスムーズに降りる
         worldY_ -= 0.1f;
         coyoteTimer_ = 0.0f;
         jumpBufferTimer_ = 0.0f;
@@ -1067,6 +1139,37 @@ void Player::ImGuiDrawDebugInfo() {
     if (ImGui::Button("Test Land Squash")) {
         TriggerSquashStretch(-config_.juice.landSquashIntensityMax, config_.juice.landSquashDuration);
     }
+
+    ImGui::Separator();
+    ImGui::Text("--- Slide Action Settings ---");
+    ImGui::SliderFloat("Slide Duration", &config_.slide.duration, 0.1f, 1.5f, "%.2f s");
+    ImGui::SliderFloat("Slide Initial Speed", &config_.slide.initialSpeed, 5.0f, 40.0f, "%.1f m/s");
+    ImGui::SliderFloat("Slide Invincibility After", &config_.slide.invincibilityAfter, 0.0f, 1.0f, "%.2f s");
+
+    ImGui::Separator();
+    ImGui::Text("--- Hover Form Settings ---");
+    ImGui::SliderFloat("Hover Max Duration", &config_.hover.maxDuration, 0.5f, 6.0f, "%.2f s");
+    ImGui::SliderFloat("Hover Fall Speed", &config_.hover.fallSpeed, -5.0f, 0.0f, "%.2f m/s");
+    ImGui::SliderFloat("Hover Initial Boost Y", &config_.hover.initialBoostY, 0.0f, 10.0f, "%.1f m/s");
+
+    ImGui::Separator();
+    ImGui::Text("--- Guard Form Settings ---");
+    ImGui::SliderFloat("Guard Max Duration", &config_.guard.maxDuration, 0.5f, 8.0f, "%.2f s");
+    ImGui::SliderFloat("Bash Duration", &config_.guard.bashDuration, 0.1f, 1.0f, "%.2f s");
+    ImGui::SliderFloat("Bash Speed", &config_.guard.bashSpeed, 5.0f, 40.0f, "%.1f m/s");
+    ImGui::SliderFloat("Guard Invincibility After", &config_.guard.invincibilityAfter, 0.0f, 1.0f, "%.2f s");
+
+    ImGui::Separator();
+    ImGui::Text("--- Attack Action Settings ---");
+    ImGui::SliderFloat("Attack Duration", &config_.attackAction.duration, 0.2f, 2.0f, "%.2f s");
+    ImGui::SliderFloat("Attack Rush Duration", &config_.attackAction.rushDuration, 0.1f, 1.0f, "%.2f s");
+    ImGui::SliderFloat("Attack Rush Speed Multiplier", &config_.attackAction.rushSpeedMultiplier, 1.0f, 6.0f, "%.2f");
+    ImGui::SliderFloat("Attack Invincibility After", &config_.attackAction.invincibilityAfter, 0.0f, 1.0f, "%.2f s");
+
+    ImGui::Separator();
+    ImGui::Text("--- Drop Through Settings ---");
+    ImGui::SliderFloat("Drop Through Ignore Duration", &config_.dropThrough.duration, 0.1f, 1.0f, "%.2f s");
+    ImGui::SliderFloat("Drop Through Down Velocity", &config_.dropThrough.downVelocity, -20.0f, -1.0f, "%.1f m/s");
 
     ImGui::Separator();
     ImGui::Text("--- Ground & Raycast Settings ---");

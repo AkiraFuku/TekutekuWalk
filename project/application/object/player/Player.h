@@ -60,6 +60,37 @@ struct PlayerConfig {
         float attackOffsetForward = 0.65f;     // 攻撃判定前方オフセット
         float attackRadius = 0.48f;            // 攻撃判定半径
     } collider;
+
+    struct Slide {
+        float duration = 0.38f;                // スライディング持続時間 (秒)
+        float initialSpeed = 22.0f;            // スライディング初速 (m/s)
+        float invincibilityAfter = 0.15f;      // 終了後無敵余韻 (秒)
+    } slide;
+
+    struct Hover {
+        float maxDuration = 2.5f;              // 最大ホバー時間 (秒)
+        float fallSpeed = -0.5f;               // ホバー中の降下速度 (m/s)
+        float initialBoostY = 1.0f;            // ホバー開始時浮上力 (m/s)
+    } hover;
+
+    struct Guard {
+        float maxDuration = 3.0f;              // ガード最大継続時間 (秒)
+        float bashDuration = 0.28f;            // バッシュ突進時間 (秒)
+        float bashSpeed = 24.0f;               // バッシュ突進速度 (m/s)
+        float invincibilityAfter = 0.20f;      // ガード解除後無敵余韻 (秒)
+    } guard;
+
+    struct AttackAction {
+        float duration = 0.65f;                // 攻撃全体の持続時間 (秒)
+        float rushDuration = 0.28f;            // 高速突進時間 (秒)
+        float rushSpeedMultiplier = 2.5f;      // 突進速度倍率
+        float invincibilityAfter = 0.35f;      // 攻撃終了後無敵余韻 (秒)
+    } attackAction;
+
+    struct DropThrough {
+        float duration = 0.30f;                // すり抜け足場床判定無視時間 (秒)
+        float downVelocity = -6.0f;            // すり抜け降下初速 (m/s)
+    } dropThrough;
 };
 
 class InputHandler;
