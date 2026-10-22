@@ -33,7 +33,8 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
 
     // 1. スティック移動の処理
     XINPUT_STATE state;
-    if (input->GetJoyStick(0, state) || (input->PushedKeyDown(DIK_A) || input->PushedKeyDown(DIK_D)))
+    if (input->GetJoyStick(0, state) || (input->PushedKeyDown(DIK_A) || input->PushedKeyDown(DIK_D) ||
+        input->PushedKeyDown(DIK_LEFT) || input->PushedKeyDown(DIK_RIGHT)))
     {
         if (input->GetJoyStick(0, state)) {
             float rawX = (float)state.Gamepad.sThumbLX / 32767.0f;
@@ -42,13 +43,14 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
             }
         }
         //　キー入力の例（WASDで移動、スペースでジャンプなど）もここに追加可
-        if (input->PushedKeyDown(DIK_A) || input->PushedKeyDown(DIK_D))
+        if (input->PushedKeyDown(DIK_A) || input->PushedKeyDown(DIK_D) ||
+            input->PushedKeyDown(DIK_LEFT) || input->PushedKeyDown(DIK_RIGHT))
         {
-            if (input->PushedKeyDown(DIK_A))
+            if (input->PushedKeyDown(DIK_A) || input->PushedKeyDown(DIK_LEFT))
             {
                 commands.push_back(std::make_unique<MoveCommand>(-1.0f)); // 左移動
             }
-            if (input->PushedKeyDown(DIK_D))
+            if (input->PushedKeyDown(DIK_D) || input->PushedKeyDown(DIK_RIGHT))
             {
                 commands.push_back(std::make_unique<MoveCommand>(1.0f)); // 右移動
             }

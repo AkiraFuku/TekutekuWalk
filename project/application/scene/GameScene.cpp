@@ -157,7 +157,7 @@ void GameScene::Initialize() {
     enemySpawnTriggers_.clear();
     stageManager_ = std::make_unique<StageManager>
         ();
-    stageManager_->Load("resources/Stagemap/stage5.json", activeCamera_,
+    stageManager_->Load(selectedStagePath_, activeCamera_,
         [this](const LevelObjectData& data) {
             Enemy::EnemyType type = Enemy::EnemyType::Normal;
             if (data.enemyType == "Bound") {
@@ -264,7 +264,7 @@ void GameScene::Finalize() {
     {
         Audio::GetInstance()->StopAudio(BGMHandle_);
     }
-
+    bannerSprite_.reset();
 }
 
 void GameScene::Update() {
@@ -296,10 +296,10 @@ void GameScene::Update() {
 
 
 
-    // 死んだ敵を削除
+    // 死亡演出が完了した敵を削除
     enemies_.erase(
         std::remove_if(enemies_.begin(), enemies_.end(),
-            [](const std::unique_ptr<Enemy>& e) { return e->IsDead(); }),
+            [](const std::unique_ptr<Enemy>& e) { return e->IsDeathFinished(); }),
         enemies_.end()
     );
 
@@ -311,6 +311,7 @@ void GameScene::Update() {
     if (gaidUI_) {
         gaidUI_->Update();
     }
+    UpdateBannerSprite();
 
 #ifdef USE_IMGUI
     ImGui::Begin("Debug");
@@ -630,6 +631,7 @@ void GameScene::Draw() {
     {
         currentPhase_->Draw(this);
     }
+    DrawBannerSprite();
 }
 void GameScene::CheckPhaseTransition()
 {
@@ -792,3 +794,36 @@ RailPath* GameScene::GetStageRaill()
     }
     return stageRail.get();
 }
+
+void GameScene::SetBannerSprite(std::unique_ptr<Sprite> sprite, float startX, float endX, float startY, float totalDuration, float currentTimer)
+{
+    bannerSprite_ = std::move(sprite);
+    bannerStartX_ = startX;
+    bannerEndX_ = endX;
+    bannerStartY_ = startY;
+    bannerDuration_ = totalDuration;
+    bannerTimer_ = currentTimer;
+}
+
+void GameScene::UpdateBannerSprite()
+{
+    if (bannerSprite_) {
+        bannerTimer_ += 1.0f / 60.0f;
+        if (bannerTimer_ >= bannerDuration_) {
+            bannerSprite_.reset();
+            return;
+        }
+        float t = std::clamp(bannerTimer_ / bannerDuration_, 0.0f, 1.0f);
+        float currentX = bannerStartX_ + (bannerEndX_ - bannerStartX_) * t;
+        bannerSprite_->SetPosition({ currentX, bannerStartY_ });
+        bannerSprite_->Update();
+    }
+}
+
+void GameScene::DrawBannerSprite()
+{
+    if (bannerSprite_) {
+        bannerSprite_->Draw();
+    }
+}
+

@@ -68,6 +68,9 @@ public:
         return stageManager_.get();
     }
 
+    static void SetSelectedStagePath(const std::string& path) { selectedStagePath_ = path; }
+    static const std::string& GetSelectedStagePath() { return selectedStagePath_; }
+
     GameScene();
     ~GameScene() override;
 
@@ -149,6 +152,9 @@ private:
         bool hasSpawned = false;       // 一度出現したら機能停止
         std::unordered_map<std::string, std::string> properties;
     };
+    // 選択されたステージファイルパス
+    static inline std::string selectedStagePath_ = "resources/Stagemap/stage1.json";
+
     std::vector<EnemySpawnTrigger> enemySpawnTriggers_;
     void UpdateEnemySpawners();
 
@@ -160,5 +166,19 @@ public:
     bool IsHitStopActive() const {
         return stopTimer_ > 0;
     }
+
+    // スタート演出スプライトの管理・描画引き継ぎ
+    void SetBannerSprite(std::unique_ptr<Sprite> sprite, float startX, float endX, float startY, float totalDuration, float currentTimer = 0.0f);
+    void UpdateBannerSprite();
+    void DrawBannerSprite();
+
+private:
+    // スタート演出スプライト管理（フェーズ移行後も画面外へ抜けるまで描画継続）
+    std::unique_ptr<Sprite> bannerSprite_;
+    float bannerTimer_ = 0.0f;
+    float bannerDuration_ = 4.0f;
+    float bannerStartX_ = -200.0f;
+    float bannerEndX_ = 1480.0f;
+    float bannerStartY_ = 100.0f;
 };
 

@@ -303,6 +303,9 @@ public:
 
     }
 
+    Object3d* GetObject3d() const {
+        return object_.get();
+    }
 private:
     float deltaTime_ = DXCommon::kDeltaTime;
 
@@ -313,6 +316,9 @@ private:
     std::unique_ptr<Animation> animation;
 
     PlayerConfig config_;
+    const float kWalkSpeed_ = 7.0f;   // 通常歩き速度 (m/s) ★演出速度と完全一致
+    const float kDashSpeed_ = 13.0f;  // ダッシュ走り速度 (m/s)
+    const float kMoveSpeed_ = 12.0f;  // 互換用
 
     MoveState moveState_ = MoveState::Idle;
     bool isDashing_ = false;

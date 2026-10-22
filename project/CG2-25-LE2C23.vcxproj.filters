@@ -405,6 +405,9 @@
     <ClCompile Include="application\scene\GameScene.cpp">
       <Filter>App\Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="application\scene\StageSelectScene.cpp">
+      <Filter>App\Scene\GameScene</Filter>
+    </ClCompile>
     <ClCompile Include="engine\math\Quaternion.cpp">
       <Filter>engine\math</Filter>
     </ClCompile>
@@ -738,6 +741,9 @@
       <Filter>App\Object\Item</Filter>
     </ClInclude>
     <ClInclude Include="application\scene\GameScene.h">
+      <Filter>App\Scene\GameScene</Filter>
+    </ClInclude>
+    <ClInclude Include="application\scene\StageSelectScene.h">
       <Filter>App\Scene\GameScene</Filter>
     </ClInclude>
     <ClInclude Include="engine\math\Quaternion.h">

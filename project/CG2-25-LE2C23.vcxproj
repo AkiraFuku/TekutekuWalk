@@ -34,6 +34,7 @@
     <ClCompile Include="application\object\Robot\TestRobot.cpp" />
     <ClCompile Include="application\scene\GameScene.cpp" />
     <ClCompile Include="application\scene\TitleScene.cpp" />
+    <ClCompile Include="application\scene\StageSelectScene.cpp" />
     <ClCompile Include="application\Behavior\BehaviorState.cpp" />
     <ClCompile Include="application\object\CameraContorol\CameraController.cpp" />
     <ClCompile Include="application\object\Enemy\Enemy.cpp" />
@@ -170,6 +171,7 @@
     <ClInclude Include="application\object\Robot\TestRobot.h" />
     <ClInclude Include="application\scene\GameScene.h" />
     <ClInclude Include="application\scene\TitleScene.h" />
+    <ClInclude Include="application\scene\StageSelectScene.h" />
     <ClInclude Include="application\Behavior\BehaviorState.h" />
     <ClInclude Include="application\object\CameraContorol\CameraController.h" />
     <ClInclude Include="application\object\Enemy\Enemy.h" />

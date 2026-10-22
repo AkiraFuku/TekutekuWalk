@@ -420,7 +420,7 @@ void Enemy::HandleKnockback()
     UpdateGravity();
 
     // 死亡時はきりもみ回転、生存時は徐々にのけぞり姿勢から復帰
-    if (state_ && strcmp(state_->GetName(), "Dead") == 0) {
+    if (state_ && state_->IsDead()) {
         knockbackRoll_ += 360.0f * deltaTime_;
     } else {
         knockbackTilt_ += (0.0f - knockbackTilt_) * (8.0f * deltaTime_);
@@ -432,7 +432,7 @@ void Enemy::HandleKnockback()
     if (knockbackTimer_ <= 0.0f || (isGrounded_ && velocity_.y <= 0.0f && knockbackTimer_ < config_.combat.knockbackDuration * 0.7f)) {
         isKnockback_ = false;
         knockbackTilt_ = 0.0f;
-        if (state_ && strcmp(state_->GetName(), "Dead") == 0) {
+        if (state_ && state_->IsDead()) {
             isDeathFinished_ = true; // 演出完了により消滅可能フラグON
         }
     }
