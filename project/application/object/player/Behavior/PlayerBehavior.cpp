@@ -89,17 +89,18 @@ void BehaviorAttack::Initialize(Player* player) {
 
 void BehaviorAttack::Update(Player* player) {
     auto state = player->GetState();
+    const auto& config = player->GetConfig().attackAction;
     if (state) {
         auto attackAction = state->GetAttackAction_();
         if (attackAction) {
-            // 高速突進（攻撃判定時間）を 0.15f から 0.28f に延長
-            float speedMultiplier = (timer_ < 0.28f) ? 2.5f : 0.2f;
+            // 高速突進（攻撃判定時間）
+            float speedMultiplier = (timer_ < config.rushDuration) ? config.rushSpeedMultiplier : 0.2f;
             int attackDir = player->GetMoveDirection();
             player->Move(float(attackDir) * 0.8f * speedMultiplier);
             player->UpdateRailPath();
 
             // 高速突進が終了したら攻撃判定をオフ
-            if (timer_ >= 0.28f) {
+            if (timer_ >= config.rushDuration) {
                 player->SetAttackHitboxActive(false);
             }
         }
@@ -111,7 +112,7 @@ void BehaviorAttack::Update(Player* player) {
     player->UpdateRailPath();
 
     timer_ += player->GetDeltaTime();
-    if (timer_ >= kAttackDuration) {
+    if (timer_ >= config.duration) {
         if (state) {
             // ★ Factory 経由で Root に戻る
             if (auto factory = state->GetFactory()) {
@@ -124,7 +125,7 @@ void BehaviorAttack::Update(Player* player) {
 void BehaviorAttack::Finalize(Player* player) {
     player->SetInvincible(false);
     player->SetAttackHitboxActive(false); // 攻撃終了時にヒットボックスを確実にオフ
-    player->TriggerInvincibility(0.35f); // 攻撃終了後0.35秒間の無敵余韻を付与
+    player->TriggerInvincibility(player->GetConfig().attackAction.invincibilityAfter); // 攻撃終了後無敵余韻を付与
 }
 void BehaviorAttack::HandleInput(Player* player, ICommand* command) {}
 
@@ -285,17 +286,18 @@ void BehaviorSlide::Initialize(Player* player) {
 }
 
 void BehaviorSlide::Update(Player* player) {
+    const auto& config = player->GetConfig().slide;
     // 時間経過とともに滑らかに減速（終盤も余速を維持して自然な停止に）
-    float progress = timer_ / kSlideDuration;
+    float progress = (config.duration > 0.0f) ? (timer_ / config.duration) : 1.0f;
     float speedFactor = (1.0f - progress * 0.65f);
-    player->Move(-(float(slideDir_) * kSlideInitialSpeed * speedFactor * player->GetDeltaTime()));
+    player->Move(-(float(slideDir_) * config.initialSpeed * speedFactor * player->GetDeltaTime()));
 
     player->RayCastUpdate();
     player->UpdateGravity();
     player->UpdateRailPath();
 
     timer_ += player->GetDeltaTime();
-    if (timer_ >= kSlideDuration) {
+    if (timer_ >= config.duration) {
         auto state = player->GetState();
         if (state && state->GetFactory()) {
             state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
@@ -305,7 +307,7 @@ void BehaviorSlide::Update(Player* player) {
 
 void BehaviorSlide::Finalize(Player* player) {
     player->SetInvincible(false);
-    player->TriggerInvincibility(0.15f); // 終了後わずかな無敵余韻
+    player->TriggerInvincibility(player->GetConfig().slide.invincibilityAfter); // 終了後わずかな無敵余韻
 }
 
 void BehaviorSlide::HandleInput(Player* player, ICommand* command) {
@@ -326,12 +328,13 @@ void BehaviorHover::Initialize(Player* player) {
 
     // 初速度のYをリセットして、落下慣性を止めてホバー状態に突入
     Vector3 v = player->GetVelocity();
-    v.y = 1.0f; // 少しフワッと浮く
+    v.y = player->GetConfig().hover.initialBoostY; // 少しフワッと浮く
     player->SetVelocity(v);
 }
 
 void BehaviorHover::Update(Player* player) {
     auto state = player->GetState();
+    const auto& config = player->GetConfig().hover;
 
     // 着地したら即座にRootに戻る
     if (player->IsGround()) {
@@ -344,10 +347,10 @@ void BehaviorHover::Update(Player* player) {
     float dt = player->GetDeltaTime();
     timer_ += dt;
 
-    if (isHovering_ && timer_ < kMaxHoverTime) {
+    if (isHovering_ && timer_ < config.maxDuration) {
         // 重力を大幅に抑え、微小降下で滑空する
         Vector3 v = player->GetVelocity();
-        v.y = kHoverFallSpeed;
+        v.y = config.fallSpeed;
         player->SetVelocity(v);
     } else {
         // ホバー持続終了後は通常の重力落下
@@ -358,7 +361,7 @@ void BehaviorHover::Update(Player* player) {
     player->UpdateRailPath();
 
     // ホバー時間終了時は通常のジャンプ落下へ遷移
-    if (timer_ >= kMaxHoverTime) {
+    if (timer_ >= config.maxDuration) {
         if (state && state->GetFactory()) {
             state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Jump));
         }
@@ -408,15 +411,16 @@ void BehaviorGuard::Initialize(Player* player) {
 void BehaviorGuard::Update(Player* player) {
     float dt = player->GetDeltaTime();
     auto state = player->GetState();
+    const auto& config = player->GetConfig().guard;
 
     if (isBashing_) {
         // シールドバッシュ突進中
         bashTimer_ += dt;
-        float progress = bashTimer_ / kBashDuration;
+        float progress = (config.bashDuration > 0.0f) ? (bashTimer_ / config.bashDuration) : 1.0f;
         float speedFactor = (1.0f - progress * 0.5f);
-        player->Move(float(bashDir_) * kBashSpeed * speedFactor * dt);
+        player->Move(float(bashDir_) * config.bashSpeed * speedFactor * dt);
 
-        if (bashTimer_ >= kBashDuration) {
+        if (bashTimer_ >= config.bashDuration) {
             // バッシュ終了
             isBashing_ = false;
             player->SetAttackHitboxActive(false);
@@ -428,7 +432,7 @@ void BehaviorGuard::Update(Player* player) {
     } else {
         // ガード構え中（停止して完全防御）
         guardTimer_ += dt;
-        if (guardTimer_ >= kMaxGuardTime) {
+        if (guardTimer_ >= config.maxDuration) {
             if (state && state->GetFactory()) {
                 state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
             }
@@ -444,7 +448,7 @@ void BehaviorGuard::Update(Player* player) {
 void BehaviorGuard::Finalize(Player* player) {
     player->SetInvincible(false);
     player->SetAttackHitboxActive(false);
-    player->TriggerInvincibility(0.2f); // ガード解除後わずかな無敵余韻
+    player->TriggerInvincibility(player->GetConfig().guard.invincibilityAfter); // ガード解除後わずかな無敵余韻
 }
 
 void BehaviorGuard::HandleInput(Player* player, ICommand* command) {

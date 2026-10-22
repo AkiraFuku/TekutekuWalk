@@ -47,5 +47,31 @@
       "offsetForward": 0.65,
       "radius": 0.48
     }
+  },
+  "slide": {
+    "duration": 0.38,
+    "initialSpeed": 22.0,
+    "invincibilityAfter": 0.15
+  },
+  "hover": {
+    "maxDuration": 2.5,
+    "fallSpeed": -0.5,
+    "initialBoostY": 1.0
+  },
+  "guard": {
+    "maxDuration": 3.0,
+    "bashDuration": 0.28,
+    "bashSpeed": 24.0,
+    "invincibilityAfter": 0.2
+  },
+  "attackAction": {
+    "duration": 0.65,
+    "rushDuration": 0.28,
+    "rushSpeedMultiplier": 2.5,
+    "invincibilityAfter": 0.35
+  },
+  "dropThrough": {
+    "duration": 0.3,
+    "downVelocity": -6.0
   }
 }
