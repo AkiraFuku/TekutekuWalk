@@ -5,15 +5,81 @@
 #include "Player.h"
 #include "Collider.h"
 #include "DXCommon.h"
+#include "JsonManager.h"
+#include "Logger.h"
+
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
+
+void GoalObject::LoadGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    if (!jsonMgr->Load("GameObjectsConfig", filePath)) {
+        return;
+    }
+    const auto& root = jsonMgr->Get("GameObjectsConfig");
+    if (!root.contains("goal")) return;
+
+    const auto& j = root["goal"];
+    s_config.modelDir = j.value("modelDir", s_config.modelDir);
+    s_config.modelFile = j.value("modelFile", s_config.modelFile);
+    s_config.radius = j.value("radius", s_config.radius);
+    s_config.rotateSpeed = j.value("rotateSpeed", s_config.rotateSpeed);
+}
+
+void GoalObject::SaveGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    nlohmann::json root;
+    if (jsonMgr->Load("GameObjectsConfig", filePath)) {
+        root = jsonMgr->Get("GameObjectsConfig");
+    }
+
+    root["goal"] = {
+        {"modelDir", s_config.modelDir},
+        {"modelFile", s_config.modelFile},
+        {"radius", s_config.radius},
+        {"rotateSpeed", s_config.rotateSpeed}
+    };
+
+    jsonMgr->Save(filePath, root);
+}
+
+void GoalObject::ImGuiDrawDebugInfo() {
+#ifdef USE_IMGUI
+    ImGui::Begin("Debug/Goal");
+    ImGui::Text("--- Goal Global Config ---");
+
+    if (ImGui::Button("💾 Save Goal Config")) {
+        SaveGlobalConfig();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("🔄 Reload")) {
+        LoadGlobalConfig();
+    }
+
+    ImGui::SliderFloat("Radius", &s_config.radius, 0.1f, 3.0f);
+    ImGui::SliderFloat("Rotate Speed", &s_config.rotateSpeed, 0.0f, 20.0f);
+
+    ImGui::End();
+#endif
+}
+
 GoalObject::GoalObject() = default;
 GoalObject::~GoalObject() = default;
 
 void GoalObject::Initialize() {
+    static bool s_loaded = false;
+    if (!s_loaded) {
+        LoadGlobalConfig();
+        s_loaded = true;
+    }
+
+    radius_ = s_config.radius;
+
     object_ = std::make_unique<Object3d>();
-    // モデルは適宜用意したもの、もしくは仮のものをロード
-    ModelManager::GetInstance()->LoadModel("resources/Goal/", "goal.obj");
+    ModelManager::GetInstance()->LoadModel(s_config.modelDir, s_config.modelFile);
     object_->Initialize();
-    object_->SetModel("goal.obj");
+    object_->SetModel(s_config.modelFile);
 
     railMover_ = std::make_unique<RailMover>();
     auto collider = std::make_unique<Collider>();
@@ -51,6 +117,10 @@ void GoalObject::SetCamera(Camera* camera) {
 }
 
 void GoalObject::Update() {
+#ifdef USE_IMGUI
+    ImGuiDrawDebugInfo();
+#endif
+
     if (railMover_) {
         Vector3 pos = railMover_->GetCurrentPosition();
         pos.y=worldY;

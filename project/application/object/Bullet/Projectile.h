@@ -24,6 +24,17 @@ public:
         float speed;       // 弾の速さ
     };
 
+    struct ProjectileConfig {
+        std::string modelPath = "playerCursor.obj";
+        Vector3 scale = { 0.5f, 0.5f, 0.5f };
+        float radius = 0.5f;
+        int lifeTimer = 180;
+    };
+
+    static void LoadGlobalConfig(const std::string& filePath = "resources/config/game_objects.json");
+    static void SaveGlobalConfig(const std::string& filePath = "resources/config/game_objects.json");
+    static ProjectileConfig& GetGlobalConfig() { return s_config; }
+
     Projectile();
     virtual ~Projectile();
     // コリジョン
@@ -66,6 +77,9 @@ protected:
     // 地形・壁との衝突判定
     bool CheckMapCollision(const Vector3& prevPos, const Vector3& finalPos);
 
+    static void ImGuiDrawDebugInfo();
+
 private:
     ProjectileOwner owner_=ProjectileOwner::Unknown; // 持ち主を保持
+    static inline ProjectileConfig s_config;
 };

@@ -9,15 +9,28 @@ class Player;
 class BoundEnemy :
     public Enemy
 {
-
-
 public:
+    struct BoundConfig {
+        std::string texture = "resources/taru/taru2.png";
+        float jumpAcceleration = 16.0f;
+        float gravityScaleFloating = 0.1f;
+        float gravityScaleNormal = 0.6f;
+        float hoverLimitHeight = 0.2f;
+    };
+
+    static void LoadGlobalConfig(const std::string& filePath = "resources/config/enemy_types.json");
+    static void SaveGlobalConfig(const std::string& filePath = "resources/config/enemy_types.json");
+    static BoundConfig& GetGlobalConfig() { return s_config; }
+
     BoundEnemy();
     ~BoundEnemy()override;
 
     void Initialize() override;
     void Update() override;
     void Draw() override;
+
+private:
+    static inline BoundConfig s_config;
 };
 
 class EnemyBehaviorBounce : public IEnemyBehavior {

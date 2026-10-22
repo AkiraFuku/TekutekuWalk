@@ -1,0 +1,51 @@
+{
+  "paths": {
+    "modelDir": "resources/human/",
+    "modelFile": "walk.gltf",
+    "texture": "resources/Yellow.png",
+    "hitSE": "resources/Audio/SE/Hit.mp3",
+    "damageSE": "resources/Audio/SE/Damage.mp3"
+  },
+  "movement": {
+    "walkSpeed": 7.5,
+    "dashSpeed": 15.0,
+    "gravity": -50.0,
+    "jumpAcceleration": 24.0,
+    "coyoteDuration": 0.12,
+    "jumpBufferDuration": 0.15,
+    "maxSlopeCos": 0.65,
+    "maxStepHeight": 0.35,
+    "groundSnapDistance": 1.2
+  },
+  "combat": {
+    "hitInvincibilityDuration": 1.5,
+    "knockbackDuration": 0.25,
+    "knockbackSpeed": 7.0,
+    "knockbackJumpForce": 6.0
+  },
+  "juice": {
+    "jumpStretchIntensity": 0.25,
+    "jumpStretchDuration": 0.22,
+    "landSquashIntensityMax": 0.32,
+    "landSquashDuration": 0.25
+  },
+  "collider": {
+    "radius": 0.38,
+    "modelRadius": 0.28,
+    "heightOffset": 0.0,
+    "wallRayHeight": 0.40,
+    "head": {
+      "offsetY": 1.15,
+      "radius": 0.38
+    },
+    "body": {
+      "offsetY": 0.50,
+      "radius": 0.30
+    },
+    "attack": {
+      "offsetY": 0.70,
+      "offsetForward": 0.65,
+      "radius": 0.48
+    }
+  }
+}

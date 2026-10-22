@@ -1,0 +1,22 @@
+{
+  "projectile": {
+    "modelPath": "playerCursor.obj",
+    "scale": [0.5, 0.5, 0.5],
+    "radius": 0.5,
+    "lifeTimer": 180
+  },
+  "coin": {
+    "scoreValue": 100,
+    "radius": 0.6,
+    "rotateSpeed": 3.0,
+    "bobbingSpeed": 4.0,
+    "bobbingHeight": 0.2,
+    "collectAnimDuration": 0.3
+  },
+  "goal": {
+    "modelDir": "resources/Goal/",
+    "modelFile": "goal.obj",
+    "radius": 0.5,
+    "rotateSpeed": 5.0
+  }
+}

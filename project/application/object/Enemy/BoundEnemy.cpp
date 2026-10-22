@@ -7,14 +7,61 @@
 #include "PlayerState.h"
 #include "EnemyState.h"
 #include "boundRobot.h"
+#include "JsonManager.h"
+#include "Logger.h"
+
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
+
+void BoundEnemy::LoadGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    if (!jsonMgr->Load("EnemyTypesConfig", filePath)) {
+        return;
+    }
+    const auto& root = jsonMgr->Get("EnemyTypesConfig");
+    if (!root.contains("bound")) return;
+
+    const auto& j = root["bound"];
+    s_config.texture = j.value("texture", s_config.texture);
+    s_config.jumpAcceleration = j.value("jumpAcceleration", s_config.jumpAcceleration);
+    s_config.gravityScaleFloating = j.value("gravityScaleFloating", s_config.gravityScaleFloating);
+    s_config.gravityScaleNormal = j.value("gravityScaleNormal", s_config.gravityScaleNormal);
+    s_config.hoverLimitHeight = j.value("hoverLimitHeight", s_config.hoverLimitHeight);
+}
+
+void BoundEnemy::SaveGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    nlohmann::json root;
+    if (jsonMgr->Load("EnemyTypesConfig", filePath)) {
+        root = jsonMgr->Get("EnemyTypesConfig");
+    }
+
+    root["bound"] = {
+        {"texture", s_config.texture},
+        {"jumpAcceleration", s_config.jumpAcceleration},
+        {"gravityScaleFloating", s_config.gravityScaleFloating},
+        {"gravityScaleNormal", s_config.gravityScaleNormal},
+        {"hoverLimitHeight", s_config.hoverLimitHeight}
+    };
+
+    jsonMgr->Save(filePath, root);
+}
+
 BoundEnemy::BoundEnemy() {}
 
 BoundEnemy::~BoundEnemy() = default;
 
 void BoundEnemy::Initialize() {
+    static bool s_loaded = false;
+    if (!s_loaded) {
+        LoadGlobalConfig();
+        s_loaded = true;
+    }
+
     Enemy::Initialize();
 
-    SetTexture("resources/taru/taru2.png");
+    SetTexture(s_config.texture);
     // バウンドエネミー専用のビヘイビアに上書き！
     ChangeBehavior(std::make_unique<EnemyBehaviorBounce>());
 
@@ -24,24 +71,18 @@ void BoundEnemy::Initialize() {
 
 void BoundEnemy::Update() {
     Enemy::Update();
-
-
     // ロボット自体は更新が必要ないため、スキップ
 }
 
 void BoundEnemy::Draw() {
     Enemy::Draw();
-
-
     // ロボット自体は描画が必要ないため、スキップ
 }
 
 void EnemyBehaviorBounce::Initialize(Enemy* enemy)
 {
-
     currentAction_ = std::make_unique<JumpAction>();
-    dynamic_cast<JumpAction*>(currentAction_.get())->SetAcceleration(16.0f);
-
+    dynamic_cast<JumpAction*>(currentAction_.get())->SetAcceleration(BoundEnemy::GetGlobalConfig().jumpAcceleration);
 }
 
 void EnemyBehaviorBounce::Update(Enemy* enemy)
@@ -63,37 +104,25 @@ void EnemyBehaviorBounce::Update(Enemy* enemy)
         // 【空中にいるとき】
         float velY = enemy->GetVelocity().y;
 
+        const auto& cfg = BoundEnemy::GetGlobalConfig();
         if (velY > 0.0f) {
             // ① 上昇中：頂点に達するまでフワッとさせる
-            //（ここを緩やかにすると、しっかり高さが出ます）
             if (velY < 5.0f) {
-                enemy->SetGravityScale(0.1f);
+                enemy->SetGravityScale(cfg.gravityScaleFloating);
             } else {
-                enemy->SetGravityScale(0.6f);
+                enemy->SetGravityScale(cfg.gravityScaleNormal);
             }
         } else {
-          // ② 下降中（ここが落下のホバリング計算コードです）
-
+            // ② 下降中（ここが落下のホバリング計算コードです）
             float currentY = enemy->GetWorldPosition().y;
-            float groundY = enemy->GetGroundY(); // 追加された関数で地面のYを取得[cite: 54]
-            
-            // 地面の正確な着地目標の高さ（groundY + 補正値）
-            // ※Enemy::UpdateGravity内の補正に合わせるため 0.5f（kHeightOffset）を足します[cite: 53]
+            float groundY = enemy->GetGroundY();
             float targetLandingY = groundY + 0.5f;
-
-            // 地面からの残り距離（高さの差分）を計算
             float heightFromGround = currentY - targetLandingY;
 
-            // 【調整用パラメータ】
-            // 地面からこの高さ（例: 0.2f）より上にいる間は、ずっと重力を弱くしてホバリングさせる
-            float hoverLimitHeight = 0.2f;
-
-            if (heightFromGround > hoverLimitHeight) {
-                // まだ地面から離れているので、ゆっくり降下（ホバリング維持）
-                enemy->SetGravityScale(0.1f);
+            if (heightFromGround > cfg.hoverLimitHeight) {
+                enemy->SetGravityScale(cfg.gravityScaleFloating);
             } else {
-                // 地面ギリギリ（残り20cm等）まで来たら、着地漏れを防ぐために通常の重力に戻して優しく着地させる
-                enemy->SetGravityScale(0.6f);
+                enemy->SetGravityScale(cfg.gravityScaleNormal);
             }
         }
     }

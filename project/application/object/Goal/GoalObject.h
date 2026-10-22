@@ -10,6 +10,18 @@ class Player;
 
 class GoalObject : public GameObject {
 public:
+    struct GoalConfig {
+        std::string modelDir = "resources/Goal/";
+        std::string modelFile = "goal.obj";
+        float radius = 0.5f;
+        float rotateSpeed = 5.0f;
+    };
+
+    static void LoadGlobalConfig(const std::string& filePath = "resources/config/game_objects.json");
+    static void SaveGlobalConfig(const std::string& filePath = "resources/config/game_objects.json");
+    static GoalConfig& GetGlobalConfig() { return s_config; }
+    static void ImGuiDrawDebugInfo();
+
     GoalObject();
     ~GoalObject();
 
@@ -45,4 +57,6 @@ private:
     const float rotateSpeed=5.0f;
     float radius_ = 0.5f;   // 当たり判定の大きさ（見た目の星モデルに合わせたサイズ）
     bool isCleared_ = false; // クリアフラグ
+
+    static inline GoalConfig s_config;
 };

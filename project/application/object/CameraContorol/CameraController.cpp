@@ -8,17 +8,108 @@
 #include "RailPath.h"
 #include "Imgui.h"
 #include <cstdlib>
+#include "JsonManager.h"
+#include "Logger.h"
+
 using namespace std;
+
 CameraController::CameraController() = default;
 CameraController::~CameraController() = default;
+
+void CameraController::LoadConfig(const std::string& filePath)
+{
+    auto jsonMgr = JsonManager::GetInstance();
+    if (!jsonMgr->Load("CameraConfig", filePath)) {
+        Logger::Log("[Camera] Could not open " + filePath + ". Using default config.\n");
+        return;
+    }
+
+    const auto& j = jsonMgr->Get("CameraConfig");
+
+    if (j.contains("mode")) {
+        std::string modeStr = j.value("mode", "AutoOffset");
+        if (modeStr == "RailCamera") {
+            mode_ = CameraMode::RailCamera;
+            config_.mode = 1;
+        } else {
+            mode_ = CameraMode::AutoOffset;
+            config_.mode = 0;
+        }
+    }
+
+    if (j.contains("autoOffset")) {
+        const auto& ja = j["autoOffset"];
+        config_.autoOffset.distance = ja.value("distance", config_.autoOffset.distance);
+        config_.autoOffset.height = ja.value("height", config_.autoOffset.height);
+        config_.autoOffset.lookAtHeight = ja.value("lookAtHeight", config_.autoOffset.lookAtHeight);
+        config_.autoOffset.smoothSpeed = ja.value("smoothSpeed", config_.autoOffset.smoothSpeed);
+        config_.autoOffset.flipSide = ja.value("flipSide", config_.autoOffset.flipSide);
+    }
+
+    if (j.contains("rendering")) {
+        const auto& jr = j["rendering"];
+        config_.rendering.drawDistance = jr.value("drawDistance", config_.rendering.drawDistance);
+    }
+
+    if (j.contains("clearPhase")) {
+        const auto& jc = j["clearPhase"];
+        if (jc.contains("targetOffsetGoal") && jc["targetOffsetGoal"].is_array() && jc["targetOffsetGoal"].size() >= 3) {
+            config_.clearPhase.targetOffsetGoal = {
+                jc["targetOffsetGoal"][0].get<float>(),
+                jc["targetOffsetGoal"][1].get<float>(),
+                jc["targetOffsetGoal"][2].get<float>()
+            };
+        }
+        if (jc.contains("clearOffset") && jc["clearOffset"].is_array() && jc["clearOffset"].size() >= 3) {
+            config_.clearPhase.clearOffset = {
+                jc["clearOffset"][0].get<float>(),
+                jc["clearOffset"][1].get<float>(),
+                jc["clearOffset"][2].get<float>()
+            };
+        }
+    }
+}
+
+void CameraController::SaveConfig(const std::string& filePath)
+{
+    nlohmann::json j;
+
+    j["mode"] = (mode_ == CameraMode::RailCamera) ? "RailCamera" : "AutoOffset";
+
+    j["autoOffset"] = {
+        { "distance", config_.autoOffset.distance },
+        { "height", config_.autoOffset.height },
+        { "lookAtHeight", config_.autoOffset.lookAtHeight },
+        { "smoothSpeed", config_.autoOffset.smoothSpeed },
+        { "flipSide", config_.autoOffset.flipSide }
+    };
+
+    j["rendering"] = {
+        { "drawDistance", config_.rendering.drawDistance }
+    };
+
+    j["clearPhase"] = {
+        { "targetOffsetGoal", { config_.clearPhase.targetOffsetGoal.x, config_.clearPhase.targetOffsetGoal.y, config_.clearPhase.targetOffsetGoal.z } },
+        { "clearOffset", { config_.clearPhase.clearOffset.x, config_.clearPhase.clearOffset.y, config_.clearPhase.clearOffset.z } }
+    };
+
+    JsonManager::GetInstance()->Save(filePath, j);
+}
+
 void CameraController::Initialize(Camera* camera) {
     camera_ = camera;
     railMover_ = std::make_unique<RailMover>();
 
+    // JSON設定の読み込み
+    LoadConfig();
+
+    if (camera_) {
+        camera_->SetDrawDistance(config_.rendering.drawDistance);
+    }
 }
 
 void CameraController::SetDrawDistance(float distance) {
-    drawDistance_ = distance;
+    config_.rendering.drawDistance = distance;
     if (camera_) {
         camera_->SetDrawDistance(distance);
     }
@@ -40,23 +131,38 @@ void CameraController::Update() {
         ImGui::Text("Player Pos: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
     }
 
+    ImGui::Separator();
+    ImGui::Text("--- Config File Actions ---");
+    if (ImGui::Button("💾 Save Camera Config to JSON")) {
+        SaveConfig();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("🔄 Reload from JSON")) {
+        LoadConfig();
+        if (camera_) {
+            camera_->SetDrawDistance(config_.rendering.drawDistance);
+        }
+    }
+
+    ImGui::Separator();
     // カメラモード切り替え
     const char* modeNames[] = { "AutoOffset (自動計算)", "RailCamera (カメラレール)" };
     int currentModeIdx = (mode_ == CameraMode::AutoOffset) ? 0 : 1;
     if (ImGui::Combo("Camera Mode", &currentModeIdx, modeNames, 2)) {
         mode_ = (currentModeIdx == 0) ? CameraMode::AutoOffset : CameraMode::RailCamera;
+        config_.mode = currentModeIdx;
     }
 
     if (mode_ == CameraMode::AutoOffset) {
-        ImGui::DragFloat("Offset Distance", &autoDistance_, 0.5f, 5.0f, 100.0f);
-        ImGui::DragFloat("Offset Height", &autoHeight_, 0.2f, -20.0f, 50.0f);
-        ImGui::DragFloat("LookAt Height", &lookAtHeight_, 0.1f, 0.0f, 10.0f);
-        ImGui::DragFloat("Smooth Speed", &smoothSpeed_, 0.01f, 0.01f, 1.0f);
-        ImGui::Checkbox("Flip Side", &isFlipSide_);
+        ImGui::DragFloat("Offset Distance", &config_.autoOffset.distance, 0.5f, 5.0f, 100.0f);
+        ImGui::DragFloat("Offset Height", &config_.autoOffset.height, 0.2f, -20.0f, 50.0f);
+        ImGui::DragFloat("LookAt Height", &config_.autoOffset.lookAtHeight, 0.1f, 0.0f, 10.0f);
+        ImGui::DragFloat("Smooth Speed", &config_.autoOffset.smoothSpeed, 0.01f, 0.01f, 1.0f);
+        ImGui::Checkbox("Flip Side", &config_.autoOffset.flipSide);
     }
 
-    if (ImGui::DragFloat("Draw Distance (FarClip)", &drawDistance_, 1.0f, 20.0f, 500.0f)) {
-        SetDrawDistance(drawDistance_);
+    if (ImGui::DragFloat("Draw Distance (FarClip)", &config_.rendering.drawDistance, 1.0f, 20.0f, 500.0f)) {
+        SetDrawDistance(config_.rendering.drawDistance);
     }
     ImGui::End();
 #endif // USE_IMGUI
@@ -99,7 +205,7 @@ void CameraController::RotateCamera() {
     // プレイヤーの座標
     Vector3 targetPos = target_->GetTransform().translate;
     // 注視点の高さを適用
-    targetPos.y += lookAtHeight_;
+    targetPos.y += config_.autoOffset.lookAtHeight;
 
     // LookAt関数の実装（ターゲットの方向を向くように回転角を計算）
     Vector3 cameraPos = camera_->GetTranslate();
@@ -153,19 +259,19 @@ void CameraController::AutoOffsetCamera()
         right = { 1.0f, 0.0f, 0.0f };
     }
 
-    if (isFlipSide_) {
+    if (config_.autoOffset.flipSide) {
         right = right * -1.0f;
     }
 
     // 目標カメラ位置: プレイヤー位置 + 外側オフセット + 高さオフセット
-    Vector3 targetCamPos = playerPos + right * autoDistance_ + up * autoHeight_;
+    Vector3 targetCamPos = playerPos + right * config_.autoOffset.distance + up * config_.autoOffset.height;
 
     Vector3 currentCamPos = camera_->GetTranslate();
     if (Length(currentCamPos) < 1e-4f) {
         currentCamPos = targetCamPos;
     }
 
-    Vector3 newCamPos = Lerp(currentCamPos, targetCamPos, smoothSpeed_);
+    Vector3 newCamPos = Lerp(currentCamPos, targetCamPos, config_.autoOffset.smoothSpeed);
     camera_->SetTranslate(newCamPos);
 }
 

@@ -16,22 +16,179 @@
 #include "collider.h"
 #include "Physics.h"
 #include "Input.h"
+#include "JsonManager.h"
+#include "Logger.h"
 
 Player::Player() = default;
 Player::~Player() = default;
 
+void Player::LoadConfig(const std::string& filePath)
+{
+    auto jsonMgr = JsonManager::GetInstance();
+    if (!jsonMgr->Load("PlayerConfig", filePath)) {
+        Logger::Log("[Player] Could not open " + filePath + ". Using default config.\n");
+        return;
+    }
+
+    const auto& j = jsonMgr->Get("PlayerConfig");
+
+    // Paths
+    if (j.contains("paths")) {
+        const auto& jp = j["paths"];
+        config_.paths.modelDir = jp.value("modelDir", config_.paths.modelDir);
+        config_.paths.modelFile = jp.value("modelFile", config_.paths.modelFile);
+        config_.paths.texture = jp.value("texture", config_.paths.texture);
+        config_.paths.hitSE = jp.value("hitSE", config_.paths.hitSE);
+        config_.paths.damageSE = jp.value("damageSE", config_.paths.damageSE);
+    }
+
+    // Movement
+    if (j.contains("movement")) {
+        const auto& jm = j["movement"];
+        config_.movement.walkSpeed = jm.value("walkSpeed", config_.movement.walkSpeed);
+        config_.movement.dashSpeed = jm.value("dashSpeed", config_.movement.dashSpeed);
+        config_.movement.gravity = jm.value("gravity", config_.movement.gravity);
+        config_.movement.jumpAcceleration = jm.value("jumpAcceleration", config_.movement.jumpAcceleration);
+        config_.movement.coyoteDuration = jm.value("coyoteDuration", config_.movement.coyoteDuration);
+        config_.movement.jumpBufferDuration = jm.value("jumpBufferDuration", config_.movement.jumpBufferDuration);
+        config_.movement.maxSlopeCos = jm.value("maxSlopeCos", config_.movement.maxSlopeCos);
+        config_.movement.maxStepHeight = jm.value("maxStepHeight", config_.movement.maxStepHeight);
+        config_.movement.groundSnapDistance = jm.value("groundSnapDistance", config_.movement.groundSnapDistance);
+    }
+
+    // Combat
+    if (j.contains("combat")) {
+        const auto& jc = j["combat"];
+        config_.combat.hitInvincibilityDuration = jc.value("hitInvincibilityDuration", config_.combat.hitInvincibilityDuration);
+        config_.combat.knockbackDuration = jc.value("knockbackDuration", config_.combat.knockbackDuration);
+        config_.combat.knockbackSpeed = jc.value("knockbackSpeed", config_.combat.knockbackSpeed);
+        config_.combat.knockbackJumpForce = jc.value("knockbackJumpForce", config_.combat.knockbackJumpForce);
+    }
+
+    // Juice
+    if (j.contains("juice")) {
+        const auto& jj = j["juice"];
+        config_.juice.jumpStretchIntensity = jj.value("jumpStretchIntensity", config_.juice.jumpStretchIntensity);
+        config_.juice.jumpStretchDuration = jj.value("jumpStretchDuration", config_.juice.jumpStretchDuration);
+        config_.juice.landSquashIntensityMax = jj.value("landSquashIntensityMax", config_.juice.landSquashIntensityMax);
+        config_.juice.landSquashDuration = jj.value("landSquashDuration", config_.juice.landSquashDuration);
+    }
+
+    // Collider
+    if (j.contains("collider")) {
+        const auto& jc = j["collider"];
+        config_.collider.radius = jc.value("radius", config_.collider.radius);
+        config_.collider.modelRadius = jc.value("modelRadius", config_.collider.modelRadius);
+        config_.collider.heightOffset = jc.value("heightOffset", config_.collider.heightOffset);
+        config_.collider.wallRayHeight = jc.value("wallRayHeight", config_.collider.wallRayHeight);
+
+        if (jc.contains("head")) {
+            config_.collider.headOffsetY = jc["head"].value("offsetY", config_.collider.headOffsetY);
+            config_.collider.headRadius = jc["head"].value("radius", config_.collider.headRadius);
+        }
+        if (jc.contains("body")) {
+            config_.collider.bodyOffsetY = jc["body"].value("offsetY", config_.collider.bodyOffsetY);
+            config_.collider.bodyRadius = jc["body"].value("radius", config_.collider.bodyRadius);
+        }
+        if (jc.contains("attack")) {
+            config_.collider.attackOffsetY = jc["attack"].value("offsetY", config_.collider.attackOffsetY);
+            config_.collider.attackOffsetForward = jc["attack"].value("offsetForward", config_.collider.attackOffsetForward);
+            config_.collider.attackRadius = jc["attack"].value("radius", config_.collider.attackRadius);
+        }
+    }
+}
+
+void Player::SaveConfig(const std::string& filePath)
+{
+    nlohmann::json j;
+
+    j["paths"] = {
+        { "modelDir", config_.paths.modelDir },
+        { "modelFile", config_.paths.modelFile },
+        { "texture", config_.paths.texture },
+        { "hitSE", config_.paths.hitSE },
+        { "damageSE", config_.paths.damageSE }
+    };
+
+    j["movement"] = {
+        { "walkSpeed", config_.movement.walkSpeed },
+        { "dashSpeed", config_.movement.dashSpeed },
+        { "gravity", config_.movement.gravity },
+        { "jumpAcceleration", config_.movement.jumpAcceleration },
+        { "coyoteDuration", config_.movement.coyoteDuration },
+        { "jumpBufferDuration", config_.movement.jumpBufferDuration },
+        { "maxSlopeCos", config_.movement.maxSlopeCos },
+        { "maxStepHeight", config_.movement.maxStepHeight },
+        { "groundSnapDistance", config_.movement.groundSnapDistance }
+    };
+
+    j["combat"] = {
+        { "hitInvincibilityDuration", config_.combat.hitInvincibilityDuration },
+        { "knockbackDuration", config_.combat.knockbackDuration },
+        { "knockbackSpeed", config_.combat.knockbackSpeed },
+        { "knockbackJumpForce", config_.combat.knockbackJumpForce }
+    };
+
+    j["juice"] = {
+        { "jumpStretchIntensity", config_.juice.jumpStretchIntensity },
+        { "jumpStretchDuration", config_.juice.jumpStretchDuration },
+        { "landSquashIntensityMax", config_.juice.landSquashIntensityMax },
+        { "landSquashDuration", config_.juice.landSquashDuration }
+    };
+
+    j["collider"] = {
+        { "radius", config_.collider.radius },
+        { "modelRadius", config_.collider.modelRadius },
+        { "heightOffset", config_.collider.heightOffset },
+        { "wallRayHeight", config_.collider.wallRayHeight },
+        { "head", {
+            { "offsetY", config_.collider.headOffsetY },
+            { "radius", config_.collider.headRadius }
+        }},
+        { "body", {
+            { "offsetY", config_.collider.bodyOffsetY },
+            { "radius", config_.collider.bodyRadius }
+        }},
+        { "attack", {
+            { "offsetY", config_.collider.attackOffsetY },
+            { "offsetForward", config_.collider.attackOffsetForward },
+            { "radius", config_.collider.attackRadius }
+        }}
+    };
+
+    JsonManager::GetInstance()->Save(filePath, j);
+}
+
+void Player::ApplyColliderConfig()
+{
+    if (auto* col = GetCollider()) {
+        col->initialize(this, config_.collider.radius);
+        col->SetOffset({ 0.0f, 0.0f, 0.0f });
+        col->AddSphere("Head", { 0.0f, config_.collider.headOffsetY, 0.0f }, config_.collider.headRadius);
+        col->AddSphere("Body", { 0.0f, config_.collider.bodyOffsetY, 0.0f }, config_.collider.bodyRadius);
+    }
+    if (attackCollider_) {
+        attackCollider_->initialize(this, config_.collider.attackRadius);
+        attackCollider_->SetCategory(CollisionCategory::PlayerAttack);
+        attackCollider_->SetCollide(isAttackHitboxActive_);
+        attackCollider_->AddSphere("Attack", { 0.0f, config_.collider.attackOffsetY, config_.collider.attackOffsetForward }, config_.collider.attackRadius);
+    }
+}
+
 void Player::Initialize()
 {
+    // JSON設定の読み込み
+    LoadConfig();
+
     inputHandler_ = std::make_unique<InputHandler>();
     object_ = std::make_unique<Object3d>();
-    ModelManager::GetInstance()->LoadModel("resources/human/", "walk.gltf");
+    ModelManager::GetInstance()->LoadModel(config_.paths.modelDir, config_.paths.modelFile);
     object_->Initialize();
-    //object_->SetModel("player.obj");
-    object_->SetModel("walk.gltf");
-    object_->SetTexture("resources/Yellow.png");
+    object_->SetModel(config_.paths.modelFile);
+    object_->SetTexture(config_.paths.texture);
     animation = std::make_unique<Animation>();
 
-    animation->Initialize("resources/human", "walk.gltf");
+    animation->Initialize(config_.paths.modelDir, config_.paths.modelFile);
     animation->SetCurrentTime(0.0f);
     object_->SetAnimations(animation.get());
 
@@ -42,27 +199,17 @@ void Player::Initialize()
 
     InitializeRays();
 
+    // コライダーの初期化
     auto collider = std::make_unique<Collider>();
-    collider->initialize(this, radius_);
-    collider->SetOffset({ 0.0f, 0.0f, 0.0f });
-
-    // モデル形状（2頭身）に合わせた頭部・胴体の球体判定（Sphere）を登録
-    collider->AddSphere("Head", { 0.0f, headOffsetY_, 0.0f }, headRadius_);
-    collider->AddSphere("Body", { 0.0f, bodyOffsetY_, 0.0f }, bodyRadius_);
     SetCollider(std::move(collider));
-
-    // 攻撃用ヒットボックス（Hitbox）の初期化
     attackCollider_ = std::make_unique<Collider>();
-    attackCollider_->initialize(this, attackRadius_);
-    attackCollider_->SetCategory(CollisionCategory::PlayerAttack);
-    attackCollider_->SetCollide(false); // 初期状態は非アクティブ（攻撃時のみ有効化）
-    attackCollider_->AddSphere("Attack", { 0.0f, attackOffsetY_, attackOffsetForward_ }, attackRadius_);
+
+    ApplyColliderConfig();
 
     object_->Update();
 
-    HitSE_ = Audio::GetInstance()->LoadAudio("resources/Audio/SE/Hit.mp3");
-    DamageSE_ = Audio::GetInstance()->LoadAudio("resources/Audio/SE/Damage.mp3");
-
+    HitSE_ = Audio::GetInstance()->LoadAudio(config_.paths.hitSE);
+    DamageSE_ = Audio::GetInstance()->LoadAudio(config_.paths.damageSE);
 }
 void Player::Update()
 {
@@ -83,7 +230,7 @@ void Player::Update()
 
     // コヨーテタイマーの更新（接地中は常に満タン、離れたらカウントダウン）
     if (isGrounded_) {
-        coyoteTimer_ = kCoyoteDuration_;
+        coyoteTimer_ = config_.movement.coyoteDuration;
     } else if (coyoteTimer_ > 0.0f) {
         coyoteTimer_ -= deltaTime_;
         if (coyoteTimer_ < 0.0f) {
@@ -192,7 +339,7 @@ void Player::SetRailPosition(const Vector2& position)
         if (scene_) {
             RayCastUpdate();
             if (IsRayHit()) {
-                worldY_ = GetRayHitPoint().y + heightOffset_;
+                worldY_ = GetRayHitPoint().y + config_.collider.heightOffset;
                 UpdateRailPath(); // 重力補正後の高度で再度トランスフォーム更新
                 object_->Update();
             }
@@ -219,7 +366,7 @@ void Player::SetRail(RailPath* rail)
     if (scene_) {
         RayCastUpdate();
         if (IsRayHit()) {
-            worldY_ = GetRayHitPoint().y + heightOffset_;
+            worldY_ = GetRayHitPoint().y + config_.collider.heightOffset;
             UpdateRailPath(); // 重力補正後の高度で再度トランスフォーム更新
 
         }
@@ -231,14 +378,14 @@ void Player::Move(float ratio)
     if (std::abs(ratio) > 0.001f) {
         isMoving_ = true;
     }
-    float speed = isDashing_ ? kDashSpeed_ : kWalkSpeed_;
+    float speed = isDashing_ ? config_.movement.dashSpeed : config_.movement.walkSpeed;
     railMover_->Advance(ratio * (speed * deltaTime_));
 }
 
 void Player::Jump()
 {
     // ジャンプボタンが押されたら先行入力タイマーをチャージ
-    jumpBufferTimer_ = kJumpBufferDuration_;
+    jumpBufferTimer_ = config_.movement.jumpBufferDuration;
     TryExecuteBufferedJump();
 }
 
@@ -285,12 +432,12 @@ bool Player::TryExecuteBufferedJump()
         return true;
     } else {
         // 通常ジャンプ実行！
-        velocity_.y = kJumpAcceleration;
+        velocity_.y = config_.movement.jumpAcceleration;
         isGrounded_ = false;
         isJumping_ = true;
         coyoteTimer_ = 0.0f;      // コヨーテタイムを消費
         jumpBufferTimer_ = 0.0f;  // 先行入力を消費
-        TriggerSquashStretch(jumpStretchIntensity_, jumpStretchDuration_); // ジャンプ縦伸び発動！
+        TriggerSquashStretch(config_.juice.jumpStretchIntensity, config_.juice.jumpStretchDuration); // ジャンプ縦伸び発動！
 
         // ジャンプビヘイビアへ遷移
         if (baseState_) {
@@ -341,18 +488,18 @@ void Player::UpdateRailPath()
     // コライダーの回転（Quaternion）およびモデル形状スフィアの同期
     if (auto* col = GetCollider()) {
         col->SetRotation(EulerToQuaternion({ 0.0f, currentAngle_, 0.0f }));
-        col->SetSphereOffset("Head", { 0.0f, headOffsetY_, 0.0f });
-        col->SetSphereRadius("Head", headRadius_);
-        col->SetSphereOffset("Body", { 0.0f, bodyOffsetY_, 0.0f });
-        col->SetSphereRadius("Body", bodyRadius_);
+        col->SetSphereOffset("Head", { 0.0f, config_.collider.headOffsetY, 0.0f });
+        col->SetSphereRadius("Head", config_.collider.headRadius);
+        col->SetSphereOffset("Body", { 0.0f, config_.collider.bodyOffsetY, 0.0f });
+        col->SetSphereRadius("Body", config_.collider.bodyRadius);
         col->Update();
     }
 
     // 攻撃用ヒットボックスの回転・位置の同期（前方に突き出し配置）
     if (attackCollider_) {
         attackCollider_->SetRotation(EulerToQuaternion({ 0.0f, currentAngle_, 0.0f }));
-        attackCollider_->SetSphereOffset("Attack", { 0.0f, attackOffsetY_, attackOffsetForward_ });
-        attackCollider_->SetSphereRadius("Attack", attackRadius_);
+        attackCollider_->SetSphereOffset("Attack", { 0.0f, config_.collider.attackOffsetY, config_.collider.attackOffsetForward });
+        attackCollider_->SetSphereRadius("Attack", config_.collider.attackRadius);
         attackCollider_->SetCollide(IsAttackHitboxActive());
         attackCollider_->Update();
     }
@@ -363,11 +510,11 @@ void Player::CheckGroundCollision()
     auto floorRay = GetRayInfo("Floor");
     bool hitFloor = floorRay && floorRay->isColide;
 
-    float playerBottomY = worldY_ - heightOffset_;
+    float playerBottomY = worldY_ - config_.collider.heightOffset;
 
     if (hitFloor) {
         // 急すぎる斜面（崖・壁）は地面として扱わない（登れる傾斜角の制限: cos約49度以上で歩行可能）
-        bool isWalkableSlope = (floorRay->hitNormal.y >= kMaxSlopeCos);
+        bool isWalkableSlope = (floorRay->hitNormal.y >= config_.movement.maxSlopeCos);
         rayHitParam_.groundY = floorRay->crossPoint.y;
 
         if (isWalkableSlope) {
@@ -381,7 +528,7 @@ void Player::CheckGroundCollision()
             // 2. 下り坂・段差下り吸着（Ground Snapping）:
             // 直前に接地しており、現在ジャンプ中でなく、地面が下がった距離がスナップ範囲内であれば吸着
             else if (isGrounded_ && !isJumping_ && velocity_.y <= 0.0f &&
-                     playerBottomY <= rayHitParam_.groundY + kGroundSnapDistance) {
+                     playerBottomY <= rayHitParam_.groundY + config_.movement.groundSnapDistance) {
                 isGrounded_ = true;
             } else {
                 isGrounded_ = false;
@@ -399,7 +546,7 @@ void Player::CheckGroundCollision()
     // 窪みや急斜面、通常地面に関わらず、足元が地面ポリゴンの上面より下に潜っている場合は、
     // 重力落下による床抜けを絶対に防ぐため、即座にポリゴン上面の高さへ押し上げる！
     if (hitFloor && playerBottomY < floorRay->crossPoint.y) {
-        worldY_ = floorRay->crossPoint.y + heightOffset_;
+        worldY_ = floorRay->crossPoint.y + config_.collider.heightOffset;
         if (velocity_.y < 0.0f) {
             velocity_.y = 0.0f;
         }
@@ -408,13 +555,13 @@ void Player::CheckGroundCollision()
     }
     // めり込み補正・下り坂吸着補正（接地時に地面の高さに合わせる）
     else if (isGrounded_ && hitFloor) {
-        worldY_ = rayHitParam_.groundY + heightOffset_;
+        worldY_ = rayHitParam_.groundY + config_.collider.heightOffset;
         velocity_.y = 0.0f;
     }
 
     // 奈落の最低保証（落下・死の防止処理：既存のコードを維持）
-    if (!hitFloor && worldY_ <= rayHitParam_.minY + heightOffset_) {
-        worldY_ = rayHitParam_.minY + heightOffset_;
+    if (!hitFloor && worldY_ <= rayHitParam_.minY + config_.collider.heightOffset) {
+        worldY_ = rayHitParam_.minY + config_.collider.heightOffset;
         velocity_.y = 0.0f;
         isGrounded_ = true;
         isJumping_ = false;
@@ -435,15 +582,15 @@ void Player::UpdateGravity()
         if (landingFallSpeed_ >= kMinFallSpeed) {
             // 落下速度が大きいほど潰れを強くする（最大1.0）
             float speedFactor = std::clamp((landingFallSpeed_ - kMinFallSpeed) / 12.0f, 0.35f, 1.0f);
-            float squashIntensity = -landSquashIntensityMax_ * speedFactor;
-            TriggerSquashStretch(squashIntensity, landSquashDuration_);
+            float squashIntensity = -config_.juice.landSquashIntensityMax * speedFactor;
+            TriggerSquashStretch(squashIntensity, config_.juice.landSquashDuration);
         }
     }
     wasGrounded_ = isGrounded_;
 
     // 2. 重力加速度の適用
     if (!isGrounded_) {
-        velocity_.y += (kGravity * gravityScale_) * deltaTime_;
+        velocity_.y += (config_.movement.gravity * gravityScale_) * deltaTime_;
     } else {
         if (velocity_.y < 0.0f) {
             velocity_.y = 0.0f;
@@ -463,7 +610,7 @@ void Player::InitializeRays() {
     floorRay.ray.diff = { 0.0f, -10.0f - rayHitParam_.rayOffset, 0.0f };
     rayList_.push_back(floorRay);
 
-    float wallLength = radius_ + 0.2f;
+    float wallLength = config_.collider.radius + 0.2f;
 
     CollisionRayInfo frontRay;
     frontRay.name = "FrontWall";
@@ -539,21 +686,21 @@ void Player::UpdateRayCollisions()
             rayInfo.ray.origin.y += 1.5f; // 足元から十分高い位置から発射し、急な坂や窪みでも確実に上面を捉える
             rayInfo.ray.diff = { 0.0f, -15.0f, 0.0f };
         } else if (rayInfo.name == "FrontWall") {
-            // 足元基準で wallRayHeight_（膝〜腰）から水平に発射し、低い階段や段差の壁面も確実に検知
+            // 足元基準で wallRayHeight（膝〜腰）から水平に発射し、低い階段や段差の壁面も確実に検知
             rayInfo.ray.origin = center;
-            rayInfo.ray.origin.y = center.y + wallRayHeight_;
+            rayInfo.ray.origin.y = center.y + config_.collider.wallRayHeight;
             rayInfo.ray.diff = Multiply(wallLength, forwardDir);
         } else if (rayInfo.name == "BackWall") {
             rayInfo.ray.origin = center;
-            rayInfo.ray.origin.y = center.y + wallRayHeight_;
+            rayInfo.ray.origin.y = center.y + config_.collider.wallRayHeight;
             rayInfo.ray.diff = Multiply(-wallLength, forwardDir);
         } else if (rayInfo.name == "LeftWall") {
             rayInfo.ray.origin = center;
-            rayInfo.ray.origin.y = center.y + wallRayHeight_;
+            rayInfo.ray.origin.y = center.y + config_.collider.wallRayHeight;
             rayInfo.ray.diff = Multiply(-wallLength, rightDir);
         } else if (rayInfo.name == "RightWall") {
             rayInfo.ray.origin = center;
-            rayInfo.ray.origin.y = center.y + wallRayHeight_;
+            rayInfo.ray.origin.y = center.y + config_.collider.wallRayHeight;
             rayInfo.ray.diff = Multiply(wallLength, rightDir);
         }
 
@@ -581,7 +728,7 @@ void Player::UpdateRayCollisions()
                 }
 
                 // 4. プレイヤーの足元が足場上面より大幅に下（0.8m以上）にめり込んでいる場合のみ通過
-                float playerBottomY = worldY_ - heightOffset_;
+                float playerBottomY = worldY_ - config_.collider.heightOffset;
                 if (playerBottomY < hit.point.y - 0.8f) {
                     continue;
                 }
@@ -593,9 +740,9 @@ void Player::UpdateRayCollisions()
                     continue;
                 }
             } else {
-                // 壁レイは登れる緩やかな地面（hit.normal.y >= kMaxSlopeCos）のみを除外し、
+                // 壁レイは登れる緩やかな地面（hit.normal.y >= maxSlopeCos）のみを除外し、
                 // 垂直な壁および登れない急斜面（垂直に近い斜めの床）はすべて壁として検知する！
-                if (hit.normal.y >= kMaxSlopeCos) {
+                if (hit.normal.y >= config_.movement.maxSlopeCos) {
                     continue;
                 }
             }
@@ -609,7 +756,7 @@ void Player::UpdateRayCollisions()
             break;
         }
 
-        // デバッグ描画: 見た目は黄色の人型モデル幅（modelRadius_）に合わせてスマートに表示
+        // デバッグ描画: 見た目は黄色の人型モデル幅（modelRadius）に合わせてスマートに表示
         Vector3 drawEnd;
         if (rayInfo.name == "Floor") {
             drawEnd = Add(rayInfo.ray.origin, rayInfo.ray.diff);
@@ -617,7 +764,7 @@ void Player::UpdateRayCollisions()
                 rayInfo.isColide ? Vector4{ 1,0,0,1 } : Vector4{ 0,1,0,1 });
         } else {
             // 壁レイはモデル幅（+0.05m）の長さでコンパクトに描画
-            float drawLen = modelRadius_ + 0.05f;
+            float drawLen = config_.collider.modelRadius + 0.05f;
             Vector3 dir = Normalize(rayInfo.ray.diff);
             drawEnd = Add(rayInfo.ray.origin, Multiply(drawLen, dir));
             bool isWallNear = rayInfo.isColide && (rayInfo.distance <= drawLen);
@@ -627,7 +774,7 @@ void Player::UpdateRayCollisions()
 
         if (rayInfo.isColide) {
             // 【修正点3】人型モデル実寸幅に合わせた押し戻し（モデルの表面が壁にピッタリ密着）
-            float targetWallDist = modelRadius_ + 0.005f;
+            float targetWallDist = config_.collider.modelRadius + 0.005f;
             if (rayInfo.name == "FrontWall") {
                 // 前進中（moveDir >= 0）に前方の壁にぶつかったら進行方向と逆（後方）へ押し戻して止める
                 if (moveDir >= 0) {
@@ -650,7 +797,7 @@ void Player::UpdateRayCollisions()
             }
 
             // モデル幅以内に接触している時だけヒット球を表示
-            if (rayInfo.distance <= (modelRadius_ + 0.05f)) {
+            if (rayInfo.distance <= (config_.collider.modelRadius + 0.05f)) {
                 PrimitiveDrawer::GetInstance()->DrawSphere({ rayInfo.crossPoint, 0.05f, {} }, { 0,0,1,1 });
             }
         }
@@ -666,12 +813,12 @@ void Player::UpdateRayCollisions()
         bool isWallBlocked = false;
         if (moveDir > 0) {
             const auto* fw = GetRayInfo("FrontWall");
-            if (fw && fw->isColide && fw->distance <= (modelRadius_ + 0.15f)) {
+            if (fw && fw->isColide && fw->distance <= (config_.collider.modelRadius + 0.15f)) {
                 isWallBlocked = true;
             }
         } else if (moveDir < 0) {
             const auto* bw = GetRayInfo("BackWall");
-            if (bw && bw->isColide && bw->distance <= (modelRadius_ + 0.15f)) {
+            if (bw && bw->isColide && bw->distance <= (config_.collider.modelRadius + 0.15f)) {
                 isWallBlocked = true;
             }
         }
@@ -679,30 +826,30 @@ void Player::UpdateRayCollisions()
         // 側面の壁に強く接触している場合も階段側面からのよじ登りを禁止
         const auto* lw = GetRayInfo("LeftWall");
         const auto* rw = GetRayInfo("RightWall");
-        if ((lw && lw->isColide && lw->distance <= (modelRadius_ + 0.10f)) ||
-            (rw && rw->isColide && rw->distance <= (modelRadius_ + 0.10f))) {
+        if ((lw && lw->isColide && lw->distance <= (config_.collider.modelRadius + 0.10f)) ||
+            (rw && rw->isColide && rw->distance <= (config_.collider.modelRadius + 0.10f))) {
             isWallBlocked = true;
         }
 
         if (moveDir != 0 && !isWallBlocked) {
             Vector3 stepForward = (moveDir > 0) ? forwardDir : Multiply(-1.0f, forwardDir);
-            float stepCheckDist = modelRadius_ + 0.05f; // モデル前方検知距離
+            float stepCheckDist = config_.collider.modelRadius + 0.05f; // モデル前方検知距離
 
             Ray stepRay;
             stepRay.origin = Add(center, Multiply(stepCheckDist, stepForward));
-            float playerBottomY = worldY_ - heightOffset_;
-            stepRay.origin.y = playerBottomY + kMaxStepHeight + 0.05f;
-            stepRay.diff = { 0.0f, -(kMaxStepHeight + 0.2f), 0.0f };
+            float playerBottomY = worldY_ - config_.collider.heightOffset;
+            stepRay.origin.y = playerBottomY + config_.movement.maxStepHeight + 0.05f;
+            stepRay.diff = { 0.0f, -(config_.movement.maxStepHeight + 0.2f), 0.0f };
 
             RaycastHit stepHit;
             // 地面（歩行可能面）レイヤーを対象に Raycast
-            bool hitStep = Physics::Raycast(stepRay, triangles, &stepHit, kMaxStepHeight + 0.2f, CollisionLayer::Ground | CollisionLayer::OneWay);
+            bool hitStep = Physics::Raycast(stepRay, triangles, &stepHit, config_.movement.maxStepHeight + 0.2f, CollisionLayer::Ground | CollisionLayer::OneWay);
             // 登れる緩やかな上面（法線角度制限）のみ段差として認識
-            if (hitStep && stepHit.normal.y >= kMaxSlopeCos) {
+            if (hitStep && stepHit.normal.y >= config_.movement.maxSlopeCos) {
                 float stepHeight = stepHit.point.y - playerBottomY;
                 // 足元より高く、かつ許容段差高さ以内であればステップアップ
-                if (stepHeight > 0.02f && stepHeight <= kMaxStepHeight) {
-                    worldY_ = stepHit.point.y + heightOffset_;
+                if (stepHeight > 0.02f && stepHeight <= config_.movement.maxStepHeight) {
+                    worldY_ = stepHit.point.y + config_.collider.heightOffset;
                     // ステップアップ時は壁の押し戻しを無効化してスムーズに登らせる
                     maxPushBackProgress = 0.0f;
                 }
@@ -711,10 +858,10 @@ void Player::UpdateRayCollisions()
     }
 
     // ─── 垂直に近い斜めの床（登れない急斜面）への前進阻止 ──────────
-    // 足元の床レイが急斜面（kMaxSlopeCos未満）に触れており、その斜面に向かって前進しようとしている場合、
+    // 足元の床レイが急斜面（maxSlopeCos未満）に触れており、その斜面に向かって前進しようとしている場合、
     // 斜面を壁とみなして前進を押し戻し・停止する
     auto floorRayCheck = GetRayInfo("Floor");
-    if (floorRayCheck && floorRayCheck->isColide && floorRayCheck->hitNormal.y < kMaxSlopeCos && floorRayCheck->hitNormal.y > 0.0f) {
+    if (floorRayCheck && floorRayCheck->isColide && floorRayCheck->hitNormal.y < config_.movement.maxSlopeCos && floorRayCheck->hitNormal.y > 0.0f) {
         float dotDir = Dot(floorRayCheck->hitNormal, forwardDir) * float(moveDir);
         if (dotDir < -0.05f) { // プレイヤーが急斜面に正面からぶつかって前進している
             float penetration = 0.05f;
@@ -788,8 +935,8 @@ void Player::HandleKnockback()
 {
     if (isKnockback_ && knockbackTimer_ > 0.0f) {
         // ノックバックの残り時間に応じて速度を減衰
-        float progressRatio = knockbackTimer_ / kKnockbackDuration_;
-        float moveAmount = float(knockbackDirection_) * kKnockbackSpeed_ * progressRatio * deltaTime_;
+        float progressRatio = knockbackTimer_ / config_.combat.knockbackDuration;
+        float moveAmount = float(knockbackDirection_) * config_.combat.knockbackSpeed * progressRatio * deltaTime_;
         railMover_->Advance(moveAmount);
 
         // Advance内でcurrentDir_が反転してしまわないよう、保存した移動向きを維持
@@ -807,14 +954,14 @@ void Player::TakeDamage(int knockbackDirection)
 {
     if (hitInvincibilityTimer_ <= 0.0f && !isInvincible_) {
         isDamaged_ = true;
-        hitInvincibilityTimer_ = kHitInvincibilityDuration_;
+        hitInvincibilityTimer_ = config_.combat.hitInvincibilityDuration;
         hitPoints_.value--;
 
         // ノックバック開始
         isKnockback_ = true;
-        knockbackTimer_ = kKnockbackDuration_;
+        knockbackTimer_ = config_.combat.knockbackDuration;
         knockbackDirection_ = knockbackDirection;
-        velocity_.y = kKnockbackJumpForce_;
+        velocity_.y = config_.combat.knockbackJumpForce;
         isGrounded_ = false;
 
         // ノックバック前の移動向きを保存
@@ -863,7 +1010,7 @@ void Player::ImGuiDrawDebugInfo() {
     if (moveState_ == MoveState::Walk) moveStateStr = "Walk";
     else if (moveState_ == MoveState::Dash) moveStateStr = "Dash (Running)";
     ImGui::Text("Move State: %s (Dashing: %s)", moveStateStr, isDashing_ ? "YES" : "NO");
-    ImGui::Text("Current Speed: %.1f m/s", isDashing_ ? kDashSpeed_ : kWalkSpeed_);
+    ImGui::Text("Current Speed: %.1f m/s", isDashing_ ? config_.movement.dashSpeed : config_.movement.walkSpeed);
     ImGui::Separator();
 
     if (isKnockback_) {
@@ -875,42 +1022,77 @@ void Player::ImGuiDrawDebugInfo() {
     }
 
     ImGui::Text("Hit Points: %d", hitPoints_.value);
-    ImGui::ProgressBar(hitInvincibilityTimer_ / kHitInvincibilityDuration_, ImVec2(0, 0), "Hit Timer");
+    ImGui::ProgressBar(hitInvincibilityTimer_ / config_.combat.hitInvincibilityDuration, ImVec2(0, 0), "Hit Timer");
+
+    ImGui::Separator();
+    ImGui::Text("--- Config File Actions ---");
+    if (ImGui::Button("💾 Save Config to JSON")) {
+        SaveConfig();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("🔄 Reload from JSON")) {
+        LoadConfig();
+        ApplyColliderConfig();
+    }
+
+    ImGui::Separator();
+    ImGui::Text("--- Movement Parameters ---");
+    ImGui::SliderFloat("Walk Speed", &config_.movement.walkSpeed, 1.0f, 20.0f, "%.1f m/s");
+    ImGui::SliderFloat("Dash Speed", &config_.movement.dashSpeed, 2.0f, 40.0f, "%.1f m/s");
+    ImGui::SliderFloat("Gravity", &config_.movement.gravity, -120.0f, -10.0f, "%.1f");
+    ImGui::SliderFloat("Jump Accel", &config_.movement.jumpAcceleration, 5.0f, 50.0f, "%.1f");
+    ImGui::SliderFloat("Coyote Time", &config_.movement.coyoteDuration, 0.01f, 0.5f, "%.2f s");
+    ImGui::SliderFloat("Jump Buffer", &config_.movement.jumpBufferDuration, 0.01f, 0.5f, "%.2f s");
+    ImGui::SliderFloat("Max Step Height", &config_.movement.maxStepHeight, 0.05f, 1.0f, "%.2f m");
+    ImGui::SliderFloat("Ground Snap Dist", &config_.movement.groundSnapDistance, 0.1f, 3.0f, "%.2f m");
+    ImGui::SliderFloat("Max Slope Cos", &config_.movement.maxSlopeCos, 0.2f, 0.95f, "%.2f");
+
+    ImGui::Separator();
+    ImGui::Text("--- Combat Parameters ---");
+    ImGui::SliderFloat("Invincibility Duration", &config_.combat.hitInvincibilityDuration, 0.1f, 5.0f, "%.2f s");
+    ImGui::SliderFloat("Knockback Duration", &config_.combat.knockbackDuration, 0.05f, 1.0f, "%.2f s");
+    ImGui::SliderFloat("Knockback Speed", &config_.combat.knockbackSpeed, 1.0f, 25.0f, "%.1f m/s");
+    ImGui::SliderFloat("Knockback Jump Force", &config_.combat.knockbackJumpForce, 1.0f, 20.0f, "%.1f");
 
     ImGui::Separator();
     ImGui::Text("--- Squash & Stretch (Juice) ---");
-    ImGui::SliderFloat("Jump Stretch", &jumpStretchIntensity_, 0.05f, 0.60f, "%.2f");
-    ImGui::SliderFloat("Jump Duration", &jumpStretchDuration_, 0.05f, 0.50f, "%.2f s");
-    ImGui::SliderFloat("Land Squash Max", &landSquashIntensityMax_, 0.05f, 0.60f, "%.2f");
-    ImGui::SliderFloat("Land Duration", &landSquashDuration_, 0.05f, 0.50f, "%.2f s");
+    ImGui::SliderFloat("Jump Stretch", &config_.juice.jumpStretchIntensity, 0.05f, 0.60f, "%.2f");
+    ImGui::SliderFloat("Jump Duration", &config_.juice.jumpStretchDuration, 0.05f, 0.50f, "%.2f s");
+    ImGui::SliderFloat("Land Squash Max", &config_.juice.landSquashIntensityMax, 0.05f, 0.60f, "%.2f");
+    ImGui::SliderFloat("Land Duration", &config_.juice.landSquashDuration, 0.05f, 0.50f, "%.2f s");
     if (ImGui::Button("Test Jump Stretch")) {
-        TriggerSquashStretch(jumpStretchIntensity_, jumpStretchDuration_);
+        TriggerSquashStretch(config_.juice.jumpStretchIntensity, config_.juice.jumpStretchDuration);
     }
     ImGui::SameLine();
     if (ImGui::Button("Test Land Squash")) {
-        TriggerSquashStretch(-landSquashIntensityMax_, landSquashDuration_);
+        TriggerSquashStretch(-config_.juice.landSquashIntensityMax, config_.juice.landSquashDuration);
     }
 
     ImGui::Separator();
     ImGui::Text("--- Ground & Raycast Settings ---");
-    ImGui::SliderFloat("Height Offset", &heightOffset_, -0.5f, 1.0f, "%.3f m");
-    ImGui::SliderFloat("Wall Ray Height", &wallRayHeight_, 0.1f, 1.2f, "%.3f m");
-    ImGui::SliderFloat("Model Wall Radius", &modelRadius_, 0.05f, 1.0f, "%.3f m");
+    ImGui::SliderFloat("Height Offset", &config_.collider.heightOffset, -0.5f, 1.0f, "%.3f m");
+    ImGui::SliderFloat("Wall Ray Height", &config_.collider.wallRayHeight, 0.1f, 1.2f, "%.3f m");
+    ImGui::SliderFloat("Model Wall Radius", &config_.collider.modelRadius, 0.05f, 1.0f, "%.3f m");
 
     ImGui::Separator();
     ImGui::Text("--- Sphere Collider Settings ---");
-    ImGui::SliderFloat("Head Offset Y", &headOffsetY_, 0.5f, 2.0f, "%.3f m");
-    ImGui::SliderFloat("Head Radius", &headRadius_, 0.1f, 0.8f, "%.3f m");
-    ImGui::SliderFloat("Body Offset Y", &bodyOffsetY_, 0.1f, 1.5f, "%.3f m");
-    ImGui::SliderFloat("Body Radius", &bodyRadius_, 0.1f, 0.8f, "%.3f m");
+    if (ImGui::SliderFloat("Collider Radius", &config_.collider.radius, 0.1f, 1.5f, "%.3f m") ||
+        ImGui::SliderFloat("Head Offset Y", &config_.collider.headOffsetY, 0.5f, 2.0f, "%.3f m") ||
+        ImGui::SliderFloat("Head Radius", &config_.collider.headRadius, 0.1f, 0.8f, "%.3f m") ||
+        ImGui::SliderFloat("Body Offset Y", &config_.collider.bodyOffsetY, 0.1f, 1.5f, "%.3f m") ||
+        ImGui::SliderFloat("Body Radius", &config_.collider.bodyRadius, 0.1f, 0.8f, "%.3f m")) {
+        ApplyColliderConfig();
+    }
 
     ImGui::Separator();
     ImGui::Text("--- Attack Hitbox Settings ---");
     ImGui::Checkbox("Debug: Force Enable Hitbox", &debugForceAttackHitbox_);
     ImGui::Text("Active: %s", IsAttackHitboxActive() ? "YES (Attacking!)" : "NO");
-    ImGui::SliderFloat("Attack Offset Y", &attackOffsetY_, 0.1f, 1.5f, "%.3f m");
-    ImGui::SliderFloat("Attack Offset Forward", &attackOffsetForward_, 0.1f, 1.5f, "%.3f m");
-    ImGui::SliderFloat("Attack Radius", &attackRadius_, 0.1f, 1.0f, "%.3f m");
+    if (ImGui::SliderFloat("Attack Offset Y", &config_.collider.attackOffsetY, 0.1f, 1.5f, "%.3f m") ||
+        ImGui::SliderFloat("Attack Offset Forward", &config_.collider.attackOffsetForward, 0.1f, 1.5f, "%.3f m") ||
+        ImGui::SliderFloat("Attack Radius", &config_.collider.attackRadius, 0.1f, 1.0f, "%.3f m")) {
+        ApplyColliderConfig();
+    }
 
     ImGui::Separator();
     ImGui::Text("--- Raycast Info ---");

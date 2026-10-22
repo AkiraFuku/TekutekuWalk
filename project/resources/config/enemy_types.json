@@ -1,0 +1,26 @@
+{
+  "chase": {
+    "texture": "resources/taru/taru3.png",
+    "searchRadius": 10.0,
+    "lostDistance": 14.0,
+    "chaseSpeed": 5.5,
+    "patrolSpeed": 2.0,
+    "retreatSpeed": 4.5,
+    "retreatDuration": 2.0
+  },
+  "hover": {
+    "texture": "resources/taru/taru2.png",
+    "baseHeight": 2.2,
+    "patrolSwitchInterval": 3.0,
+    "patrolSpeed": 2.0,
+    "hoverAmplitude": 0.3,
+    "hoverFrequency": 2.0
+  },
+  "bound": {
+    "texture": "resources/taru/taru2.png",
+    "jumpAcceleration": 16.0,
+    "gravityScaleFloating": 0.1,
+    "gravityScaleNormal": 0.6,
+    "hoverLimitHeight": 0.2
+  }
+}

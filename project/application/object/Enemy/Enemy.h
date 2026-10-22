@@ -7,6 +7,41 @@
 #include "GameObject.h"
 #include "Scene.h"
 
+/// <summary>
+/// エネミーの設定パラメータ・アセットパスを保持するデータ構造体
+/// </summary>
+struct EnemyConfig {
+    struct Paths {
+        std::string modelDir = "resources/taru";
+        std::string modelFile = "taru.obj";
+        std::string texture = "resources/taru/taru.png";
+    } paths;
+
+    struct TransformConfig {
+        Vector3 scale = { 0.9f, 0.9f, 0.9f };
+        Vector3 rotate = { 90.0f, 0.0f, 0.0f };
+    } transform;
+
+    struct Movement {
+        float moveSpeed = 6.0f;
+        float gravity = -50.0f;
+        float gravityScale = 1.0f;
+        float turnCooldown = 0.5f;
+        float heightOffset = 0.5f;
+    } movement;
+
+    struct Combat {
+        float hitInvincibilityDuration = 1.0f;
+        float knockbackDuration = 0.6f;
+        float knockbackSpeed = 7.0f;
+        float knockbackJumpForce = 13.0f;
+    } combat;
+
+    struct ColliderConfig {
+        float radius = 1.0f;
+    } collider;
+};
+
 class Camera;
 class RailMover;
 class RailPath;
@@ -185,8 +220,16 @@ public:
 
     float GetMoveDirection() const { return moveDirection_; }
     void SetMoveDirection(float dir) { moveDirection_ = (dir >= 0.0f) ? 1.0f : -1.0f; }
-    void Turn() { moveDirection_ *= -1.0f; turnCooldownTimer_ = kTurnCooldown_; }
+    void Turn() { moveDirection_ *= -1.0f; turnCooldownTimer_ = config_.movement.turnCooldown; }
     bool IsWallHit() const { return isWallHit_; }
+
+    // JSON設定の読み込み・保存・コライダー適用
+    void LoadConfig(const std::string& filePath = "resources/config/enemy.json");
+    void SaveConfig(const std::string& filePath = "resources/config/enemy.json");
+    void ApplyColliderConfig();
+    const EnemyConfig& GetConfig() const { return config_; }
+    EnemyConfig& GetConfig() { return config_; }
+    void ImGuiDrawDebugInfo();
 
     // --- 必要なアクセサのみに整理 ---
     void SetTexture(const std::string& texturePath) { if (object_) { object_->SetTexture(texturePath); } }
@@ -195,7 +238,10 @@ public:
     float GetGravityScale() const { return gravityScale_; }
     bool IsDamaged() const { return isDamaged_; }
     bool IsDeathFinished() const { return isDeathFinished_; }
-    void SetRadius(float radius) { radius_ = radius; }
+    void SetRadius(float radius) { 
+        radius_ = radius; 
+        config_.collider.radius = radius;
+    }
     EnemyType GetEnemyType() const { return enemyType_; }
     void SetEnemyType(EnemyType type) { enemyType_ = type; }
     const Vector3& GetInitialRotationOffset() const { return initialRotationOffset_; }
@@ -208,9 +254,10 @@ protected:
 private:
     float deltaTime_ = DXCommon::kDeltaTime; // フレームレートに合わせたデルタタイム
 
+    EnemyConfig config_;
+
     float moveDirection_ = 1.0f;             // 進行方向 (1.0f: 順方向, -1.0f: 逆方向)
     float turnCooldownTimer_ = 0.0f;         // 連続反転防止タイマー
-    const float kTurnCooldown_ = 0.5f;       // 反転クールダウン（秒）
     bool isWallHit_ = false;                 // 前方壁衝突フラグ
     float wallRayDistance_ = FLT_MAX;        // 前方壁までの距離
 
@@ -227,18 +274,13 @@ private:
     float worldY_ = 0.0f;
     Vector3 velocity_ = { 0.0f, 0.0f, 0.0f };
     float gravityScale_ = 1.0f; // 重力のスケール
-    const float kGravity = -50.0f;           // 重力加速度（毎フレーム引く値）
 
     bool isDamaged_ = false;              // クールダウン中かどうかのフラグ
     float hitInvincibilityTimer_ = 0.0f;     // クールダウンタイマー
-    const float kHitInvincibilityDuration_ = 1.0f; // クールダウン時間（秒単位にする場合はUpdateの計算に合わせる）
 
     // ノックバック・放物線・のけぞり演出用変数
     bool isKnockback_ = false;
     float knockbackTimer_ = 0.0f;
-    const float kKnockbackDuration_ = 0.6f;  // 放物線滞空時間（秒）
-    const float kKnockbackSpeed_ = 7.0f;     // 後退速度
-    const float kKnockbackJumpForce_ = 13.0f;// 上方向への跳ね上がり力（放物線）
     float knockbackDirection_ = -1.0f;       // レール上の移動向き（1.0f: 前進, -1.0f: 後退）
     float knockbackTilt_ = 0.0f;             // 後ろへののけぞり角度（度数法）
     float knockbackRoll_ = 0.0f;             // 撃破時の回転角度
@@ -262,7 +304,6 @@ private:
         const float kRayOffset = 2.0f; // レイの始点を上に持ち上げるオフセット
     };
     GroundRayParam rayHitParam_;
-    const float kHeightOffset = 0.5f; // プレイヤーの高さオフセット（地面からの距離）
     EnemyType enemyType_ = EnemyType::Normal;
     Vector3 initialRotationOffset_ = { 0.0f, 0.0f, 0.0f };
 };

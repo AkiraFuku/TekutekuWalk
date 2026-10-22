@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <string>
 #include "Transform.h"
 #include "Object3d.h"
 #include "Behavior/PlayerState.h"
@@ -7,6 +8,59 @@
 #include "Animation.h"
 #include "RailMover.h"
 #include "Audio.h"
+
+/// <summary>
+/// プレイヤーの設定パラメータ・アセットパスを保持するデータ構造体
+/// </summary>
+struct PlayerConfig {
+    struct Paths {
+        std::string modelDir = "resources/human/";
+        std::string modelFile = "walk.gltf";
+        std::string texture = "resources/Yellow.png";
+        std::string hitSE = "resources/Audio/SE/Hit.mp3";
+        std::string damageSE = "resources/Audio/SE/Damage.mp3";
+    } paths;
+
+    struct Movement {
+        float walkSpeed = 7.5f;             // 通常歩き速度 (m/s)
+        float dashSpeed = 15.0f;            // ダッシュ走り速度 (m/s)
+        float gravity = -50.0f;             // 重力加速度 (m/s^2)
+        float jumpAcceleration = 24.0f;     // ジャンプ初速度
+        float coyoteDuration = 0.12f;       // 崖落ち後ジャンプ猶予時間 (秒)
+        float jumpBufferDuration = 0.15f;   // 着地前ジャンプ先行入力猶予時間 (秒)
+        float maxSlopeCos = 0.65f;          // 登れる最大傾斜（cos約49度）
+        float maxStepHeight = 0.35f;        // 乗り越えられる段差の最大高さ (m)
+        float groundSnapDistance = 1.2f;    // 地面吸着距離 (m)
+    } movement;
+
+    struct Combat {
+        float hitInvincibilityDuration = 1.5f; // 被弾後の無敵時間 (秒)
+        float knockbackDuration = 0.25f;       // ノックバック持続時間 (秒)
+        float knockbackSpeed = 7.0f;           // ノックバック初速 (m/s)
+        float knockbackJumpForce = 6.0f;       // ノックバック時の跳ね上げ初速 (m/s)
+    } combat;
+
+    struct Juice {
+        float jumpStretchIntensity = 0.25f;    // ジャンプ時縦伸び量 (1.25倍)
+        float jumpStretchDuration = 0.22f;     // ジャンプ伸縮時間 (秒)
+        float landSquashIntensityMax = 0.32f;  // 着地時最大縦潰れ量 (0.68倍)
+        float landSquashDuration = 0.25f;      // 着地伸縮時間 (秒)
+    } juice;
+
+    struct ColliderConfig {
+        float radius = 0.38f;                  // コライダー基本半径
+        float modelRadius = 0.28f;             // 壁判定用モデル半径
+        float heightOffset = 0.0f;             // 足元オフセット
+        float wallRayHeight = 0.40f;           // 壁検知レイ発射高さ
+        float headOffsetY = 1.15f;             // 頭部スフィア高さ
+        float headRadius = 0.38f;              // 頭部スフィア半径
+        float bodyOffsetY = 0.50f;             // 胴体スフィア高さ
+        float bodyRadius = 0.30f;              // 胴体スフィア半径
+        float attackOffsetY = 0.70f;           // 攻撃判定高さ
+        float attackOffsetForward = 0.65f;     // 攻撃判定前方オフセット
+        float attackRadius = 0.48f;            // 攻撃判定半径
+    } collider;
+};
 
 class InputHandler;
 class Input;
@@ -136,8 +190,16 @@ public:
     bool IsDashing() const { return isDashing_; }
     void SetDashing(bool dashing) { isDashing_ = dashing; }
     bool IsMoving() const { return isMoving_; }
-    float GetWalkSpeed() const { return kWalkSpeed_; }
-    float GetDashSpeed() const { return kDashSpeed_; }
+    float GetWalkSpeed() const { return config_.movement.walkSpeed; }
+    float GetDashSpeed() const { return config_.movement.dashSpeed; }
+
+    // JSON設定の読み込み・保存・コライダー適用
+    void LoadConfig(const std::string& filePath = "resources/config/player.json");
+    void SaveConfig(const std::string& filePath = "resources/config/player.json");
+    void ApplyColliderConfig();
+
+    const PlayerConfig& GetConfig() const { return config_; }
+    PlayerConfig& GetConfig() { return config_; }
 
     Vector3 GetDirection() const;
     int GetMoveDirection() const;
@@ -250,9 +312,7 @@ private:
     std::unique_ptr<Object3d> object_;
     std::unique_ptr<Animation> animation;
 
-    const float kWalkSpeed_ = 7.5f;   // 通常歩き速度 (m/s)
-    const float kDashSpeed_ = 15.0f;  // ダッシュ走り速度 (m/s)
-    const float kMoveSpeed_ = 12.0f;  // 互換用
+    PlayerConfig config_;
 
     MoveState moveState_ = MoveState::Idle;
     bool isDashing_ = false;
@@ -269,16 +329,10 @@ private:
     bool wasGrounded_ = true;           // 前フレームの接地フラグ（着地瞬間検知用）
     float landingFallSpeed_ = 0.0f;     // 着地直前の落下速度
     Vector3 baseScale_ = { 1.0f, 1.0f, 1.0f }; // 基本スケール
-    float jumpStretchIntensity_ = 0.25f;   // ジャンプ時縦伸び量 (1.25倍)
-    float jumpStretchDuration_ = 0.22f;    // ジャンプ伸縮時間(秒)
-    float landSquashIntensityMax_ = 0.32f; // 着地時最大縦潰れ量 (0.68倍)
-    float landSquashDuration_ = 0.25f;     // 着地伸縮時間(秒)
 
     // コヨーテタイム & 先行入力用タイマー
     float coyoteTimer_ = 0.0f;
     float jumpBufferTimer_ = 0.0f;
-    const float kCoyoteDuration_ = 0.12f;      // 崖落ち後ジャンプ猶予時間 (秒)
-    const float kJumpBufferDuration_ = 0.15f;  // 着地前ジャンプ先行入力猶予時間 (秒)
 
     void HandleInput();
     void HandleDamage();
@@ -296,8 +350,6 @@ private:
     float worldY_ = 0.0f;
 
     float gravityScale_ = 1.0f;
-    const float kGravity = -50.0f;
-    const float kJumpAcceleration = 24.0f;
     bool isGrounded_ = true;
     bool isJumping_ = false; // ジャンプ中フラグ（吸着解除用）
     float dropThroughTimer_ = 0.0f;          // すり抜け足場（OneWay）下層降下タイマー
@@ -311,45 +363,21 @@ private:
         const float kRayOffset = 2.0f; // レイの始点を上に持ち上げるオフセット
     };
     GroundRayParam rayHitParam_;
-    float heightOffset_ = 0.0f;               // 地面からモデル原点（足元）までの高さオフセット
-    float wallRayHeight_ = 0.40f;             // 壁検知レイの発射高さ（足元基準、膝〜腰の高さ）
-
-    // 傾斜・段差対応パラメータ
-    const float kMaxStepHeight = 0.35f;       // 乗り越えられる段差の最大高さ (m)
-    const float kGroundSnapDistance = 1.2f;   // 下り坂・窪みで地面に吸着する最大距離 (m)
-    const float kMaxSlopeCos = 0.65f;         // 登れる最大傾斜（cos約49度。これより急な崖は滑り落ち/壁判定）
 
     std::unique_ptr<RailMover> railMover_;
     float playerAngle_ = -10.0f;
 
-    float radius_ = 0.38f;                    // コライダー互換用基本半径
-    float modelRadius_ = 0.28f;               // 人型モデルの実際の幅（半径）
-
-    // モデル形状（2頭身）にフィットさせた球体判定パラメータ
-    float headOffsetY_ = 1.15f;               // 頭部スフィアの足元からの高さオフセット
-    float headRadius_ = 0.38f;                // 頭部スフィアの半径
-    float bodyOffsetY_ = 0.50f;               // 胴体・腰スフィアの足元からの高さオフセット
-    float bodyRadius_ = 0.30f;                // 胴体・腰スフィアの半径
-
     // 攻撃用ヒットボックス（Hitbox）
     std::unique_ptr<Collider> attackCollider_;
-    float attackOffsetY_ = 0.70f;             // 攻撃ヒットボックスの高さ（足元基準）
-    float attackOffsetForward_ = 0.65f;       // 攻撃ヒットボックスの前方突き出しオフセット
-    float attackRadius_ = 0.48f;              // 攻撃ヒットボックスの半径
     bool isAttackHitboxActive_ = false;       // 攻撃ヒットボックスが現在有効か
     bool debugForceAttackHitbox_ = false;     // デバッグ用：常時有効化トグル
-
 
     bool isDamaged_ = false;
     Gauge hitPoints_ = { 3, 3 };
     float hitInvincibilityTimer_ = 0.0f;
-    const float kHitInvincibilityDuration_ = 1.5f; // 1.5秒間の無敵時間
 
     bool isKnockback_ = false;
     float knockbackTimer_ = 0.0f;
-    const float kKnockbackDuration_ = 0.25f; // 0.25秒間のノックバック
-    const float kKnockbackSpeed_ = 7.0f;     // ノックバックの初速
-    const float kKnockbackJumpForce_ = 6.0f; // ノックバック時の軽い跳ね上げ
     int knockbackDirection_ = -1;            // -1: 手前(後退), 1: 奥(前進)
     float currentAngle_ = 0.0f;              // 現在の回転角度
     RailMover::MoveDirection savedFacingDirection_ = RailMover::MoveDirection::Forward;

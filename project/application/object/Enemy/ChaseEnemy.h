@@ -6,6 +6,20 @@ public:
     ChaseEnemy();
     ~ChaseEnemy() override;
 
+    struct ChaseConfig {
+        std::string texture = "resources/taru/taru3.png";
+        float searchRadius = 10.0f;
+        float lostDistance = 14.0f;
+        float chaseSpeed = 5.5f;
+        float patrolSpeed = 2.0f;
+        float retreatSpeed = 4.5f;
+        float retreatDuration = 2.0f;
+    };
+
+    static void LoadGlobalConfig(const std::string& filePath = "resources/config/enemy_types.json");
+    static void SaveGlobalConfig(const std::string& filePath = "resources/config/enemy_types.json");
+    static ChaseConfig& GetGlobalConfig() { return s_config; }
+
     void Initialize() override;
     void Update() override;
     void Draw() override;
@@ -54,4 +68,6 @@ private:
     float retreatSpeed_ = 4.5f;    // 離れるときの移動速度 (m/s)
     float retreatTimer_ = 0.0f;    // 離脱タイマー
     bool isRetreating_ = false;    // 現在離脱中かどうか
+
+    static inline ChaseConfig s_config;
 };

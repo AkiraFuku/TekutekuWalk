@@ -6,12 +6,75 @@
 #include "Scene.h"
 #include "DrawFunction.h"
 #include "Physics.h"
+#include "JsonManager.h"
+#include "Logger.h"
+
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
+
+void Projectile::LoadGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    if (!jsonMgr->Load("GameObjectsConfig", filePath)) {
+        return;
+    }
+    const auto& root = jsonMgr->Get("GameObjectsConfig");
+    if (!root.contains("projectile")) return;
+
+    const auto& j = root["projectile"];
+    s_config.modelPath = j.value("modelPath", s_config.modelPath);
+    if (j.contains("scale") && j["scale"].is_array() && j["scale"].size() >= 3) {
+        s_config.scale.x = j["scale"][0].get<float>();
+        s_config.scale.y = j["scale"][1].get<float>();
+        s_config.scale.z = j["scale"][2].get<float>();
+    }
+    s_config.radius = j.value("radius", s_config.radius);
+    s_config.lifeTimer = j.value("lifeTimer", s_config.lifeTimer);
+}
+
+void Projectile::SaveGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    nlohmann::json root;
+    if (jsonMgr->Load("GameObjectsConfig", filePath)) {
+        root = jsonMgr->Get("GameObjectsConfig");
+    }
+
+    root["projectile"] = {
+        {"modelPath", s_config.modelPath},
+        {"scale", {s_config.scale.x, s_config.scale.y, s_config.scale.z}},
+        {"radius", s_config.radius},
+        {"lifeTimer", s_config.lifeTimer}
+    };
+
+    jsonMgr->Save(filePath, root);
+}
+
+void Projectile::ImGuiDrawDebugInfo() {
+#ifdef USE_IMGUI
+    ImGui::Begin("Debug/Projectile");
+    ImGui::Text("--- Projectile Global Config ---");
+
+    if (ImGui::Button("💾 Save Projectile Config")) {
+        SaveGlobalConfig();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("🔄 Reload")) {
+        LoadGlobalConfig();
+    }
+
+    ImGui::SliderFloat3("Scale", &s_config.scale.x, 0.05f, 3.0f);
+    ImGui::SliderFloat("Radius", &s_config.radius, 0.05f, 3.0f);
+    ImGui::SliderInt("Life Timer (frames)", &s_config.lifeTimer, 10, 600);
+
+    ImGui::End();
+#endif
+}
 
 Projectile::Projectile() {
     railMover_ = std::make_unique<RailMover>();
     object_ = std::make_unique<Object3d>();
-   
 }
+
 CollisionCategory Projectile::GetCategory() const {
     switch (owner_) {
     case ProjectileOwner::Player:
@@ -25,6 +88,12 @@ CollisionCategory Projectile::GetCategory() const {
 Projectile::~Projectile() = default;
 
 void Projectile::Initialize(const RailPath* path, const ProjectileSpawnParam& param, ProjectileOwner owner) {
+    static bool s_loaded = false;
+    if (!s_loaded) {
+        LoadGlobalConfig();
+        s_loaded = true;
+    }
+
     owner_ = owner; // 持ち主を保存
     speed_ = param.speed * param.direction.x;
 
@@ -32,15 +101,16 @@ void Projectile::Initialize(const RailPath* path, const ProjectileSpawnParam& pa
     // param.direction.y は入力の上下 (-1.0 ~ 1.0)
     velocityY_ = param.speed * param.direction.y;
 
+    radius_ = s_config.radius;
+    lifeTimer_ = s_config.lifeTimer;
 
-    // モデルの初期化（例としてSphereを使用）
+    // モデルの初期化
     object_->Initialize();
-    object_->SetModel("playerCursor.obj"); // 必要に応じて専用モデルへ
-    object_->SetScale({ 0.5f, 0.5f, 0.5f });
+    object_->SetModel(s_config.modelPath);
+    object_->SetScale(s_config.scale);
     //モデルの向きを進行方向に合わせるための回転を設定
     Vector3 dir3D = { param.direction.x, 0.0f, param.direction.y };
     object_->SetRotate(dir3D);
-
 
     // レール設定
     railMover_->SetPath(path);
@@ -57,6 +127,10 @@ void Projectile::Initialize(const RailPath* path, const ProjectileSpawnParam& pa
 }
 
 void Projectile::Update() {
+#ifdef USE_IMGUI
+    ImGuiDrawDebugInfo();
+#endif
+
     if (isDead_) return;
 
     Vector3 prevPos = GetWorldPosition();

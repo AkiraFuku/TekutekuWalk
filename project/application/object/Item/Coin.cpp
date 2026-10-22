@@ -4,12 +4,90 @@
 #include "PrimitiveDrawer.h"
 #include "Collider.h"
 #include "Camera.h"
+#include "JsonManager.h"
+#include "Logger.h"
 #include <cmath>
+
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
+
+void Coin::LoadGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    if (!jsonMgr->Load("GameObjectsConfig", filePath)) {
+        return;
+    }
+    const auto& root = jsonMgr->Get("GameObjectsConfig");
+    if (!root.contains("coin")) return;
+
+    const auto& j = root["coin"];
+    s_config.scoreValue = j.value("scoreValue", s_config.scoreValue);
+    s_config.radius = j.value("radius", s_config.radius);
+    s_config.rotateSpeed = j.value("rotateSpeed", s_config.rotateSpeed);
+    s_config.bobbingSpeed = j.value("bobbingSpeed", s_config.bobbingSpeed);
+    s_config.bobbingHeight = j.value("bobbingHeight", s_config.bobbingHeight);
+    s_config.collectAnimDuration = j.value("collectAnimDuration", s_config.collectAnimDuration);
+}
+
+void Coin::SaveGlobalConfig(const std::string& filePath) {
+    auto jsonMgr = JsonManager::GetInstance();
+    nlohmann::json root;
+    if (jsonMgr->Load("GameObjectsConfig", filePath)) {
+        root = jsonMgr->Get("GameObjectsConfig");
+    }
+
+    root["coin"] = {
+        {"scoreValue", s_config.scoreValue},
+        {"radius", s_config.radius},
+        {"rotateSpeed", s_config.rotateSpeed},
+        {"bobbingSpeed", s_config.bobbingSpeed},
+        {"bobbingHeight", s_config.bobbingHeight},
+        {"collectAnimDuration", s_config.collectAnimDuration}
+    };
+
+    jsonMgr->Save(filePath, root);
+}
+
+void Coin::ImGuiDrawDebugInfo() {
+#ifdef USE_IMGUI
+    ImGui::Begin("Debug/Coin");
+    ImGui::Text("--- Coin Global Config ---");
+
+    if (ImGui::Button("💾 Save Coin Config")) {
+        SaveGlobalConfig();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("🔄 Reload")) {
+        LoadGlobalConfig();
+    }
+
+    ImGui::SliderInt("Score Value", &s_config.scoreValue, 10, 1000);
+    ImGui::SliderFloat("Radius", &s_config.radius, 0.1f, 3.0f);
+    ImGui::SliderFloat("Rotate Speed", &s_config.rotateSpeed, 0.5f, 10.0f);
+    ImGui::SliderFloat("Bobbing Speed", &s_config.bobbingSpeed, 0.5f, 15.0f);
+    ImGui::SliderFloat("Bobbing Height", &s_config.bobbingHeight, 0.05f, 1.0f);
+    ImGui::SliderFloat("Collect Anim Duration", &s_config.collectAnimDuration, 0.1f, 2.0f);
+
+    ImGui::End();
+#endif
+}
 
 Coin::Coin() = default;
 Coin::~Coin() = default;
 
 void Coin::Initialize(const std::string& modelName) {
+    static bool s_loaded = false;
+    if (!s_loaded) {
+        LoadGlobalConfig();
+        s_loaded = true;
+    }
+
+    scoreValue_ = s_config.scoreValue;
+    radius_ = s_config.radius;
+    rotateSpeed_ = s_config.rotateSpeed;
+    bobbingSpeed_ = s_config.bobbingSpeed;
+    bobbingHeight_ = s_config.bobbingHeight;
+
     object_ = std::make_unique<Object3d>();
     object_->Initialize();
 
@@ -87,6 +165,10 @@ void Coin::SetCamera(Camera* camera) {
 }
 
 void Coin::Update() {
+#ifdef USE_IMGUI
+    ImGuiDrawDebugInfo();
+#endif
+
     if (isDead_) return;
 
     const float deltaTime = 1.0f / 60.0f; // 約60FPS想定
@@ -94,7 +176,7 @@ void Coin::Update() {
     // ─── 取得後の上昇・縮小演出 ───
     if (isCollected_) {
         collectAnimTimer_ += deltaTime;
-        float progress = collectAnimTimer_ / kCollectAnimDuration_;
+        float progress = (s_config.collectAnimDuration > 0.0f) ? (collectAnimTimer_ / s_config.collectAnimDuration) : 1.0f;
         if (progress >= 1.0f) {
             isDead_ = true;
             return;

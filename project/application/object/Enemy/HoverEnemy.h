@@ -8,6 +8,19 @@ class Player;
 
 class HoverEnemy : public Enemy {
 public:
+    struct HoverConfig {
+        std::string texture = "resources/taru/taru2.png";
+        float baseHeight = 2.2f;
+        float patrolSwitchInterval = 3.0f;
+        float patrolSpeed = 2.0f;
+        float hoverAmplitude = 0.3f;
+        float hoverFrequency = 2.0f;
+    };
+
+    static void LoadGlobalConfig(const std::string& filePath = "resources/config/enemy_types.json");
+    static void SaveGlobalConfig(const std::string& filePath = "resources/config/enemy_types.json");
+    static HoverConfig& GetGlobalConfig() { return s_config; }
+
     HoverEnemy();
     ~HoverEnemy() override;
 
@@ -23,5 +36,7 @@ private:
     float patrolSpeed_ = 2.5f;
     int patrolDir_ = 1;
     float patrolTimer_ = 0.0f;
-    const float kPatrolSwitchInterval = 3.0f; // 3秒ごとに折り返し
+    float patrolSwitchInterval_ = 3.0f; // 折り返し間隔（秒）
+
+    static inline HoverConfig s_config;
 };

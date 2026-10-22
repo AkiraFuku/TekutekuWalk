@@ -1,0 +1,17 @@
+{
+  "mode": "AutoOffset",
+  "autoOffset": {
+    "distance": 25.0,
+    "height": 5.0,
+    "lookAtHeight": 2.0,
+    "smoothSpeed": 0.15,
+    "flipSide": false
+  },
+  "rendering": {
+    "drawDistance": 80.0
+  },
+  "clearPhase": {
+    "targetOffsetGoal": [0.0, 0.0, -6.0],
+    "clearOffset": [0.0, 1.0, -5.0]
+  }
+}

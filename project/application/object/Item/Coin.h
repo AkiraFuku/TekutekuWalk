@@ -19,6 +19,20 @@ public:
     Coin();
     ~Coin() override;
 
+    struct CoinConfig {
+        int32_t scoreValue = 100;
+        float radius = 0.6f;
+        float rotateSpeed = 3.0f;
+        float bobbingSpeed = 4.0f;
+        float bobbingHeight = 0.2f;
+        float collectAnimDuration = 0.3f;
+    };
+
+    static void LoadGlobalConfig(const std::string& filePath = "resources/config/game_objects.json");
+    static void SaveGlobalConfig(const std::string& filePath = "resources/config/game_objects.json");
+    static CoinConfig& GetGlobalConfig() { return s_config; }
+    static void ImGuiDrawDebugInfo();
+
     /// <summary>
     /// 初期化処理
     /// </summary>
@@ -103,4 +117,6 @@ private:
     float collectAnimTimer_ = 0.0f;
     const float kCollectAnimDuration_ = 0.3f; // 取得後の上昇・縮小演出時間（秒）
     bool hasModel_ = false;
+
+    static inline CoinConfig s_config;
 };
