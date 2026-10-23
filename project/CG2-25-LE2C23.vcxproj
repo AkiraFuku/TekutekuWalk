@@ -161,6 +161,11 @@
     <ClInclude Include="application\object\Robot\ShieldRobot.h" />
     <ClInclude Include="application\Collision\Collider.h" />
     <ClInclude Include="application\Collision\Physics.h" />
+    <ClInclude Include="application\UI\WeaponContainer.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="engine\base\RenderTypes.h" />
     <ClInclude Include="engine\Tool\CameraManager.h" />
     <ClInclude Include="engine\Tool\EffectManager.h" />

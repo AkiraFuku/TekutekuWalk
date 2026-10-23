@@ -11,6 +11,12 @@ enum class WeaponId {
     RocketLauncher = 900,
 };
 
+// 武器の状態構造体
+struct WeaponState {
+    bool hasWeapon = false; // 所持しているか
+    int bulletCount = 0;    // 残弾数
+};
+
 // 武器名取得ヘルパー
 inline std::string GetWeaponName(WeaponId id) {
     switch (id) {
@@ -24,92 +30,109 @@ inline std::string GetWeaponName(WeaponId id) {
 // 武器コンテナクラス（std::map を用いた所持武器・残弾数管理）
 class WeaponContainer {
 public:
-    // 武器を登録（すでに所持している場合は弾数を加算）
-    // 戻り値: true=新規取得, false=既存武器への弾数加算
-    bool AddWeapon(WeaponId id, int bulletCount) {
-        auto it = weaponBulletCounts_.find(id);
-        if (it != weaponBulletCounts_.end()) {
-            it->second += bulletCount;
-            return false;
-        }
-        weaponBulletCounts_[id] = bulletCount;
-        return true;
+    // 武器を取得・登録（hasWeapon を true に設定。初期弾数があれば加算）
+    // 戻り値: true=新規に武器本体を取得, false=既に武器を持っていた
+    bool AddWeapon(WeaponId id, int initialBullets = 0) {
+        WeaponState& state = weapons_[id];
+        bool wasNotOwned = !state.hasWeapon;
+        state.hasWeapon = true;
+        state.bulletCount += initialBullets;
+        return wasNotOwned;
     }
 
-    // 弾数を増やす
-    // 戻り値: true=成功, false=未所持のため失敗
-    bool AddBullets(WeaponId id, int count) {
-        auto it = weaponBulletCounts_.find(id);
-        if (it == weaponBulletCounts_.end()) {
-            return false; // 未所持
-        }
-        it->second += count;
-        return true;
+    // 弾薬を拾う・補充する（※武器を持っていなくても弾だけ拾える）
+    void AddBullets(WeaponId id, int count) {
+        weapons_[id].bulletCount += count;
     }
 
-    // 所持しているか調べる (std::map::find)
+    // 武器本体を所持しているか調べる
     bool HasWeapon(WeaponId id) const {
-        return weaponBulletCounts_.find(id) != weaponBulletCounts_.end();
+        auto it = weapons_.find(id);
+        if (it != weapons_.end()) {
+            return it->second.hasWeapon;
+        }
+        return false;
     }
 
-    // 弾数を取得（未所持なら0）
+    // 残弾数を取得（未登録なら0）
     int GetBulletCount(WeaponId id) const {
-        auto it = weaponBulletCounts_.find(id);
-        if (it != weaponBulletCounts_.end()) {
-            return it->second;
+        auto it = weapons_.find(id);
+        if (it != weapons_.end()) {
+            return it->second.bulletCount;
         }
         return 0;
     }
 
-    // 武器を使用する（弾数消費）
-    // 戻り値: 0=弾切れ/未所持で使用不可, 1=使用成功, 2=今回の使用で弾切れ
-    int UseWeapon(WeaponId id, int consume = 1) {
-        auto it = weaponBulletCounts_.find(id);
-        if (it == weaponBulletCounts_.end()) {
-            return 0; // 未所持
+    // 状態全体を取得（存在しなければ nullptr）
+    const WeaponState* GetWeaponState(WeaponId id) const {
+        auto it = weapons_.find(id);
+        if (it != weapons_.end()) {
+            return &(it->second);
         }
-        if (it->second <= 0) {
+        return nullptr;
+    }
+
+    // 武器を使用する（弾数消費）
+    // 戻り値: 0=武器未所持または弾切れ, 1=使用成功, 2=今回の使用で弾切れ
+    int UseWeapon(WeaponId id, int consume = 1) {
+        auto it = weapons_.find(id);
+        if (it == weapons_.end() || !it->second.hasWeapon) {
+            return 0; // 武器未所持
+        }
+        if (it->second.bulletCount <= 0) {
             return 0; // 弾切れ
         }
-        it->second -= consume;
-        if (it->second <= 0) {
-            it->second = 0;
+        it->second.bulletCount -= consume;
+        if (it->second.bulletCount <= 0) {
+            it->second.bulletCount = 0;
             return 2; // 弾切れになった
         }
         return 1; // 使用成功
     }
 
-    // 武器を放棄（インベントリから削除: std::map::erase）
-    bool DropWeapon(WeaponId id) {
-        auto it = weaponBulletCounts_.find(id);
-        if (it == weaponBulletCounts_.end()) {
-            return false; // 未所持
+    // 武器だけを捨てる（hasWeapon = false にするが、弾数は保持）
+    bool DropWeaponOnly(WeaponId id) {
+        auto it = weapons_.find(id);
+        if (it == weapons_.end() || !it->second.hasWeapon) {
+            return false; // そもそも武器を持っていない
         }
-        weaponBulletCounts_.erase(it);
+        it->second.hasWeapon = false;
         return true;
     }
 
-    // 全所持武器を取得
-    const std::map<WeaponId, int>& GetAll() const {
-        return weaponBulletCounts_;
+    // 武器と弾薬を両方放棄（コンテナから完全に要素削除: erase）
+    bool DropAll(WeaponId id) {
+        auto it = weapons_.find(id);
+        if (it == weapons_.end()) {
+            return false;
+        }
+        weapons_.erase(it);
+        return true;
     }
 
-    // コンソールへの一覧表示（std::pairによるイテレーション）
+    // 全要素を取得
+    const std::map<WeaponId, WeaponState>& GetAll() const {
+        return weapons_;
+    }
+
+    // コンソールへの一覧表示（所持中の武器のみ表示）
     void PrintAll() const {
         std::cout << "===== 所持武器一覧 =====\n";
-        if (weaponBulletCounts_.empty()) {
-            std::cout << "(所持武器はありません)\n";
-            return;
+        bool anyOwned = false;
+        for (const auto& entry : weapons_) {
+            if (entry.second.hasWeapon) {
+                anyOwned = true;
+                std::cout << "[ID: " << static_cast<int>(entry.first) << "] "
+                          << GetWeaponName(entry.first) << " : "
+                          << entry.second.bulletCount << "発\n";
+            }
         }
-        for (const std::pair<const WeaponId, int>& entry : weaponBulletCounts_) {
-            const WeaponId weaponId = entry.first;
-            const int bulletCount = entry.second;
-            std::cout << "[ID: " << static_cast<int>(weaponId) << "] "
-                      << GetWeaponName(weaponId) << " : " << bulletCount << "発\n";
+        if (!anyOwned) {
+            std::cout << "(所持している武器はありません)\n";
         }
         std::cout << "========================\n";
     }
 
 private:
-    std::map<WeaponId, int> weaponBulletCounts_;
+    std::map<WeaponId, WeaponState> weapons_;
 };

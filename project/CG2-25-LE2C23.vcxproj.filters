@@ -836,6 +836,9 @@
     <ClInclude Include="application\level\InstancedBlockRenderer.h">
       <Filter>App\Level</Filter>
     </ClInclude>
+    <ClInclude Include="application\UI\WeaponContainer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt">

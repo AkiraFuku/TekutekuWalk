@@ -1,17 +1,19 @@
 /**
  * @file WeaponContainerMain.cpp
- * @brief std::map を使用した武器コンテナ課題（スタンドアロン実行用プログラム）
+ * @brief std::map と WeaponState 構造体を使用した武器コンテナ課題（スタンドアロン実行用プログラム）
  * 
  * ゲームエンジンやDirectX等に依存せず、標準C++コンパイラ（g++, clang++, MSVC）で
  * 単体ビルドおよび実行が可能です。
  * 
  * 【課題要件と実装内容】
- * 1. 武器を登録（std::mapへの挿入）
- * 2. 弾数を増やす（イテレータによる参照と更新）
- * 3. 所持しているか調べる（std::map::find による探索）
- * 4. 所持状態を一覧表示する（範囲forおよびstd::pair走査）
- * 5. 指定武器の使用（弾数消費）
- * 6. 指定武器の放棄（std::map::erase による要素削除）
+ * 1. struct WeaponState（hasWeapon, bulletCount）の導入
+ * 2. 武器未所持の状態でも弾を拾う（弾数のみ先行加算）
+ * 3. 武器の取得（hasWeapon = true）と弾の取得の分離
+ * 4. 所持中（hasWeapon == true）の武器のみ一覧表示
+ * 5. 武器の所持探索（find による hasWeapon および弾数の確認）
+ * 6. 武器の使用（未所持または弾切れ時は使用不可）
+ * 7. 武器だけ捨てる（hasWeapon = false にするが、弾数は保持）
+ * 8. インベントリから完全破棄（std::map::erase）
  */
 
 #include <iostream>
@@ -23,6 +25,12 @@ enum class WeaponId {
     Handgun = 100,
     SubmachineGun = 300,
     RocketLauncher = 900,
+};
+
+// 武器の状態構造体
+struct WeaponState {
+    bool hasWeapon = false; // 所持しているか
+    int bulletCount = 0;    // 残弾数
 };
 
 // 武器IDから武器名を取得するヘルパー関数
@@ -37,107 +45,138 @@ std::string GetWeaponName(WeaponId id) {
 
 /**
  * @brief 所持武器一覧表示
- * std::pair<const WeaponId, int> を用いて全要素を走査
+ * 所持中（hasWeapon == true）の武器のみを表示する
  */
-void PrintWeaponList(const std::map<WeaponId, int>& container) {
-    std::cout << "--- 現在の所持一覧 ---\n";
-    if (container.empty()) {
+void PrintOwnedWeaponList(const std::map<WeaponId, WeaponState>& container) {
+    std::cout << "--- 現在の所持武器一覧 (hasWeapon == true のみ) ---\n";
+    bool anyOwned = false;
+    for (const auto& entry : container) {
+        const WeaponId weaponId = entry.first;
+        const WeaponState& state = entry.second;
+        if (state.hasWeapon) {
+            anyOwned = true;
+            std::cout << "  [武器ID: " << static_cast<int>(weaponId) << "] "
+                      << GetWeaponName(weaponId) << " -> 残弾数: "
+                      << state.bulletCount << "発\n";
+        }
+    }
+    if (!anyOwned) {
         std::cout << "  (所持している武器はありません)\n";
     }
-    for (const std::pair<const WeaponId, int>& entry : container) {
-        const WeaponId weaponId = entry.first;
-        const int bulletCount = entry.second;
-        std::cout << "  [武器ID: " << static_cast<int>(weaponId) << "] "
-                  << GetWeaponName(weaponId) << " -> 残弾数: "
-                  << bulletCount << "発\n";
-    }
-    std::cout << "----------------------\n\n";
+    std::cout << "---------------------------------------------------\n\n";
 }
 
 /**
  * @brief 武器の所持探索 (find)
  */
-void CheckWeaponOwned(const std::map<WeaponId, int>& container, WeaponId selectedWeapon) {
-    // 探索擬似コード準拠
-    std::map<WeaponId, int>::const_iterator itWeapon = container.find(selectedWeapon);
-    if (itWeapon == container.end()) {
-        std::cout << "【探索】" << GetWeaponName(selectedWeapon) << " は未所持です (Weapon not owned)\n";
+void CheckWeaponOwned(const std::map<WeaponId, WeaponState>& container, WeaponId selectedWeapon) {
+    auto itWeapon = container.find(selectedWeapon);
+    if (itWeapon == container.end() || !itWeapon->second.hasWeapon) {
+        int bullets = (itWeapon != container.end()) ? itWeapon->second.bulletCount : 0;
+        std::cout << "【探索】" << GetWeaponName(selectedWeapon) << " は未所持です (武器なし";
+        if (bullets > 0) {
+            std::cout << ", ただし弾薬は " << bullets << "発 所持";
+        }
+        std::cout << ")\n";
     } else {
         std::cout << "【探索】" << GetWeaponName(selectedWeapon) << " を所持しています (残弾: "
-                  << itWeapon->second << "発)\n";
+                  << itWeapon->second.bulletCount << "発)\n";
     }
 }
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " std::map を使用した武器コンテナ課題 実行デモ\n";
+    std::cout << " std::map + WeaponState 武器コンテナ課題 実行デモ\n";
     std::cout << "========================================================\n\n";
 
-    // 武器コンテナ: キー=武器ID, 値=弾数
-    std::map<WeaponId, int> weaponBulletCounts;
+    // 武器コンテナ: キー=武器ID, 値=WeaponState構造体
+    std::map<WeaponId, WeaponState> weapons;
 
     // ---------------------------------------------------------
-    // 1. 武器を登録（取得）
+    // 1. 武器未所持の状態で弾だけ拾う
     // ---------------------------------------------------------
-    std::cout << "[Step 1] 武器の登録（Handgun と RocketLauncher を取得）\n";
-    weaponBulletCounts[WeaponId::Handgun] = 15;
-    weaponBulletCounts[WeaponId::RocketLauncher] = 3;
-    PrintWeaponList(weaponBulletCounts);
+    std::cout << "[Step 1] 武器未所持の状態で RocketLauncher の弾薬を 5発 ひろう\n";
+    weapons[WeaponId::RocketLauncher].bulletCount += 5;
+    std::cout << "  -> 武器本体は持っていませんが、ロケット弾を 5発 確保しました。\n";
+    PrintOwnedWeaponList(weapons); // まだ武器を持っていないので一覧には表示されない！
 
     // ---------------------------------------------------------
-    // 2. 所持しているか調べる
+    // 2. 所持チェック
     // ---------------------------------------------------------
-    std::cout << "[Step 2] 武器の所持チェック（Handgun と SubmachineGun を探索）\n";
-    CheckWeaponOwned(weaponBulletCounts, WeaponId::Handgun);
-    CheckWeaponOwned(weaponBulletCounts, WeaponId::SubmachineGun);
+    std::cout << "[Step 2] RocketLauncher と Handgun の所持状態をチェック (find)\n";
+    CheckWeaponOwned(weapons, WeaponId::RocketLauncher);
+    CheckWeaponOwned(weapons, WeaponId::Handgun);
     std::cout << '\n';
 
     // ---------------------------------------------------------
-    // 3. 弾数を増やす
+    // 3. 武器を取得する
     // ---------------------------------------------------------
-    std::cout << "[Step 3] 弾数を増やす（Handgunの弾薬を +30発）\n";
-    auto itHandgun = weaponBulletCounts.find(WeaponId::Handgun);
-    if (itHandgun != weaponBulletCounts.end()) {
-        itHandgun->second += 30;
-        std::cout << "  -> Handgun の弾薬を補充しました。現在の弾数: " << itHandgun->second << "発\n";
-    }
-    PrintWeaponList(weaponBulletCounts);
+    std::cout << "[Step 3] 武器を取得（Handgun と RocketLauncher 本体を拾う）\n";
+    // Handgun を新規取得（初期弾数 15発）
+    weapons[WeaponId::Handgun].hasWeapon = true;
+    weapons[WeaponId::Handgun].bulletCount += 15;
+
+    // RocketLauncher 本体を取得（弾数は Step 1 で拾った 5発 をそのまま活用！）
+    weapons[WeaponId::RocketLauncher].hasWeapon = true;
+
+    PrintOwnedWeaponList(weapons);
 
     // ---------------------------------------------------------
-    // 4. 武器の使用（弾数を消費）
+    // 4. 弾数を増やす（弾をひろう）
     // ---------------------------------------------------------
-    std::cout << "[Step 4] 武器の使用（RocketLauncher を発射）\n";
-    auto itRocket = weaponBulletCounts.find(WeaponId::RocketLauncher);
-    if (itRocket != weaponBulletCounts.end()) {
-        if (itRocket->second > 0) {
-            itRocket->second -= 1;
-            std::cout << "  -> ドカーン！ RocketLauncher を1発発射しました。(残弾: " << itRocket->second << "発)\n";
-        } else {
-            std::cout << "  -> 弾切れのため発射できません！\n";
+    std::cout << "[Step 4] Handgun の弾薬を +30発 ひろう\n";
+    weapons[WeaponId::Handgun].bulletCount += 30;
+    std::cout << "  -> Handgun の残弾数: " << weapons[WeaponId::Handgun].bulletCount << "発\n";
+    PrintOwnedWeaponList(weapons);
+
+    // ---------------------------------------------------------
+    // 5. 武器の使用（弾数を消費）
+    // ---------------------------------------------------------
+    std::cout << "[Step 5] 武器の使用（RocketLauncher を発射）\n";
+    auto itRocket = weapons.find(WeaponId::RocketLauncher);
+    if (itRocket != weapons.end() && itRocket->second.hasWeapon) {
+        if (itRocket->second.bulletCount > 0) {
+            itRocket->second.bulletCount -= 1;
+            std::cout << "  -> ドカーン！ RocketLauncher を1発発射しました。(残弾: "
+                      << itRocket->second.bulletCount << "発)\n";
         }
     }
-    PrintWeaponList(weaponBulletCounts);
+    PrintOwnedWeaponList(weapons);
 
     // ---------------------------------------------------------
-    // 5. 新たな武器を取得（SubmachineGun を追加登録）
+    // 6. 武器だけ捨てる（hasWeapon = false。弾数は残る！）
     // ---------------------------------------------------------
-    std::cout << "[Step 5] 新たな武器の登録（SubmachineGun 60発 を取得）\n";
-    weaponBulletCounts[WeaponId::SubmachineGun] = 60;
-    PrintWeaponList(weaponBulletCounts);
-
-    // ---------------------------------------------------------
-    // 6. 武器の放棄（インベントリから削除: erase）
-    // ---------------------------------------------------------
-    std::cout << "[Step 6] 武器の放棄（RocketLauncher をインベントリから削除）\n";
-    auto itDrop = weaponBulletCounts.find(WeaponId::RocketLauncher);
-    if (itDrop != weaponBulletCounts.end()) {
-        weaponBulletCounts.erase(itDrop);
-        std::cout << "  -> RocketLauncher を放棄しました。\n";
+    std::cout << "[Step 6] 武器だけ捨てる（RocketLauncher の本体を捨てる）\n";
+    itRocket = weapons.find(WeaponId::RocketLauncher);
+    if (itRocket != weapons.end() && itRocket->second.hasWeapon) {
+        itRocket->second.hasWeapon = false;
+        std::cout << "  -> RocketLauncher の武器本体を捨てました！（残弾 "
+                  << itRocket->second.bulletCount << "発 はそのままインベントリに残ります）\n";
     }
-    PrintWeaponList(weaponBulletCounts);
+    PrintOwnedWeaponList(weapons); // 武器本体を捨てたので所持武器一覧から消える！
+
+    std::cout << "[Step 6.1] 武器本体を捨てた後の所持チェック\n";
+    CheckWeaponOwned(weapons, WeaponId::RocketLauncher);
+    std::cout << '\n';
+
+    // ---------------------------------------------------------
+    // 7. 再度武器本体を拾うと、残っていた弾薬がそのまま使える
+    // ---------------------------------------------------------
+    std::cout << "[Step 7] 再び RocketLauncher の武器本体を拾う\n";
+    weapons[WeaponId::RocketLauncher].hasWeapon = true;
+    std::cout << "  -> RocketLauncher を再取得！残っていた弾薬がそのまま使えます。\n";
+    PrintOwnedWeaponList(weapons);
+
+    // ---------------------------------------------------------
+    // 8. 完全破棄（erase で弾薬ごと完全に消去）
+    // ---------------------------------------------------------
+    std::cout << "[Step 8] RocketLauncher を完全破棄（erase）\n";
+    weapons.erase(WeaponId::RocketLauncher);
+    std::cout << "  -> RocketLauncher を完全破棄しました。\n";
+    PrintOwnedWeaponList(weapons);
 
     std::cout << "========================================================\n";
-    std::cout << " 一連の武器コンテナ処理デモが正常に完了しました。\n";
+    std::cout << " 一連の WeaponState 課題デモが正常に完了しました。\n";
     std::cout << "========================================================\n";
 
     return 0;
