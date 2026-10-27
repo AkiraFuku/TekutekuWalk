@@ -80,11 +80,11 @@ void Object3d::Draw()
 
     if (model_ && model_->HasSkinning())
     {
-        psoName_ = "SkiningObj3d";
+        psoName_ = isDepthTestEnable_ ? "SkiningObj3d" : "SkiningObj3d_NoDepth";
 
     } else
     {
-        psoName_ = "Object3d";
+        psoName_ = isDepthTestEnable_ ? "Object3d" : "Object3d_NoDepth";
     }
     Object3dCommon::GetInstance()->Object3dCommonDraw();
     auto psoSet = PSOManager::GetInstance()->GetPso(psoName_, blendMode_, fillMode_);

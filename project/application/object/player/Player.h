@@ -259,6 +259,9 @@ public:
     void TriggerInvincibility(float duration) {
         hitInvincibilityTimer_ = (std::max)(hitInvincibilityTimer_, duration);
     }
+    void ResetHitInvincibility() {
+        hitInvincibilityTimer_ = 0.0f;
+    }
 
     InputHandler* GetInputHandler() const {
         return inputHandler_.get();

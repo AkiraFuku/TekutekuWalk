@@ -367,8 +367,8 @@ void Player::Draw()
 {
     //    if (!isActive_) return;
 
-        // 無敵時間中のモデル点滅（0.08秒ごとに表示/非表示を切り替え）
-    if (hitInvincibilityTimer_ > 0.0f) {
+        // 無敵時間中のモデル点滅（0.08秒ごとに表示/非表示を切り替え、死亡時は点滅スキップしない）
+    if (isAlive_ && hitInvincibilityTimer_ > 0.0f) {
         const float kBlinkInterval = 0.08f;
         if (fmodf(hitInvincibilityTimer_, kBlinkInterval * 2.0f) < kBlinkInterval) {
             if (auto* col = GetCollider()) {

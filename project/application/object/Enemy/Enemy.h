@@ -99,6 +99,16 @@ public:
         }
     }
 
+    Object3d* GetObject3d() const { return object_.get(); }
+    /// <summary>
+    /// 移動や物理計算を行わず、最新のカメラ情報に合わせてWVP行列のみを再転送する
+    /// </summary>
+    void UpdateMatrix() {
+        if (object_) {
+            object_->Update();
+        }
+    }
+
     void SetPosition(const Vector3& position) {
         if (object_) {
             object_->SetTranslate(position);

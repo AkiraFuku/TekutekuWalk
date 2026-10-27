@@ -75,6 +75,9 @@ public:
     EulerTransform GetTransform() const {
         return worldTransform_;
     }
+    void SetDepthTestEnable(bool enable) {
+        isDepthTestEnable_ = enable;
+    }
     
     // モデルゲッター
     Model* GetModel() const { return model_.get(); }
@@ -199,6 +202,7 @@ private:
     BlendMode blendMode_ = BlendMode::None;
 
     std::string psoName_ = "Object3d";
+    bool isDepthTestEnable_ = true;
 
 };
 

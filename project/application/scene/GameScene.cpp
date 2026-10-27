@@ -568,9 +568,9 @@ void GameScene::Draw() {
         stageManager_->DebugDraw();
     }
     if (stageRail) stageRail->DebugDraw();
-    if (cameraRail) cameraRail->DebugDraw();
-
-    player->Draw();
+    if (!isDefeated_) {
+        player->Draw();
+    }
 
     if (goal_)
     {

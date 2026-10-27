@@ -88,6 +88,13 @@ void Object3dCommon::Initialize()
     // PSOManagerに名前を付けて登録
     PSOManager::GetInstance()->RegisterPsoGenerator("Object3d", config);
 
+    // 深度テスト無効版（最前面描画用: テスト常に合格、Z書き込みなし）
+    auto noDepthObj3dConfig = config;
+    noDepthObj3dConfig.depthEnable = true;
+    noDepthObj3dConfig.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    noDepthObj3dConfig.depthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    PSOManager::GetInstance()->RegisterPsoGenerator("Object3d_NoDepth", noDepthObj3dConfig);
+
     // ─── GPU インスタンシング用 PSO の登録 ───
     {
         PsoConfig instConfig{};
@@ -203,6 +210,13 @@ void Object3dCommon::Initialize()
 
     // PSOManagerに名前を付けて登録
     PSOManager::GetInstance()->RegisterPsoGenerator("SkiningObj3d", config);
+
+    // 深度テスト無効版（最前面描画用: テスト常に合格、Z書き込みなし）
+    auto noDepthSkinningConfig = config;
+    noDepthSkinningConfig.depthEnable = true;
+    noDepthSkinningConfig.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    noDepthSkinningConfig.depthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    PSOManager::GetInstance()->RegisterPsoGenerator("SkiningObj3d_NoDepth", noDepthSkinningConfig);
     auto psoSet = PSOManager::GetInstance()->GetPso("Object3d");
     rootSignature_ = psoSet.rootSignature;
     graphicsPipelineState_ = psoSet.pipelineState;
