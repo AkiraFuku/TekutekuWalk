@@ -70,6 +70,7 @@ from .rail_snap import (
     MYADDON_OT_enter_rail_draw_tool,
     MYADDON_OT_extend_rail_end,
     MYADDON_OT_subdivide_rail_segment,
+    MYADDON_OT_create_stage_rail,
     MYADDON_OT_create_preset_rail,
     OBJECT_PT_rail_curve_settings,
     OBJECT_PT_rail_position_settings,
@@ -90,7 +91,10 @@ class TOPBAR_MT_my_menu(bpy.types.Menu):
         self.layout.operator(MYADDON_OT_export_scene.bl_idname, text=MYADDON_OT_export_scene.bl_label)
         self.layout.operator(MYADDON_OT_import_scene.bl_idname, text=MYADDON_OT_import_scene.bl_label, icon='IMPORT')
         self.layout.separator()
-        self.layout.operator(MYADDON_OT_ai_generate_stage.bl_idname, text="🌟 AIコース自動生成・伸長", icon='PLAY')
+        self.layout.operator(MYADDON_OT_create_stage_rail.bl_idname, text="🛤️ ステージレールを新規作成", icon='CURVE_BEZCURVE')
+        self.layout.operator(MYADDON_OT_create_preset_rail.bl_idname, text="🔄 レールプリセット生成 (円形/直線/S字)", icon='CURVE_PATH')
+        self.layout.separator()
+        self.layout.operator(MYADDON_OT_ai_generate_stage.bl_idname, text="🎲 ランダムステージ自動生成・伸長", icon='PLAY')
         self.layout.separator()
         self.layout.operator(MYADDON_OT_apply_all_preview_models.bl_idname, text=MYADDON_OT_apply_all_preview_models.bl_label, icon='MESH_DATA')
         self.layout.separator()
@@ -167,6 +171,7 @@ classes = (
     MYADDON_OT_enter_rail_draw_tool,
     MYADDON_OT_extend_rail_end,
     MYADDON_OT_subdivide_rail_segment,
+    MYADDON_OT_create_stage_rail,
     MYADDON_OT_create_preset_rail,
     OBJECT_PT_rail_curve_settings,
     OBJECT_PT_rail_position_settings,

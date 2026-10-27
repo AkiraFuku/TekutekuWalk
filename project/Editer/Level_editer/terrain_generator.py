@@ -1126,7 +1126,7 @@ def deform_terrain_mesh_to_rail(
             export_terrain_mesh_to_obj(terrain_obj, rel_obj_path)
             terrain_obj["file_name"] = "terrain_deformed.obj"
             terrain_obj["model_dir"] = "resources/Stagemap"
-            terrain_obj["object_type"] = "BLOCK"
+            terrain_obj["object_type"] = "TERRAIN"
             if "texture" not in terrain_obj:
                 terrain_obj["texture"] = "resources/Stagemap/863603.png"
         except Exception as e:
@@ -1373,17 +1373,28 @@ class MYADDON_OT_deform_terrain_to_rail(bpy.types.Operator):
             self.report({'ERROR'}, "レール（Curve）が見つかりません。")
             return {'CANCELLED'}
 
-        # 2. 地面メッシュ取得（未作成なら自動生成）
+        # 2. 地面メッシュ取得（読み込みステージの Terrain_PlainsGround / GroundTerrain 等を最優先検出）
         terrain_obj = None
         if context.object and context.object.type == 'MESH':
-            terrain_obj = context.object
-        elif "TerrainGround" in bpy.data.objects:
-            terrain_obj = bpy.data.objects["TerrainGround"]
-        else:
+            if context.object.get("object_type") == "TERRAIN" or "terrain" in context.object.name.lower() or "ground" in context.object.name.lower():
+                terrain_obj = context.object
+
+        if not terrain_obj:
+            # シーン内から TERRAIN タイプを最優先検索
             for o in bpy.data.objects:
-                if o.type == 'MESH' and o.get("object_type") in ["TERRAIN", "BLOCK"]:
+                if o.type == 'MESH' and o.get("object_type") == "TERRAIN":
                     terrain_obj = o
                     break
+
+        if not terrain_obj:
+            # 名前に Terrain または Ground を含むメッシュを検索
+            for o in bpy.data.objects:
+                if o.type == 'MESH' and ("terrain" in o.name.lower() or "ground" in o.name.lower()):
+                    terrain_obj = o
+                    break
+
+        if not terrain_obj and "TerrainGround" in bpy.data.objects:
+            terrain_obj = bpy.data.objects["TerrainGround"]
 
         if not terrain_obj:
             # 地面メッシュがまだなければ自動で高密度グリッドを生成

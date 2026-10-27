@@ -460,6 +460,70 @@ def create_terrain_grid_mesh(mesh_name, size_x, size_y, div_x, div_y, texture_pa
     return mesh
 
 
+def create_terrain_from_vertex_data(mesh_name, vertex_positions, indices, texture_path="", uv_tile=4.0, convert_coords=True):
+    """
+    JSON内の vertex_positions（高低差・坂道・土手）と indices から、
+    起伏のある地形メッシュを直接かつ完全に復元する。
+    """
+    if mesh_name in bpy.data.meshes:
+        bpy.data.meshes.remove(bpy.data.meshes[mesh_name], do_unlink=True)
+
+    mesh = bpy.data.meshes.new(mesh_name)
+    verts = []
+    for vp in vertex_positions:
+        if convert_coords:
+            # ゲーム (X右, Y上, Z奥) -> Blender (X右, Y奥, Z上)
+            verts.append((float(vp[0]), float(vp[2]), float(vp[1])))
+        else:
+            verts.append((float(vp[0]), float(vp[1]), float(vp[2])))
+
+    faces = []
+    if indices and len(indices) >= 3:
+        for i in range(0, len(indices) - 2, 3):
+            # DirectX (時計回り) -> Blender (反時計回り) で法線を上向きにするため 0, 2, 1
+            if convert_coords:
+                faces.append((int(indices[i]), int(indices[i + 2]), int(indices[i + 1])))
+            else:
+                faces.append((int(indices[i]), int(indices[i + 1]), int(indices[i + 2])))
+
+    mesh.from_pydata(verts, [], faces)
+    mesh.validate(verbose=False)
+    mesh.update(calc_edges=True)
+
+    # UV 座標の自動生成（平面投影 X-Y）
+    if verts:
+        min_x = min(v[0] for v in verts)
+        max_x = max(v[0] for v in verts)
+        min_y = min(v[1] for v in verts)
+        max_y = max(v[1] for v in verts)
+        span_x = max(max_x - min_x, 1.0)
+        span_y = max(max_y - min_y, 1.0)
+
+        uv_layer = mesh.uv_layers.new(name="UVMap")
+        for poly in mesh.polygons:
+            for loop_idx in poly.loop_indices:
+                vert_idx = mesh.loops[loop_idx].vertex_index
+                vx, vy, _ = verts[vert_idx]
+                u = ((vx - min_x) / span_x) * uv_tile
+                v = ((vy - min_y) / span_y) * uv_tile
+                uv_layer.data[loop_idx].uv = (u, v)
+
+    # 法線チェック
+    if mesh.polygons and mesh.polygons[0].normal.z < 0:
+        mesh.flip_normals()
+        mesh.update()
+
+    # テクスチャマテリアル適用
+    if texture_path:
+        root = get_project_root()
+        tex_full = os.path.join(root, texture_path) if (root and not os.path.isabs(texture_path)) else texture_path
+        mat = create_texture_material(f"Mat_{mesh_name}", tex_full)
+        if mat:
+            mesh.materials.append(mat)
+
+    return mesh
+
+
 
 # ==========================================
 # JSON ステージデータ インポーター
@@ -487,6 +551,11 @@ def _import_object_recursive(objects_json, parent=None, clear_existing=True, con
         fire_mode   = obj_data.get("fire_mode", "")
         properties  = obj_data.get("properties", {})
         children    = obj_data.get("children", [])
+
+        # デフォルトの不要オブジェクト（Cube, Light, Camera で object_type なし）を除外
+        if not obj_type and name in ["Cube", "Light", "Camera"] and type_str in ["MESH", "LIGHT", "CAMERA"]:
+            print(f"[import_scene] デフォルト不要オブジェクトをスキップ: {name} ({type_str})")
+            continue
 
         tr_raw = transform.get("translation", [0, 0, 0])
         sc_raw = transform.get("scaling",     [1, 1, 1])
@@ -516,7 +585,7 @@ def _import_object_recursive(objects_json, parent=None, clear_existing=True, con
 
         blender_obj = None
 
-        # CURVE (レール)
+        # 1. CURVE (レール)
         if type_str == "CURVE" and rail_points:
             curve_data = bpy.data.curves.new(name=name, type="CURVE")
             curve_data.dimensions = "3D"
@@ -533,6 +602,11 @@ def _import_object_recursive(objects_json, parent=None, clear_existing=True, con
                 pt_type = rp.get("type", "BEZIER")
                 interp_types.append(pt_type)
                 bpt = spline.bezier_points[i]
+
+                # 先に FREE に設定して Blender によるハンドルの自動再計算・破壊を防止
+                bpt.handle_left_type  = "FREE"
+                bpt.handle_right_type = "FREE"
+
                 if convert_coords:
                     # ゲーム (X右, Y上, Z奥) -> Blender (X右, Y奥, Z上)
                     bpt.co           = (co[0], co[2], co[1])
@@ -542,21 +616,34 @@ def _import_object_recursive(objects_json, parent=None, clear_existing=True, con
                     bpt.co           = (co[0], co[1], co[2])
                     bpt.handle_left  = (hl[0], hl[1], hl[2])
                     bpt.handle_right = (hr[0], hr[1], hr[2])
+
+                # ハンドルタイプの設定（LINEARの場合はVECTOR、それ以外はFREEで精密座標を保持）
                 if pt_type == "LINEAR":
                     bpt.handle_left_type  = "VECTOR"
                     bpt.handle_right_type = "VECTOR"
-                elif pt_type == "CATMULL_ROM":
-                    bpt.handle_left_type  = "ALIGNED"
-                    bpt.handle_right_type = "ALIGNED"
                 else:
                     bpt.handle_left_type  = "FREE"
                     bpt.handle_right_type = "FREE"
+
             blender_obj = bpy.data.objects.new(name, curve_data)
             blender_obj["interp_types"] = interp_types
             col.objects.link(blender_obj)
 
-        # 2. 地形グリッド (terrain_grid)
-        # JSONの type が EMPTY でも MESH でも、確実にメッシュオブジェクトとして生成する！
+        # 2. 地形（TERRAIN / terrain_grid / 高低差 vertex_positions 付きメッシュ）
+        elif (obj_type == "TERRAIN" or file_name == "terrain_grid" or name.startswith("Terrain")) and "vertex_positions" in obj_data and obj_data["vertex_positions"]:
+            # 高低差・坂道・土手形状の頂点データから完全復元！
+            v_pos = obj_data["vertex_positions"]
+            idx = obj_data.get("indices", [])
+            uv = float(properties.get("uv_tile", 4.0))
+            tex = texture or properties.get("grass_texture", "resources/Stagemap/863603.png")
+
+            t_mesh = create_terrain_from_vertex_data(f"Mesh_{name}", v_pos, idx, texture_path=tex, uv_tile=uv, convert_coords=convert_coords)
+            blender_obj = bpy.data.objects.new(name, t_mesh)
+            blender_obj.show_wire = False
+            col.objects.link(blender_obj)
+            print(f"[import_scene] 起伏地形メッシュを頂点復元: {name} (頂点数={len(v_pos)}, 面数={len(idx)//3})")
+
+        # 3. 平坦地形グリッド (terrain_grid フォールバック)
         elif file_name == "terrain_grid" or (obj_type == "TERRAIN" and "size_x" in properties):
             sx = float(properties.get("size_x", 150.0))
             sy = float(properties.get("size_y", 150.0))
@@ -622,9 +709,10 @@ def _import_object_recursive(objects_json, parent=None, clear_existing=True, con
                 blender_obj.show_wire = True
             else:
                 mesh_data = bpy.data.meshes.new(name)
+                # 立方体メッシュ生成 (サイズ 1x1x1)
                 verts = [
-                    (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-                    (-1, -1,  1), (1, -1,  1), (1, 1,  1), (-1, 1,  1)
+                    (-0.5, -0.5, -0.5), (0.5, -0.5, -0.5), (0.5, 0.5, -0.5), (-0.5, 0.5, -0.5),
+                    (-0.5, -0.5,  0.5), (0.5, -0.5,  0.5), (0.5, 0.5,  0.5), (-0.5, 0.5,  0.5)
                 ]
                 faces = [
                     (0, 3, 2, 1),  # 底面 (Z-, 法線 -Z)
@@ -638,10 +726,19 @@ def _import_object_recursive(objects_json, parent=None, clear_existing=True, con
                 mesh_data.validate(verbose=False)
                 mesh_data.update(calc_edges=True)
 
-                # テクスチャが指定されていればマテリアル適用
-                if texture:
+                # プレハブ・テクスチャ解決
+                eff_tex = texture
+                if not eff_tex:
+                    if "OneWay" in name or "oneway" in name:
+                        eff_tex = "resources/grass.png"
+                    elif "Stair" in name or "stair" in name:
+                        eff_tex = "resources/grass.png"
+                    elif obj_type == "BLOCK":
+                        eff_tex = "resources/grass.png"
+
+                if eff_tex:
                     root = get_project_root()
-                    tex_full = os.path.join(root, texture) if (texture and root and not os.path.isabs(texture)) else texture
+                    tex_full = os.path.join(root, eff_tex) if (eff_tex and root and not os.path.isabs(eff_tex)) else eff_tex
                     if os.path.exists(tex_full):
                         mat = create_texture_material(f"Mat_{name}", tex_full)
                         if mat:
@@ -707,8 +804,8 @@ class MYADDON_OT_import_scene(bpy.types.Operator, bpy_extras.io_utils.ImportHelp
     filter_glob: bpy.props.StringProperty(default="*.json", options={"HIDDEN"})
 
     clear_scene: bpy.props.BoolProperty(
-        name="既存オブジェクトを上書き",
-        description="同名オブジェクトが存在する場合に削除して再作成します",
+        name="シーンをクリーンにして上書き",
+        description="対象コレクションおよびシーン内の既存ステージオブジェクトを一掃して読み込みます",
         default=True,
     )
 
@@ -721,7 +818,7 @@ class MYADDON_OT_import_scene(bpy.types.Operator, bpy_extras.io_utils.ImportHelp
     snap_to_rails: bpy.props.BoolProperty(
         name="rail_pos をレール上に自動配置",
         description="rail_pos を持つオブジェクト（Player, Enemy, Goal等）をベジェレール上の位置へ自動配置します",
-        default=True,
+        default=False,
     )
 
     def execute(self, context):
@@ -759,14 +856,45 @@ class MYADDON_OT_import_scene(bpy.types.Operator, bpy_extras.io_utils.ImportHelp
             if target_col.name not in context.scene.collection.children:
                 context.scene.collection.children.link(target_col)
 
-        should_convert = self.convert_from_game_coords
+        # クリーンロード処理（対象コレクション内を一掃）
+        if self.clear_scene:
+            if target_col and target_col.objects:
+                for obj in list(target_col.objects):
+                    bpy.data.objects.remove(obj, do_unlink=True)
+            # さらに「AI_Generated_Stage」などの自動生成コレクションもクリーンアップ
+            if "AI_Generated_Stage" in bpy.data.collections:
+                gen_col = bpy.data.collections["AI_Generated_Stage"]
+                for obj in list(gen_col.objects):
+                    bpy.data.objects.remove(obj, do_unlink=True)
+            # デフォルトの孤立Cube, Light, Cameraも除去
+            for obj in list(context.scene.objects):
+                if obj.name in ["Cube", "Light", "Camera"] and not obj.get("object_type"):
+                    bpy.data.objects.remove(obj, do_unlink=True)
+
+        # 座標系判定（JSON内に明記があればそれを優先）
+        coord_sys = data.get("coordinate_system", "")
+        if coord_sys == "BLENDER":
+            should_convert = False
+        elif coord_sys == "GAME":
+            should_convert = True
+        else:
+            should_convert = self.convert_from_game_coords
+
         _import_object_recursive(objects, parent=None, clear_existing=self.clear_scene,
                                  convert_coords=should_convert, target_collection=target_col)
 
-        # rail_pos を持つオブジェクトをベジェレール上に自動スナップ
+        # rail_pos を持つオブジェクトをベジェレール上に自動スナップ（必要な場合のみ）
         snapped_count = 0
         if self.snap_to_rails:
             snapped_count = snap_all_objects_to_rail()
+
+        # 未使用となった孤立データブロックのクリーンアップ
+        for m in list(bpy.data.meshes):
+            if m.users == 0:
+                bpy.data.meshes.remove(m, do_unlink=True)
+        for c in list(bpy.data.curves):
+            if c.users == 0:
+                bpy.data.curves.remove(c, do_unlink=True)
 
         msg = f"コレクション '{scene_col_name}' に {len(objects)} 個のオブジェクトを配置しました"
         if snapped_count > 0:

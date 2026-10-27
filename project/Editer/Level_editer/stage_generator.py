@@ -1733,7 +1733,7 @@ class StageAIGenerator:
 
 class MYADDON_OT_ai_generate_stage(bpy.types.Operator):
     bl_idname = "myaddon.ai_generate_stage"
-    bl_label = "🌟 AIステージ自動生成・伸長"
+    bl_label = "🎲 ランダムステージ自動生成・伸長"
     bl_description = "カービィ64風のコース（レール・足場・敵・カメラレール）を自動生成・伸長します"
     bl_options = {"REGISTER", "UNDO"}
 

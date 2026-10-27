@@ -1533,6 +1533,63 @@ class MYADDON_OT_enter_rail_draw_tool(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class MYADDON_OT_create_stage_rail(bpy.types.Operator):
+    bl_idname = "myaddon.create_stage_rail"
+    bl_label = "ステージレールを新規作成"
+    bl_description = "敵や足場のない、純粋なステージレール (StageRail) のみを原点に作成します"
+    bl_options = {"REGISTER", "UNDO"}
+
+    rail_name: bpy.props.StringProperty(name="レール名", default="StageRail")
+    initial_length: bpy.props.FloatProperty(name="初期の長さ (m)", default=20.0, min=2.0, max=200.0)
+
+    def execute(self, context):
+        name = self.rail_name
+        # 既存オブジェクトがあれば選択してフォーカス
+        if name in bpy.data.objects and bpy.data.objects[name].type == 'CURVE':
+            rail_obj = bpy.data.objects[name]
+            context.view_layer.objects.active = rail_obj
+            rail_obj.select_set(True)
+            self.report({"INFO"}, f"既存のステージレール '{name}' を選択しました")
+            return {"FINISHED"}
+
+        curve_data = bpy.data.curves.new(name=name, type='CURVE')
+        curve_data.dimensions = '3D'
+        curve_data.resolution_u = 12
+
+        spline = curve_data.splines.new('BEZIER')
+        spline.use_cyclic_u = False
+
+        # 初期2点（+Y方向へ進行: Blender Y = ゲーム Z）
+        l = self.initial_length
+        spline.bezier_points.add(1)
+
+        p0 = spline.bezier_points[0]
+        p0.co = mathutils.Vector((0.0, 0.0, 0.0))
+        p0.handle_left = mathutils.Vector((0.0, -l * 0.25, 0.0))
+        p0.handle_right = mathutils.Vector((0.0, l * 0.25, 0.0))
+        p0.handle_left_type = 'ALIGNED'
+        p0.handle_right_type = 'ALIGNED'
+
+        p1 = spline.bezier_points[1]
+        p1.co = mathutils.Vector((0.0, l, 0.0))
+        p1.handle_left = mathutils.Vector((0.0, l * 0.75, 0.0))
+        p1.handle_right = mathutils.Vector((0.0, l * 1.25, 0.0))
+        p1.handle_left_type = 'ALIGNED'
+        p1.handle_right_type = 'ALIGNED'
+
+        rail_obj = bpy.data.objects.new(name, curve_data)
+        rail_obj["object_type"] = "STAGE_RAIL"
+        rail_obj["loop"] = False
+        rail_obj["interp_types"] = ["BEZIER", "BEZIER"]
+
+        context.collection.objects.link(rail_obj)
+        context.view_layer.objects.active = rail_obj
+        rail_obj.select_set(True)
+
+        self.report({"INFO"}, f"ステージレール '{name}' を新規作成しました（長さ {l:.1f}m）")
+        return {"FINISHED"}
+
+
 class MYADDON_OT_create_preset_rail(bpy.types.Operator):
     bl_idname = "myaddon.create_preset_rail"
     bl_label = "プリセットレール生成"
@@ -1838,10 +1895,10 @@ class OBJECT_PT_rail_curve_settings(bpy.types.Panel):
 
         if MYADDON_OT_ai_generate_stage:
             box_ai = layout.box()
-            box_ai.label(text="🌟 星のカービィ64風 AIコース自動生成・伸長:", icon='OUTLINER_OB_LIGHTPROBE')
+            box_ai.label(text="🎲 星のカービィ64風 ランダムコース自動生成・伸長:", icon='OUTLINER_OB_LIGHTPROBE')
             col_ai = box_ai.column(align=True)
             col_ai.scale_y = 1.2
-            col_ai.operator(MYADDON_OT_ai_generate_stage.bl_idname, text="🚀 コースをAI自動生成・伸長", icon='PLAY')
+            col_ai.operator(MYADDON_OT_ai_generate_stage.bl_idname, text="🚀 コースをランダム自動生成・伸長", icon='PLAY')
 
 
 
