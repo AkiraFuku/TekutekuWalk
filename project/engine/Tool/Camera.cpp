@@ -3,10 +3,11 @@
 #include "ImGuI.h"
 #include "ImGuiManager.h"
 #include "DXCommon.h"
+#include "Object3dCommon.h"
 #include <cmath>
 Camera::Camera()
     :worldTransform_({ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} })
-    , fovY(0.45f)
+    , fovY(1.047f) // 60度 (約1.047 rad)
     , aspect(static_cast<float>(WinApp::kClientWidth) / static_cast<float>(WinApp::kClientHeight))
     , nearCrip(0.1f)
     , farCrip(1000.0f)
@@ -167,6 +168,14 @@ void Camera::Update() {
     }
 
     ImGui::Separator();
+    float fovDegrees = fovY * (180.0f / 3.14159265f);
+    if (ImGui::SliderFloat("FOV (Degree)", &fovDegrees, 20.0f, 100.0f, "%.1f deg")) {
+        fovY = fovDegrees * (3.14159265f / 180.0f);
+    }
+    float globalCurvature = Object3dCommon::GetInstance()->GetGlobalCurvature();
+    if (ImGui::SliderFloat("Curvature (空間湾曲)", &globalCurvature, 0.0f, 0.005f, "%.5f")) {
+        Object3dCommon::GetInstance()->SetGlobalCurvature(globalCurvature);
+    }
     ImGui::DragFloat3("Rotate", &(worldTransform_.rotate.x), 0.01f);
     ImGui::DragFloat3("Scale", &(worldTransform_.scale.x), 0.01f);
     ImGui::DragFloat3("Translate", &(worldTransform_.translate.x), 0.1f);

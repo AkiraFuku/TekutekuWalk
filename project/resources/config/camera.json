@@ -1,9 +1,9 @@
 {
   "mode": "AutoOffset",
   "autoOffset": {
-    "distance": 25.0,
-    "height": 5.0,
-    "lookAtHeight": 2.0,
+    "distance": 8.5,
+    "height": 2.8,
+    "lookAtHeight": 1.2,
     "smoothSpeed": 0.15,
     "flipSide": false
   },

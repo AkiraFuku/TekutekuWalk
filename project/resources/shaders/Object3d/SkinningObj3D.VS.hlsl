@@ -4,11 +4,15 @@ struct TransformationMatrix
     float4x4 WVP;
     float4x4 World;
     float4x4 WorldInverseTranspose;
+    float4x4 View;
+    float4x4 Projection;
+    float curvature;
+    float3 padding;
 };
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
 //
 struct VertexShaderInput
-{
+{ 
 
     float4 position : POSITION0;
     float2 texCoord : TEXCOORD0;
@@ -54,8 +58,22 @@ VertexShaderOutput main(VertexShaderInput input)
     
     Skinned skinned = Skinning(input);
     
-    output.position = mul(skinned.position, gTransformationMatrix.WVP);
-    output.worldPosition = mul(skinned.position, gTransformationMatrix.World).xyz;
+    float4 worldPos = mul(skinned.position, gTransformationMatrix.World);
+
+    // 空間湾曲（Curved World）: カメラ奥方向（Z）への距離に応じて高さを落とす
+    if (gTransformationMatrix.curvature > 0.0f)
+    {
+        float4 viewPos = mul(worldPos, gTransformationMatrix.View);
+        float depth = max(0.0f, viewPos.z);
+        viewPos.y -= gTransformationMatrix.curvature * (depth * depth);
+        output.position = mul(viewPos, gTransformationMatrix.Projection);
+    }
+    else
+    {
+        output.position = mul(skinned.position, gTransformationMatrix.WVP);
+    }
+
+    output.worldPosition = worldPos.xyz;
     output.texCoord = input.texCoord;
     output.normal = normalize(mul(skinned.normal, (float3x3) gTransformationMatrix.WorldInverseTranspose));
     

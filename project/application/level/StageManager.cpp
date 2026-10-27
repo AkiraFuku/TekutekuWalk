@@ -31,6 +31,8 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     playerSpawnRailPos_ = { 0.0f, 0.0f };
     goalPos_            = { 0.0f, 0.0f, 0.0f };
     goalRailPos_        = { 0.0f, 0.0f };
+    stageCameraDistance_ = 8.5f;
+    stageCameraHeight_   = 2.8f;
 
     camera_     = camera;
     loadedPath_ = jsonPath;
@@ -239,8 +241,8 @@ void StageManager::ProcessObject(const LevelObjectData& data, Camera* camera, Sp
             return def;
         };
         stageCameraDrawDistance_ = getFloat("draw_distance", 80.0f);
-        stageCameraDistance_     = getFloat("camera_distance", 25.0f);
-        stageCameraHeight_       = getFloat("camera_height", 5.0f);
+        stageCameraDistance_     = getFloat("camera_distance", 8.5f);
+        stageCameraHeight_       = getFloat("camera_height", 2.8f);
         auto itMode = data.properties.find("camera_mode");
         if (itMode != data.properties.end()) {
             stageCameraMode_ = itMode->second;

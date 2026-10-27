@@ -31,6 +31,7 @@ public:
     void SetFovY(const float fovY) {
         this->fovY = fovY;
     }
+    float GetFovY() const { return fovY; }
     void SetAspectRatio(const float aspect) {
         this->aspect = aspect;
     }

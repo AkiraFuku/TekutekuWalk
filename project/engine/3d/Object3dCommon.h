@@ -32,9 +32,16 @@ public:
     SkyBox* GetDefaultSkyBox()const {
         return defaultBox_;
     }
+
+    // 空間湾曲（Curved World）のグローバル設定
+    void SetGlobalCurvature(float curvature) { globalCurvature_ = curvature; }
+    float GetGlobalCurvature() const { return globalCurvature_; }
+
     static std::unique_ptr<Object3dCommon> instance;
      friend struct std::default_delete<Object3dCommon>;
 private:
+
+    float globalCurvature_ = 0.0f; // グローバル空間湾曲率 (例: 0.001f)
 
     // シングルトンパターン
     Object3dCommon() = default;

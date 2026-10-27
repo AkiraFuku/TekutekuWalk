@@ -174,6 +174,10 @@ void ResetTexture() {
     customTextureIndex_ = std::nullopt;
 }
 
+// 空間湾曲率 (負値ならObject3dCommonのGlobalCurvatureを使用)
+void SetCurvature(float curvature) { curvature_ = curvature; }
+float GetCurvature() const { return curvature_; }
+
 private:
 
     //float radius_ = 1.0f;
@@ -203,6 +207,8 @@ private:
 
     std::string psoName_ = "Object3d";
     bool isDepthTestEnable_ = true;
+
+    float curvature_ = -1.0f; // 個別湾曲率 (負数ならグローバルを使用)
 
 };
 

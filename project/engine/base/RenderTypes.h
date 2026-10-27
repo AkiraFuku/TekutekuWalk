@@ -9,6 +9,10 @@ struct TransformationMatrix {
     Matrix4x4 WVP;
     Matrix4x4 World;
     Matrix4x4 WorldInverseTranspose;
+    Matrix4x4 View;
+    Matrix4x4 Projection;
+    float curvature;       // 空間湾曲率 (0.0fで湾曲なし, 0.001f等で奥に向かって下がる)
+    float padding[3];      // 16バイトアライメント用パディング
 };
 
 struct CameraForGPU {

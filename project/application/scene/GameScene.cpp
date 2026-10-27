@@ -369,6 +369,12 @@ void GameScene::Update() {
         if (stageManager_->GetCameraRail() && cameraController) {
             cameraController->SetRailPath(stageManager_->GetCameraRail());
         }
+        if (cameraController) {
+            cameraController->SetAutoOffsetParams(
+                stageManager_->GetStageCameraDistance(),
+                stageManager_->GetStageCameraHeight()
+            );
+        }
     }
 
     if (ImGui::Button("Reload Stage (stage1.json)")) {
@@ -400,6 +406,12 @@ void GameScene::Update() {
         }
         if (stageManager_->GetCameraRail() && cameraController) {
             cameraController->SetRailPath(stageManager_->GetCameraRail());
+        }
+        if (cameraController) {
+            cameraController->SetAutoOffsetParams(
+                stageManager_->GetStageCameraDistance(),
+                stageManager_->GetStageCameraHeight()
+            );
         }
     }
 

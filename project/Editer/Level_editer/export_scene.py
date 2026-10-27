@@ -170,8 +170,8 @@ class MYADDON_OT_export_scene(bpy.types.Operator, bpy_extras.io_utils.ExportHelp
             scene = bpy.context.scene
             properties_map["draw_distance"] = str(getattr(scene, "game_camera_draw_distance", 80.0))
             properties_map["camera_mode"] = str(getattr(scene, "game_camera_mode", "AUTO_OFFSET"))
-            properties_map["camera_distance"] = str(getattr(scene, "rail_camera_distance", 25.0))
-            properties_map["camera_height"] = str(getattr(scene, "rail_camera_height", 5.0))
+            properties_map["camera_distance"] = str(getattr(scene, "rail_camera_distance", 8.5))
+            properties_map["camera_height"] = str(getattr(scene, "rail_camera_height", 2.8))
 
         # エネミー専用プロパティ（カメラ直前スポーン・感知距離）
         if object.get("object_type") == "ENEMY":

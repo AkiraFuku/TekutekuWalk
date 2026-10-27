@@ -37,25 +37,30 @@ void Object3d::Update()
     }
     //  WVP行列の作成
     Matrix4x4 worldMatrix = MakeAffineMatrix(worldTransform_.scale, worldTransform_.rotate, worldTransform_.translate);
-    Matrix4x4 worldViewProjectionMatrix = {};
     //ワールド行列とビュー行列とプロジェクション行列を掛け算
+    Matrix4x4 worldViewProjectionMatrix = {};
+    Matrix4x4 viewMatrix = Makeidentity4x4();
+    Matrix4x4 projectionMatrix = Makeidentity4x4();
     if (camera_)
     {
         cameraData_->worldPosition = camera_->GetTranslate();
+        viewMatrix = camera_->GetViewMatrix();
+        projectionMatrix = camera_->GetProjectionMatrix();
         worldViewProjectionMatrix = Multiply(worldMatrix, camera_->GetViewProtectionMatrix());
     } else {
-
-        Matrix4x4 viewMatrix = Makeidentity4x4();
-        Matrix4x4 projectionMatrix = Makeidentity4x4();
         Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
-
-
         worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
     }
     //行列をGPUに転送
     wvpResource_->WVP = worldViewProjectionMatrix;
     wvpResource_->World = worldMatrix;
     wvpResource_->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+    wvpResource_->View = viewMatrix;
+    wvpResource_->Projection = projectionMatrix;
+
+    // 湾曲率の決定: 個別設定が負ならグローバル設定を使用
+    float activeCurvature = (curvature_ >= 0.0f) ? curvature_ : Object3dCommon::GetInstance()->GetGlobalCurvature();
+    wvpResource_->curvature = activeCurvature;
 
     if (camera_ && cameraData_)
     {
@@ -133,17 +138,18 @@ void Object3d::SetTexture(const std::string& textureFilePath)
 void Object3d::CreateWVPResource()
 {
     //座標変換
+    size_t size = (sizeof(TransformationMatrix) + 0xff) & ~0xff;
     transformationMatrixResource_ =
         DXCommon::GetInstance()->
-        CreateBufferResource(sizeof(TransformationMatrix));
+        CreateBufferResource(size);
     transformationMatrixResource_.Get()->
         Map(0, nullptr, reinterpret_cast<void**>(&wvpResource_));
     wvpResource_->WVP = Makeidentity4x4();
     wvpResource_->World = Makeidentity4x4();
     wvpResource_->WorldInverseTranspose = Inverse(wvpResource_->World);
-
-
-
+    wvpResource_->View = Makeidentity4x4();
+    wvpResource_->Projection = Makeidentity4x4();
+    wvpResource_->curvature = 0.0f;
 }
 
 
