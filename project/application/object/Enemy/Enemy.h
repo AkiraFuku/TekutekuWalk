@@ -51,6 +51,12 @@ public:
         return CollisionCategory::Enemy;
     }
 
+    /// <summary>
+    /// エネミー管理番号 (std::set 接触管理用 ID)
+    /// </summary>
+    int GetCharacterNo() const { return characterNo_; }
+    void SetCharacterNo(int no) { characterNo_ = no; }
+
 
     virtual void Initialize();
     virtual void Update();
@@ -206,6 +212,7 @@ protected:
     void PlayHitEffect(); // パーティクルを発生させるヘルパー関数
 
 private:
+    int characterNo_ = 0; // スライド準拠のエネミー管理番号(ID)
     float deltaTime_ = DXCommon::kDeltaTime; // フレームレートに合わせたデルタタイム
 
     float moveDirection_ = 1.0f;             // 進行方向 (1.0f: 順方向, -1.0f: 逆方向)

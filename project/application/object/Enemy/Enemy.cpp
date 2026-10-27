@@ -36,6 +36,9 @@ void Enemy::Initialize()
 
 
 
+    static int sNextCharacterNo = 101;
+    characterNo_ = sNextCharacterNo++;
+
     railMover_ = std::make_unique<RailMover>();
     ChangeBehavior(std::make_unique<EnemyBehaviorPatrol>());
     ChangeState(std::make_unique<StateEnemyNormal>());

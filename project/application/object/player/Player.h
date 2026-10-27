@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <set>
 #include "Transform.h"
 #include "Object3d.h"
 #include "Behavior/PlayerState.h"
@@ -219,6 +220,12 @@ public:
         return hitPoints_.max;
     }
 
+    /// <summary>
+    /// std::set による接触エネミー管理番号リストの取得 (重複ダメージ防止デバッグ用)
+    /// </summary>
+    const std::set<int>& GetContactCharacters() const { return contactCharacters_; }
+    void ResetContactCharacters() { contactCharacters_.clear(); }
+
     void SetDeltaTime(float deltaTime = DXCommon::kDeltaTime) {
         deltaTime_ = deltaTime;
     }
@@ -363,4 +370,8 @@ private:
     Audio::SoundHandle HitSE_ = 0;
     Audio::SoundHandle DamageSE_ = 0;
     Audio::VoiceHandle playHundle_ = 0;
+
+    // std::set による接触エネミー管理 (重複ダメージ防止)
+    std::set<int> contactCharacters_;     // 現在接触中の敵管理番号集合
+    std::set<int> currentFrameContacts_; // 今フレーム接触した敵管理番号集合
 };

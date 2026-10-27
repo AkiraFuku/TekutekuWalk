@@ -536,8 +536,9 @@ void GameScene::Update() {
     }
 
     // ==========================================
-    // 武器コンテナデバッグ (std::map 課題UI)
+    // 武器コンテナデバッグ (std::map 課題UI) - 無効化
     // ==========================================
+#if 0
     ImGui::Begin("Weapon Inventory (std::map Assignment)");
 
     // --- 1. 所持中武器一覧（所持中の武器だけ表示） ---
@@ -661,6 +662,121 @@ void GameScene::Update() {
         ImGui::TextUnformatted(weaponActionLogs_[i].c_str());
     }
     ImGui::EndChild();
+
+    ImGui::End();
+#endif
+
+    // ========================================================
+    // エネミー接触管理 & ロックオン候補 (std::set 課題UI)
+    // ========================================================
+    ImGui::Begin("Enemy Contact & Lock-On (std::set Assignment)");
+
+    // --- 1. 接触キャラクターの管理（重複ダメージ防止判定） ---
+    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "[ 1. 接触キャラクター管理 (重複ダメージ防止) ]");
+    ImGui::TextWrapped("毎フレーム衝突が通知されても、std::set に登録されている相手からの多段ヒット（重複ダメージ）を防ぎます。");
+
+    // 実機プレイヤーの接触中エネミー一覧
+    if (player) {
+        const auto& contacts = player->GetContactCharacters();
+        ImGui::Text("プレイヤーHP: %d / %d", player->GetHitPoints(), player->GetMaxHitPoints());
+        ImGui::Text("現在接触中の敵 (contactCharacters):");
+        if (contacts.empty()) {
+            ImGui::TextDisabled("  (現在接触中の敵はいません - 安全な状態)");
+        } else {
+            for (int id : contacts) {
+                ImGui::BulletText("エネミー管理番号: %d (接触中・多段ヒットガード中)", id);
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("接触リセット##Player")) {
+            player->ResetContactCharacters();
+        }
+    }
+
+    ImGui::Separator();
+
+    // --- 2. 整列順を活かした共通集合の抽出 (std::set_intersection) ---
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "[ 2. 整列順を活かした共通集合の抽出 (std::set_intersection) ]");
+    ImGui::TextWrapped("視界内(visibleCharacters) と 射程内(inRangeCharacters) は両方 std::set のため自動昇順ソートされています。");
+    ImGui::TextWrapped("std::set_intersection により、高速に「ロックオン候補」を抽出します。");
+
+    if (ImGui::Button("スライドのサンプル値 (101, 205, 310 ∩ 205, 310, 420) をセット")) {
+        enemyContactManager_.LoadSlideSample();
+        AddSetAssignmentLog("スライドのサンプル集合をセットしました。");
+    }
+
+    ImGui::Columns(2, "SetColumns", true);
+
+    // 左列: 視界内の敵
+    ImGui::TextColored(ImVec4(0.7f, 1.0f, 0.7f, 1.0f), "【視界内の敵】(visibleCharacters)");
+    const auto& vis = enemyContactManager_.GetVisibleCharacters();
+    if (vis.empty()) {
+        ImGui::TextDisabled("  (空)");
+    } else {
+        int toRemoveVis = -1;
+        for (int id : vis) {
+            ImGui::BulletText("ID: %d", id);
+            ImGui::SameLine();
+            std::string btn = "x##vis" + std::to_string(id);
+            if (ImGui::SmallButton(btn.c_str())) {
+                toRemoveVis = id;
+            }
+        }
+        if (toRemoveVis != -1) {
+            enemyContactManager_.RemoveVisibleEnemy(toRemoveVis);
+        }
+    }
+    ImGui::InputInt("##InputVis", &inputVisibleId_);
+    ImGui::SameLine();
+    if (ImGui::Button("追加##Vis")) {
+        enemyContactManager_.AddVisibleEnemy(inputVisibleId_);
+    }
+
+    ImGui::NextColumn();
+
+    // 右列: 射程内の敵
+    ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.7f, 1.0f), "【射程内の敵】(inRangeCharacters)");
+    const auto& inRange = enemyContactManager_.GetInRangeCharacters();
+    if (inRange.empty()) {
+        ImGui::TextDisabled("  (空)");
+    } else {
+        int toRemoveRange = -1;
+        for (int id : inRange) {
+            ImGui::BulletText("ID: %d", id);
+            ImGui::SameLine();
+            std::string btn = "x##range" + std::to_string(id);
+            if (ImGui::SmallButton(btn.c_str())) {
+                toRemoveRange = id;
+            }
+        }
+        if (toRemoveRange != -1) {
+            enemyContactManager_.RemoveInRangeEnemy(toRemoveRange);
+        }
+    }
+    ImGui::InputInt("##InputRange", &inputRangeId_);
+    ImGui::SameLine();
+    if (ImGui::Button("追加##Range")) {
+        enemyContactManager_.AddInRangeEnemy(inputRangeId_);
+    }
+
+    ImGui::Columns(1);
+    ImGui::Separator();
+
+    // 計算結果: ロックオン候補 (共通集合)
+    std::vector<int> lockOnTargets = enemyContactManager_.ComputeLockOnTargets();
+    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.2f, 1.0f), "【ロックオン候補 (抽出結果: lockOnTargets)】");
+    if (lockOnTargets.empty()) {
+        ImGui::TextDisabled("  共通要素なし (ロックオン対象がいません)");
+    } else {
+        std::string resultStr = "  候補 ID: [ ";
+        for (size_t i = 0; i < lockOnTargets.size(); ++i) {
+            resultStr += std::to_string(lockOnTargets[i]);
+            if (i + 1 < lockOnTargets.size()) resultStr += ", ";
+        }
+        resultStr += " ]";
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "%s", resultStr.c_str());
+        ImGui::TextDisabled("  ※視界内かつ射程内の両方に存在する敵のみが昇順で正しく抽出されています。");
+    }
 
     ImGui::End();
 
@@ -927,4 +1043,12 @@ RailPath* GameScene::GetStageRaill()
         return stageManager_->GetStageRail();
     }
     return stageRail.get();
+}
+
+void GameScene::AddSetAssignmentLog(const std::string& log)
+{
+    setAssignmentLogs_.push_back(log);
+    if (setAssignmentLogs_.size() > 50) {
+        setAssignmentLogs_.erase(setAssignmentLogs_.begin());
+    }
 }

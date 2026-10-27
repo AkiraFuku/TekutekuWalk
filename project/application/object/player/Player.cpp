@@ -66,6 +66,19 @@ void Player::Initialize()
 }
 void Player::Update()
 {
+    // --- 【std::set課題】接触終了時のリセット処理 (erase) ---
+    // 前フレーム接触していたが今フレーム接触しなくなった相手を接触中リストから解除する
+    std::vector<int> endedContacts;
+    for (int id : contactCharacters_) {
+        if (!currentFrameContacts_.contains(id)) {
+            endedContacts.push_back(id);
+        }
+    }
+    for (int id : endedContacts) {
+        contactCharacters_.erase(id); // スライド準拠: contactCharacters.erase(characterNo);
+    }
+    currentFrameContacts_.clear(); // 次フレームの判定用にクリア
+
     //   if (!isActive_) return;
 
     HandleAlive();
@@ -945,6 +958,9 @@ void Player::OnCollision(GameObject* other) {
         Enemy* enemy = dynamic_cast<Enemy*>(other);
         if (!enemy) return;
 
+        int characterNo = enemy->GetCharacterNo();
+        currentFrameContacts_.insert(characterNo); // 今フレーム接触中として記録
+
         // プレイヤーが攻撃中の場合
         if (IsAttacking()) {
             if (!enemy->IsDead()) {
@@ -955,7 +971,9 @@ void Player::OnCollision(GameObject* other) {
 
         // 敵が通常状態の場合、ダメージおよびノックバック
         if (enemy->CanDamagePlayer()) {
-            if (hitInvincibilityTimer_ <= 0.0f) {
+            // 【std::set課題】重複ダメージを防ぐ判定処理
+            // まだ接触記録がない相手（新規接触）の場合だけダメージを与える
+            if (!contactCharacters_.contains(characterNo)) {
                 // レール上の位置関係からノックバック方向を決定
                 int knockDir = -1;
                 float playerDist = GetCurrentDistance();
@@ -976,6 +994,7 @@ void Player::OnCollision(GameObject* other) {
                 }
 
                 TakeDamage(knockDir);
+                contactCharacters_.insert(characterNo); // 接触中として記録（以降のフレームでの重複ダメージをガード）
             }
         }
 

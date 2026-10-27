@@ -15,6 +15,7 @@
 #include "Enemy.h"
 #include "GaidUI.h"
 #include "WeaponContainer.h"
+#include "EnemyContactManager.h"
 class StageManager;
 class ParticleEmitter;
 class RailPath;
@@ -168,5 +169,12 @@ public:
     int selectedWeaponIndex_ = 0;
     int addBulletInput_ = 10;
     void AddWeaponActionLog(const std::string& log);
+
+    // エネミー接触 & ロックオン候補（std::set課題）
+    EnemyContactManager enemyContactManager_;
+    int inputVisibleId_ = 500;
+    int inputRangeId_ = 500;
+    std::vector<std::string> setAssignmentLogs_;
+    void AddSetAssignmentLog(const std::string& log);
 };
 
