@@ -10,6 +10,12 @@ class defeatPhase :
     public Phase
 {
 public:
+    enum class MenuItem {
+        Retry = 0,
+        Quit,
+        Count
+    };
+
     void Initialize(Scene* scene) override;
     void Update(Scene* scene) override;
     void Draw(Scene* scene) override;
@@ -19,10 +25,13 @@ private:
     // ゲームオーバースプライト (tekutekuGameOver.png)
     std::unique_ptr<Sprite> defeatSprite_;
 
-    // ボタン入力指示スプライト (Start.png)
+    // 選択項目
+    MenuItem selectedMenu_ = MenuItem::Retry;
+
+    // ボタン入力指示スプライト (Start.png / push.png)
     std::unique_ptr<Sprite> startSprite_;
     float blinkTimer_ = 0.0f;
-    float currentBlinkSpeed_ = 4.0f; // 点滅角速度 (通常時: 約1.6秒周期)
+    float currentBlinkSpeed_ = 4.0f; // 点滅角速度
     Vector2 baseSize_ = Vector2(0.0f, 0.0f);
 
     Audio::SoundHandle defeatSE = 0;

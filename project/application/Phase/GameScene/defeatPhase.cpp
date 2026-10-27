@@ -7,11 +7,16 @@
 #include "TextureManager.h"
 #include <cmath>
 
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
+
 void defeatPhase::Initialize(Scene* scene)
 {
     isTransitioning_ = false;
     blinkTimer_ = 0.0f;
     currentBlinkSpeed_ = 4.0f;
+    selectedMenu_ = MenuItem::Retry;
 
     // ゲームオーバー表示スプライト
     defeatSprite_ = std::make_unique<Sprite>();
@@ -50,6 +55,34 @@ void defeatPhase::Update(Scene* scene)
 
     Input* input = Input::GetInstance();
 
+    // ── ImGui デバッグウィンドウ ──
+#ifdef USE_IMGUI
+    ImGui::Begin("Game Over Menu (Defeat Phase)");
+    ImGui::Text("=== YOU DIED ===");
+
+    bool triggerRetry = false;
+    bool triggerQuit = false;
+
+    const char* menuNames[] = { "Retry Stage (GameScene)", "Quit (GameOverScene)" };
+    int currentItem = static_cast<int>(selectedMenu_);
+    if (ImGui::Combo("Selection", &currentItem, menuNames, IM_ARRAYSIZE(menuNames))) {
+        selectedMenu_ = static_cast<MenuItem>(currentItem);
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button("Retry Stage (GameScene)", ImVec2(220, 40))) {
+        selectedMenu_ = MenuItem::Retry;
+        triggerRetry = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Quit to GameOverScene", ImVec2(220, 40))) {
+        selectedMenu_ = MenuItem::Quit;
+        triggerQuit = true;
+    }
+    ImGui::Text("Key/Pad: Left/Right to Select, Space/Enter/A to Confirm");
+    ImGui::End();
+#endif
+
     if (!isTransitioning_) {
         // 通常のゆったりとしたサイン波点滅（アルファ 0.25 〜 1.0）
         float wave = std::sin(blinkTimer_ * currentBlinkSpeed_);
@@ -59,11 +92,25 @@ void defeatPhase::Update(Scene* scene)
             startSprite_->SetColor({ 1.0f, 1.0f, 1.0f, alpha });
         }
 
-        // キーボード（SPACE, RETURN）またはパッド（A, START）の入力検知
+        // 左右キー / パッド十字キーで選択切り替え
+        bool moveLeft = input->TriggerKeyDown(DIK_LEFT) || input->TriggerKeyDown(DIK_A) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_LEFT);
+        bool moveRight = input->TriggerKeyDown(DIK_RIGHT) || input->TriggerKeyDown(DIK_D) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_RIGHT);
+
+        if (moveLeft) {
+            selectedMenu_ = MenuItem::Retry;
+        } else if (moveRight) {
+            selectedMenu_ = MenuItem::Quit;
+        }
+
+        // キーボード（SPACE, RETURN）またはパッド（A, START）、またはImGuiボタンによる決定
         bool isPressed = input->TriggerKeyDown(DIK_SPACE) ||
                          input->TriggerKeyDown(DIK_RETURN) ||
                          input->TriggerPadDown(0, XINPUT_GAMEPAD_A) ||
-                         input->TriggerPadDown(0, XINPUT_GAMEPAD_START);
+                         input->TriggerPadDown(0, XINPUT_GAMEPAD_START)
+#ifdef USE_IMGUI
+                         || triggerRetry || triggerQuit
+#endif
+                         ;
 
         if (isPressed) {
             isTransitioning_ = true;
@@ -86,7 +133,11 @@ void defeatPhase::Update(Scene* scene)
         }
 
         if (!Fade::GetInstance()->IsFading()) {
-            SceneManager::GetInstance()->ChangeScene("GameScene");
+            if (selectedMenu_ == MenuItem::Retry) {
+                SceneManager::GetInstance()->ChangeScene("GameScene");
+            } else {
+                SceneManager::GetInstance()->ChangeScene("GameOverScene");
+            }
         }
     }
 
