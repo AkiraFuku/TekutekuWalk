@@ -1,14 +1,17 @@
 #include "CameraManager.h"
 
 // 静的メンバ変数の初期化
-CameraManager* CameraManager::instance_ = nullptr;
+std::unique_ptr<CameraManager> CameraManager::instance_ = nullptr;
 
 CameraManager* CameraManager::GetInstance()
 {
     if (instance_ == nullptr) {
-        instance_ = new CameraManager();
+        struct Helper : public CameraManager {
+            Helper() : CameraManager() {}
+        };
+        instance_ = std::make_unique<Helper>();
     }
-    return instance_;
+    return instance_.get();
 }
 
 void CameraManager::RegisterCamera(const std::string& name, Camera* camera)
@@ -87,8 +90,5 @@ Camera* CameraManager::GetActiveCamera() const
 
 void CameraManager::Finalize()
 {
-    if (instance_ != nullptr) {
-        delete instance_;
-        instance_ = nullptr;
-    }
+    instance_.reset();
 }

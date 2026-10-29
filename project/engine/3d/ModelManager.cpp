@@ -57,10 +57,8 @@ void ModelManager::CreateSphereModel(const std::string& modelName, uint32_t subd
         return;
     }
 
-    // 1. Modelクラスの便利関数を使って球体を生成
-    // ※Model::CreateSphereの実装が必要です（前回の回答参照）
-    // Model::CreateSphereが rawポインタ(Model*)を返す前提で shared_ptr で受け取ります
-    std::shared_ptr<Model> model(Model::CreateSphere(subdivision));
+    // 1. Modelクラスの便利関数を使って球体を生成（unique_ptrからshared_ptrへ所有権移行）
+    std::shared_ptr<Model> model = Model::CreateSphere(subdivision);
 
     // 2. マップに登録
     // これで "Sphere" などの名前で検索できるようになります
@@ -73,7 +71,7 @@ void ModelManager::CreatePlaneFromTex(const std::string& modelName, const std::s
 
     // 何かしらパスが正しいかどうかを確認する処理が必要
 
-    std::shared_ptr<Model> model(Model::CreatePlaneFromTex(textureFilePath));
+    std::shared_ptr<Model> model = Model::CreatePlaneFromTex(textureFilePath);
 
     model->SetName(modelName);
 
@@ -86,7 +84,7 @@ void ModelManager::CreateBoxModel(const std::string& modelName)
 {
     if (models.contains(modelName)) return;
 
-    std::shared_ptr<Model> model(Model::CreateBox());
+    std::shared_ptr<Model> model = Model::CreateBox();
     model->SetName(modelName);
 
     models.insert(std::make_pair(modelName, std::move(model)));
@@ -101,8 +99,8 @@ void ModelManager::CreateTerrainModel(
 {
     if (models.contains(modelName)) return;
 
-    std::shared_ptr<Model> model(Model::CreateTerrainGrid(
-        sizeX, sizeY, divisionsX, divisionsY, textureFilePath, uvTile));
+    std::shared_ptr<Model> model = Model::CreateTerrainGrid(
+        sizeX, sizeY, divisionsX, divisionsY, textureFilePath, uvTile);
     model->SetName(modelName);
 
     models.insert(std::make_pair(modelName, std::move(model)));
