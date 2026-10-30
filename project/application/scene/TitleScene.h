@@ -48,7 +48,7 @@ private:
     float cameraOrbitRadius_ = 6.0f;      // キャラクターからの旋回距離（半径）
     float cameraHeight_ = 1.8f;           // カメラの高さ
     float cameraTargetHeight_ = 1.0f;     // 注視点の高さオフセット
-    Vector3 characterPos_ = { 0.0f, 0.0f, 0.0f }; // キャラクター座標
+    Vector3 characterPos_ = { 0.0f, 0.432f, 0.0f }; // キャラクター座標
     Vector3 roadScale_ = { 3.0f, 0.2f, 20.0f };   // 道のスケール
 
     // 2D PBDクロス（画面全体・四隅固定タイトル幕演出）用パラメータ

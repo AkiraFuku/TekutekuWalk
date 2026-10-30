@@ -57,22 +57,22 @@ void TitleScene::Initialize() {
     roadObject_->SetModel("TitleRoad");
     roadObject_->SetTexture("resources/Stagemap/863603.png");
     roadObject_->SetScale(roadScale_);
-    roadObject_->SetTranslate({ characterPos_.x, characterPos_.y - 0.1f, characterPos_.z });
+    roadObject_->SetTranslate({ characterPos_.x, characterPos_.y - 0.532f, characterPos_.z });
     roadObject_->SetCamera(activeCamera_);
 
     object3d = std::make_unique<Object3d>();
-    ModelManager::GetInstance()->LoadModel("resources/human/", "walk.gltf");
+    ModelManager::GetInstance()->LoadModel("resources/player/", "player.obj");
     object3d->Initialize();
     //object_->SetModel("player.obj");
-    object3d->SetModel("walk.gltf");
-    object3d->SetTexture("resources/Yellow.png");
+    object3d->SetModel("player.obj");
+    object3d->SetTexture("resources/player/player.png");
     object3d->SetTranslate(characterPos_);
     object3d->SetCamera(activeCamera_);
-    animation = std::make_unique<Animation>();
 
-    animation->Initialize("resources/human", "walk.gltf");
-    animation->SetCurrentTime(0.0f);
-    object3d->SetAnimations(animation.get());
+
+
+
+
 
 
     // 2D PBD 布（画面全体・四隅固定タイトル幕）オブジェクトの初期化
@@ -139,7 +139,7 @@ void TitleScene::Update() {
     if (roadObject_) {
         roadObject_->SetCamera(activeCamera_);
         roadObject_->SetScale(roadScale_);
-        roadObject_->SetTranslate({ characterPos_.x, characterPos_.y - 0.1f, characterPos_.z });
+        roadObject_->SetTranslate({ characterPos_.x, characterPos_.y - 0.532f, characterPos_.z });
         roadObject_->Update();
     }
 

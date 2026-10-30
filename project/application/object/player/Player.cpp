@@ -258,11 +258,11 @@ void Player::Initialize()
     object_->Initialize();
     object_->SetModel(config_.paths.modelFile);
     object_->SetTexture(config_.paths.texture);
-    animation = std::make_unique<Animation>();
+ /*   animation = std::make_unique<Animation>();
 
     animation->Initialize(config_.paths.modelDir, config_.paths.modelFile);
     animation->SetCurrentTime(0.0f);
-    object_->SetAnimations(animation.get());
+    object_->SetAnimations(animation.get());*/
 
     railMover_ = std::make_unique<RailMover>();
 
@@ -1357,4 +1357,4 @@ void Player::UpdateSquashStretch() {
         baseScale_.z * targetScaleXZ
     };
     object_->SetScale(finalScale);
-}
+}

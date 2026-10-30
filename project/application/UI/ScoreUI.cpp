@@ -9,7 +9,8 @@ void ScoreUI::Initialize(Player* player)
     
     // 1. 背景スプライトの初期化と右上配置
     ScoreSprite_ = std::make_unique<Sprite>();
-    ScoreSprite_->Initialize("resources/uvChecker.png");
+    ScoreSprite_->Initialize("resources/white.png");
+    ScoreSprite_->SetColor({ 0.1f, 0.1f, 0.1f, 0.6f });
     ScoreSprite_->SetAnchorPoint({ Anchor::TopRight });
 
     // 画面右端からマージンを引いた座標を算出

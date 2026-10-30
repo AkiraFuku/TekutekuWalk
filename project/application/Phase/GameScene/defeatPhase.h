@@ -60,8 +60,15 @@ private:
     float darkFadeAlpha_ = 0.0f;
     const float kMaxDarkFadeAlpha_ = 0.65f; // 薄っすら暗くする最大アルファ値
 
-    // ゲームオーバースプライト (tekutekuGameOver.png)
+    // コンテニュー？スプライト (QContenue.png)
     std::unique_ptr<Sprite> defeatSprite_;
+    Vector2 defeatSpriteBaseSize_ = { 576.0f, 136.5f };
+
+    // 下部選択ボタンスプライト
+    std::unique_ptr<Sprite> continueButtonSprite_; // resources/GAMOVER/continue.png
+    std::unique_ptr<Sprite> noButtonSprite_;       // resources/GAMOVER/NO.png
+    Vector2 continueButtonBaseSize_ = { 320.0f, 78.5f };
+    Vector2 noButtonBaseSize_ = { 160.0f, 99.5f };
 
     // 選択項目
     MenuItem selectedMenu_ = MenuItem::Retry;

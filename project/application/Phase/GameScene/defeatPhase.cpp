@@ -114,13 +114,29 @@ void defeatPhase::Initialize(Scene* scene)
     darkFadeSprite_->Update();
 
     // 2. スプライト初期化（初期位置は画面外の上部に配置）
-    spriteTargetY_ = static_cast<float>(WinApp::kClientHeight) * 0.38f;
+    spriteTargetY_ = static_cast<float>(WinApp::kClientHeight) * 0.32f;
     spriteStartY_ = -200.0f;
 
     defeatSprite_ = std::make_unique<Sprite>();
-    defeatSprite_->Initialize("resources/GAMOVER/tekutekuGameOver.png");
+    defeatSprite_->Initialize("resources/GAMOVER/QContenue.png");
+    defeatSprite_->SetSize(defeatSpriteBaseSize_);
     defeatSprite_->SetPosition({ static_cast<float>(WinApp::kClientWidth) * 0.5f, spriteStartY_ });
     defeatSprite_->SetAnchorPoint({ 0.5f, 0.5f });
+
+    // 3. 下部選択ボタンスプライト（コンテニュー / NO）の初期化
+    continueButtonSprite_ = std::make_unique<Sprite>();
+    continueButtonSprite_->Initialize("resources/GAMOVER/continue.png");
+    continueButtonSprite_->SetSize(continueButtonBaseSize_);
+    continueButtonSprite_->SetPosition({ static_cast<float>(WinApp::kClientWidth) * 0.36f, static_cast<float>(WinApp::kClientHeight) * 0.72f });
+    continueButtonSprite_->SetAnchorPoint({ 0.5f, 0.5f });
+    continueButtonSprite_->Update();
+
+    noButtonSprite_ = std::make_unique<Sprite>();
+    noButtonSprite_->Initialize("resources/GAMOVER/NO.png");
+    noButtonSprite_->SetSize(noButtonBaseSize_);
+    noButtonSprite_->SetPosition({ static_cast<float>(WinApp::kClientWidth) * 0.64f, static_cast<float>(WinApp::kClientHeight) * 0.72f });
+    noButtonSprite_->SetAnchorPoint({ 0.5f, 0.5f });
+    noButtonSprite_->Update();
 
     // 音声
     defeatSE = Audio::GetInstance()->LoadAudio("resources/Audio/BGM/GameOver.mp3");
@@ -255,6 +271,23 @@ void defeatPhase::Update(Scene* scene)
             defeatSprite_->Update();
         }
 
+        // 選択中ボタンのアニメーション（拡大パルス演出＆ハイライト）
+        float pulse = 1.0f + 0.04f * std::sin(blinkTimer_ * 6.0f);
+        if (continueButtonSprite_) {
+            bool isSelected = (selectedMenu_ == MenuItem::Retry);
+            float scale = isSelected ? (1.12f * pulse) : 0.95f;
+            continueButtonSprite_->SetSize(continueButtonBaseSize_ * scale);
+            continueButtonSprite_->SetColor(isSelected ? Vector4{ 1.0f, 1.0f, 1.0f, 1.0f } : Vector4{ 0.55f, 0.55f, 0.55f, 0.75f });
+            continueButtonSprite_->Update();
+        }
+        if (noButtonSprite_) {
+            bool isSelected = (selectedMenu_ == MenuItem::Quit);
+            float scale = isSelected ? (1.12f * pulse) : 0.95f;
+            noButtonSprite_->SetSize(noButtonBaseSize_ * scale);
+            noButtonSprite_->SetColor(isSelected ? Vector4{ 1.0f, 1.0f, 1.0f, 1.0f } : Vector4{ 0.55f, 0.55f, 0.55f, 0.75f });
+            noButtonSprite_->Update();
+        }
+
 #ifdef USE_IMGUI
         ImGui::Begin("Game Over Menu (Defeat Phase)");
         ImGui::Text("=== YOU DIED ===");
@@ -356,6 +389,15 @@ void defeatPhase::Draw(Scene* scene)
             defeatSprite_->Draw();
         }
     }
+    // 4. 下部ボタンスプライト（コンテニュー / NO）
+    if (step_ >= Step::MenuSelect) {
+        if (continueButtonSprite_) {
+            continueButtonSprite_->Draw();
+        }
+        if (noButtonSprite_) {
+            noButtonSprite_->Draw();
+        }
+    }
 }
 
 void defeatPhase::Finalize(Scene* scene)
@@ -368,6 +410,8 @@ void defeatPhase::Finalize(Scene* scene)
     }
     defeatSprite_.reset();
     darkFadeSprite_.reset();
+    continueButtonSprite_.reset();
+    noButtonSprite_.reset();
 }
 
 void defeatPhase::UpdateCameraFocus(Scene* scene)

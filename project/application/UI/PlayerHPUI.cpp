@@ -11,7 +11,8 @@ void PlayerHPUI::Initialize(Player* player){
     //HP UIの背景部分
     player_ = player;
     hpSprite_ = std::make_unique<Sprite>();
-    hpSprite_->Initialize("resources/uvChecker.png");
+    hpSprite_->Initialize("resources/white.png");
+    hpSprite_->SetColor({ 0.1f, 0.1f, 0.1f, 0.6f });
     hpSprite_->SetAnchorPoint({ Anchor::TopLeft });
     hpSprite_->SetPosition({ position_.x, position_.y });
     hpSprite_->SetSize({ hpSpriteWidth_ * scale_, 30.0f * scale_ });

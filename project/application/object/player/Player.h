@@ -14,9 +14,9 @@
 /// </summary>
 struct PlayerConfig {
     struct Paths {
-        std::string modelDir = "resources/human/";
-        std::string modelFile = "walk.gltf";
-        std::string texture = "resources/Yellow.png";
+        std::string modelDir = "resources/player/";
+        std::string modelFile = "player.obj";
+        std::string texture = "resources/player/player.png";
         std::string hitSE = "resources/Audio/SE/Hit.mp3";
         std::string damageSE = "resources/Audio/SE/Damage.mp3";
     } paths;
@@ -50,13 +50,13 @@ struct PlayerConfig {
     struct ColliderConfig {
         float radius = 0.38f;                  // コライダー基本半径
         float modelRadius = 0.28f;             // 壁判定用モデル半径
-        float heightOffset = 0.0f;             // 足元オフセット
-        float wallRayHeight = 0.40f;           // 壁検知レイ発射高さ
-        float headOffsetY = 1.15f;             // 頭部スフィア高さ
+        float heightOffset = 0.432f;           // 足元オフセット
+        float wallRayHeight = -0.10f;          // 壁検知レイ発射高さ
+        float headOffsetY = 0.25f;             // 頭部スフィア高さ
         float headRadius = 0.38f;              // 頭部スフィア半径
-        float bodyOffsetY = 0.50f;             // 胴体スフィア高さ
+        float bodyOffsetY = 0.0f;              // 胴体スフィア高さ
         float bodyRadius = 0.30f;              // 胴体スフィア半径
-        float attackOffsetY = 0.70f;           // 攻撃判定高さ
+        float attackOffsetY = 0.0f;            // 攻撃判定高さ
         float attackOffsetForward = 0.65f;     // 攻撃判定前方オフセット
         float attackRadius = 0.48f;            // 攻撃判定半径
     } collider;

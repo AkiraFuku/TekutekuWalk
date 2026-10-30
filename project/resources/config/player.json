@@ -1,8 +1,8 @@
 {
   "paths": {
-    "modelDir": "resources/human/",
-    "modelFile": "walk.gltf",
-    "texture": "resources/Yellow.png",
+    "modelDir": "resources/player/",
+    "modelFile": "player.obj",
+    "texture": "resources/player/player.png",
     "hitSE": "resources/Audio/SE/Hit.mp3",
     "damageSE": "resources/Audio/SE/Damage.mp3"
   },
@@ -30,22 +30,22 @@
     "landSquashDuration": 0.25
   },
   "collider": {
-    "radius": 0.38,
-    "modelRadius": 0.28,
-    "heightOffset": 0.0,
-    "wallRayHeight": 0.40,
+    "radius": 0.40,
+    "modelRadius": 0.30,
+    "heightOffset": 0.432,
+    "wallRayHeight": -0.10,
     "head": {
-      "offsetY": 1.15,
-      "radius": 0.38
+      "offsetY": 0.25,
+      "radius": 0.25
     },
     "body": {
-      "offsetY": 0.50,
+      "offsetY": 0.0,
       "radius": 0.30
     },
     "attack": {
-      "offsetY": 0.70,
-      "offsetForward": 0.65,
-      "radius": 0.48
+      "offsetY": 0.0,
+      "offsetForward": 0.55,
+      "radius": 0.40
     }
   },
   "slide": {

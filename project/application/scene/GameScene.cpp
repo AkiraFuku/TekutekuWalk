@@ -56,7 +56,7 @@ void GameScene::Initialize() {
     handle_ = Audio::GetInstance()->LoadAudio("resources/Audio/BGM/bgm_Loop.mp3");
 
     BGMHandle_=Audio::GetInstance()->PlayAudio(handle_,true,0.25f ,"BGM");
-    TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
+    TextureManager::GetInstance()->LoadTexture("resources/grass.png");
     TextureManager::GetInstance()->LoadTexture("resources/gradationLine.png");
     TextureManager::GetInstance()->LoadTexture("resources/Efect.png");
 
@@ -133,10 +133,10 @@ void GameScene::Initialize() {
 
 
 
-    animation = std::make_unique<Animation>();
 
-    animation->Initialize("resources/human", "walk.gltf");
-    animation->SetCurrentTime(0.0f);
+
+
+
 
     skyBox = std::make_unique<SkyBox>();
     skyBox->Initialize();
@@ -146,11 +146,12 @@ void GameScene::Initialize() {
     Object3dCommon::GetInstance()->SetDefaultSkyBox(skyBox.get());
 
     ModelManager::GetInstance()->LoadModel("resources/player/", "playerCursor.obj");
+    ModelManager::GetInstance()->LoadModel("resources/player/", "player.obj");
 
     ModelManager::GetInstance()->LoadModel("resources/AnimatedCube", "AnimatedCube.gltf");
     ModelManager::GetInstance()->LoadModel("resources/simpleSkin", "simpleSkin.gltf");
-    ModelManager::GetInstance()->LoadModel("resources/human", "walk.gltf");
-    ModelManager::GetInstance()->LoadModel("resources/human", "walk.gltf");
+
+
 
 
     // --- ステージマネージャーによるJSONステージデータの読み込み ---

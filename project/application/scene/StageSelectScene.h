@@ -69,7 +69,7 @@ private:
     // プレイヤーオブジェクト＆アニメーション (カメラから離し、右側面がカメラ側を向く設定)
     std::unique_ptr<Object3d> playerObject_;
     std::unique_ptr<Animation> playerAnimation_;
-    Vector3 playerPos_ = { 0.0f, -0.2f, 2.5f };
+    Vector3 playerPos_ = { 0.0f, 0.232f, 2.5f };
     Vector3 playerRotate_ = { 0.0f, 1.5707963f, 0.0f }; // 右側がカメラに向く角度 (+90度)
 
     // 道（地面）オブジェクト (横方向に伸ばす設定)

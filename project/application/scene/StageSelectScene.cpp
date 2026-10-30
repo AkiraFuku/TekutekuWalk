@@ -77,19 +77,19 @@ void StageSelectScene::Initialize()
     roadObject_->SetCamera(activeCamera_);
 
     // --- プレイヤーモデルとアニメーションの生成 ---
-    ModelManager::GetInstance()->LoadModel("resources/human/", "walk.gltf");
+    ModelManager::GetInstance()->LoadModel("resources/player/", "player.obj");
     playerObject_ = std::make_unique<Object3d>();
     playerObject_->Initialize();
-    playerObject_->SetModel("walk.gltf");
-    playerObject_->SetTexture("resources/Yellow.png");
+    playerObject_->SetModel("player.obj");
+    playerObject_->SetTexture("resources/player/player.png");
     playerObject_->SetTranslate(playerPos_);
     playerObject_->SetRotate(playerRotate_);
     playerObject_->SetCamera(activeCamera_);
 
-    playerAnimation_ = std::make_unique<Animation>();
-    playerAnimation_->Initialize("resources/human", "walk.gltf");
-    playerAnimation_->SetCurrentTime(0.0f);
-    playerObject_->SetAnimations(playerAnimation_.get());
+
+
+
+
 
     selectedIndex_ = 0;
     currentAngle_ = 0.0f;

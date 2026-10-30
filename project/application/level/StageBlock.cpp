@@ -54,7 +54,7 @@ void StageBlock::Initialize(const LevelObjectData& data, Camera* camera)
         prefabId_ = prefabDef->prefabId;
         if (modelName.empty()) modelName = prefabDef->modelName;
         if (modelDir.empty() || modelDir == "resources") modelDir = prefabDef->modelDir;
-        if (texturePath.empty() || texturePath == "resources/grass.png") {
+        if (texturePath.empty()) {
             texturePath = prefabDef->texturePath;
         }
         if (scale.x == 1.0f && scale.y == 1.0f && scale.z == 1.0f && prefabDef->defaultScale.x != 1.0f) {
