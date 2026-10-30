@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <memory>
 #include "Vector2.h"
 #include "Vector4.h"
 #include "Vector3.h"
@@ -149,9 +150,9 @@ public:
     //OBJファイルの読み込み
     static ModelData LoadModelFile(const std::string& directryPath, const std::string& filename);
 
-    static Model* CreateSphere(uint32_t subdivision = 16);
+    static std::unique_ptr<Model> CreateSphere(uint32_t subdivision = 16);
 
-    static Model* CreatePlaneFromTex(const std::string& textureFilePath);
+    static std::unique_ptr<Model> CreatePlaneFromTex(const std::string& textureFilePath);
 
     static Node ReadNode(aiNode* node);
     static Skeleton CreateSkelton(const Node& rootNode);
@@ -223,7 +224,7 @@ public: // 外部入出力
     std::vector<Triangle> GetLocalTriangles() const;
 
     // 四角いモデル（Box）を動的に生成する
-    static Model* CreateBox();
+    static std::unique_ptr<Model> CreateBox();
 
     /// <summary>
     /// 地形グリッドを頂点データから動的生成する（モデルファイル不要）
@@ -234,13 +235,13 @@ public: // 外部入出力
     /// <param name="divisionsY">Y方向の分割数</param>
     /// <param name="textureFilePath">テクスチャファイルパス</param>
     /// <param name="uvTile">UVタイリング回数（1.0でメッシュ全体で0〜1）</param>
-    static Model* CreateTerrainGrid(
+    static std::unique_ptr<Model> CreateTerrainGrid(
         float sizeX, float sizeY,
         int divisionsX, int divisionsY,
         const std::string& textureFilePath,
         float uvTile = 1.0f);
 
-    void SetTexture(std::string textureFilePath);
+    void SetTexture(const std::string& textureFilePath);
 
 private:
 

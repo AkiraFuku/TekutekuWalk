@@ -409,9 +409,9 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
     return modelData;
 
 }
-Model* Model::CreateSphere(uint32_t subdivision)
+std::unique_ptr<Model> Model::CreateSphere(uint32_t subdivision)
 {
-    Model* model = new Model();
+    std::unique_ptr<Model> model = std::make_unique<Model>();
     model->modelData_.material.textureFilePath = "resources/uvChecker.png";
     TextureManager::GetInstance()->LoadTexture(model->modelData_.material.textureFilePath);
     model->modelData_.material.textureIndex =
@@ -473,9 +473,9 @@ Model* Model::CreateSphere(uint32_t subdivision)
     return model;
 }
 
-Model* Model::CreatePlaneFromTex(const std::string& textureFilePath)
+std::unique_ptr<Model> Model::CreatePlaneFromTex(const std::string& textureFilePath)
 {
-    Model* model = new Model();
+    std::unique_ptr<Model> model = std::make_unique<Model>();
 
     TextureManager::GetInstance()->LoadTexture(textureFilePath);
     const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetMetaData(textureFilePath);
@@ -693,8 +693,8 @@ std::vector<Triangle> Model::GetLocalTriangles() const {
     return triangles;
 }
 
-Model* Model::CreateBox() {
-    Model* model = new Model();
+std::unique_ptr<Model> Model::CreateBox() {
+    std::unique_ptr<Model> model = std::make_unique<Model>();
     model->modelData_.material.textureFilePath = "resources/uvChecker.png";
     TextureManager::GetInstance()->LoadTexture(model->modelData_.material.textureFilePath);
     model->modelData_.material.textureIndex =
@@ -777,7 +777,7 @@ Model* Model::CreateBox() {
     return model;
 }
 
-void Model::SetTexture(std::string textureFilePath)
+void Model::SetTexture(const std::string& textureFilePath)
 {
     modelData_.material.textureFilePath = textureFilePath;
         TextureManager::GetInstance()->LoadTexture(modelData_.material.textureFilePath);
@@ -786,13 +786,13 @@ void Model::SetTexture(std::string textureFilePath)
 
 }
 
-Model* Model::CreateTerrainGrid(
+std::unique_ptr<Model> Model::CreateTerrainGrid(
     float sizeX, float sizeY,
     int divisionsX, int divisionsY,
     const std::string& textureFilePath,
     float uvTile)
 {
-    Model* model = new Model();
+    std::unique_ptr<Model> model = std::make_unique<Model>();
 
     // テクスチャ設定
     const std::string& texPath = textureFilePath.empty()

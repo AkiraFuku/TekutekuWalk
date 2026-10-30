@@ -40,7 +40,7 @@ private:
     CameraManager(const CameraManager&) = delete;
     CameraManager& operator=(const CameraManager&) = delete;
 
-    static CameraManager* instance_;
+    static std::unique_ptr<CameraManager> instance_;
 
     // カメラ管理
     std::unordered_map<std::string, Camera*> cameras_;
