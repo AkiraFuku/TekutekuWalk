@@ -16,6 +16,7 @@
 #include "CameraController.h"
 #include "PrimitiveDrawer.h"
 #include "Collider.h"
+#include "Physics.h"
 #include "JsonManager.h"
 #include "Logger.h"
 
@@ -449,9 +450,34 @@ void Enemy::OnCollision(GameObject* other) {
             return;
         }
 
-        // プレイヤーの攻撃ヒットボックスに当たった場合、または攻撃中だった場合
-        bool isHitByAttack = (other->GetCategory() == CollisionCategory::PlayerAttack) ||
-                             player->IsAttacking();
+        // プレイヤーの前方攻撃ヒットボックス（AABB / Sphere）と敵コライダーが実際に交差しているかを厳密に判定
+        bool isHitByAttack = false;
+        if (player->IsAttackHitboxActive() && player->GetAttackCollider() && GetCollider()) {
+            auto atkAABBs = player->GetAttackCollider()->GetWorldAABBs();
+            auto atkSpheres = player->GetAttackCollider()->GetWorldSpheres();
+            auto enemySpheres = GetCollider()->GetWorldSpheres();
+
+            for (const auto& box : atkAABBs) {
+                for (const auto& es : enemySpheres) {
+                    if (Physics::Intersect(box, es)) {
+                        isHitByAttack = true;
+                        break;
+                    }
+                }
+                if (isHitByAttack) break;
+            }
+            if (!isHitByAttack) {
+                for (const auto& as : atkSpheres) {
+                    for (const auto& es : enemySpheres) {
+                        if (Physics::Intersect(as, es)) {
+                            isHitByAttack = true;
+                            break;
+                        }
+                    }
+                    if (isHitByAttack) break;
+                }
+            }
+        }
 
         if (isHitByAttack) {
             // シーンのポリモーフィックなヒットストップとシェイクを要求
@@ -462,19 +488,6 @@ void Enemy::OnCollision(GameObject* other) {
 
             // プレイヤー側に攻撃ヒット（突進停止＆硬直解除）を通知
             player->OnAttackHit(this);
-
-            if (robot_) {
-                // 1. ロボットからプレイヤー用 Factory を取得
-                auto factory = robot_->CreatePlayerFactory();
-
-                if (factory) {
-                    // 2. Factory を使って State を生成
-                    auto rideOnState = factory->CreateState();
-
-                    // 3. プレイヤーの State を切り替える
-                    player->ChangeState(std::move(rideOnState));
-                }
-            }
 
             // プレイヤーから見て後ろへ吹き飛ぶ向きを計算
             float hitDir = -1.0f;

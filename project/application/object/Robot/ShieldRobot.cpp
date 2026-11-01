@@ -6,5 +6,5 @@ ShieldRobot::ShieldRobot() {}
 ShieldRobot::~ShieldRobot() = default;
 
 std::shared_ptr<IPlayerFactory> ShieldRobot::CreatePlayerFactory() {
-    return std::make_shared<ShieldPlayerFactory>();
+    return nullptr;
 }

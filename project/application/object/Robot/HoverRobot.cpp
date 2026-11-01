@@ -6,5 +6,5 @@ HoverRobot::HoverRobot() {}
 HoverRobot::~HoverRobot() = default;
 
 std::shared_ptr<IPlayerFactory> HoverRobot::CreatePlayerFactory() {
-    return std::make_shared<HoverPlayerFactory>();
+    return nullptr;
 }

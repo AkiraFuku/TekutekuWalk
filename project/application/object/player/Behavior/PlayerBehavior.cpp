@@ -3,13 +3,7 @@
 #include "Command.h"
 #include "PlayerAction.h"
 #include "PlayerState.h"
-#include "IPlayerFactory.h" // ★ Factory のヘッダーをインクルード
-
-// --- Helper 関数（State から Factory を安全に取得） ---
-static IPlayerFactory* GetFactoryFromPlayer(Player* player) {
-    auto state = player->GetState();
-    return state ? state->GetFactory() : nullptr;
-}
+#include "IPlayerFactory.h"
 
 // --- BehaviorRoot ---
 void BehaviorRoot::Initialize(Player* player) {}
@@ -39,9 +33,17 @@ void BehaviorRoot::HandleInput(Player* player, ICommand* command) {
             static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
             moveAction->Execute(player);
         }
+        return;
     }
 
-    // ★ Factory を取得して生成するように変更
+    // 移動中・待機中を問わずマシンガン連射が可能
+    if (type == CommandType::Shoot) {
+        if (auto shootAction = state->GetShootAction()) {
+            shootAction->Execute(player);
+        }
+        return;
+    }
+
     auto factory = state->GetFactory();
     if (!factory) return;
 
@@ -54,29 +56,21 @@ void BehaviorRoot::HandleInput(Player* player, ICommand* command) {
 
     if (type == CommandType::Jump) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Jump));
-    }
-    if (type == CommandType::Attack) {
-        state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
-    }
-    if (type == CommandType::Guard) {
-        if (dynamic_cast<StateShield*>(state)) {
-            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Guard));
-            return;
-        }
+        return;
     }
 
-    if (type == CommandType::PreShoot) {
-        if (dynamic_cast<IStateRideOn*>(state)) {
-            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
-        }
+    if (type == CommandType::Attack) {
+        state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
+        return;
     }
 }
 
-// --- BehaviorAttack ---
+// --- BehaviorAttack（ロボット近接格闘：構え → 踏み込みパンチ／パイル → 硬直） ---
 void BehaviorAttack::Initialize(Player* player) {
     timer_ = 0.0f;
-    player->SetInvincible(true); // ダッシュ攻撃中は完全無敵
-    player->SetAttackHitboxActive(true); // 攻撃ヒットボックスを有効化
+    isStrikePhase_ = false;
+    attackDir_ = player->GetMoveDirection();
+    player->SetAttackHitboxActive(false);
 
     auto state = player->GetState();
     if (state) {
@@ -90,31 +84,42 @@ void BehaviorAttack::Initialize(Player* player) {
 void BehaviorAttack::Update(Player* player) {
     auto state = player->GetState();
     const auto& config = player->GetConfig().attackAction;
-    if (state) {
-        auto attackAction = state->GetAttackAction_();
-        if (attackAction) {
-            // 高速突進（攻撃判定時間）
-            float speedMultiplier = (timer_ < config.rushDuration) ? config.rushSpeedMultiplier : 0.2f;
-            int attackDir = player->GetMoveDirection();
-            player->Move(float(attackDir) * 0.8f * speedMultiplier);
-            player->UpdateRailPath();
+    float dt = player->GetDeltaTime();
+    timer_ += dt;
 
-            // 高速突進が終了したら攻撃判定をオフ
-            if (timer_ >= config.rushDuration) {
-                player->SetAttackHitboxActive(false);
-            }
+    float windupEnd = config.windupDuration;
+    float strikeEnd = config.windupDuration + config.rushDuration;
+    float totalDuration = strikeEnd + config.recoveryDuration;
+
+    if (timer_ < windupEnd) {
+        // Phase 1: 予備動作（装填・溜め）— 踏ん張って構える
+        isStrikePhase_ = false;
+        player->SetAttackHitboxActive(false);
+    } else if (timer_ < strikeEnd) {
+        // Phase 2: 踏み込み打撃（アームパンチ／パイルバンカー突き出し）
+        if (!isStrikePhase_) {
+            isStrikePhase_ = true;
+            player->TriggerSquashStretch(0.15f, config.rushDuration);
         }
+        // 打撃フェーズ中は常にヒットボックスを有効に維持する
+        player->SetAttackHitboxActive(true);
+
+        // ダッシュ体当たりではなく、設定倍率に応じたショートステップ移動
+        float strikeProgress = (timer_ - windupEnd) / (std::max)(config.rushDuration, 0.001f);
+        float stepFactor = 1.0f - strikeProgress * 0.7f; // 踏み込み終わりに向けて減速
+        player->Move(static_cast<float>(attackDir_) * config.rushSpeedMultiplier * stepFactor);
+    } else {
+        // Phase 3: フォロースルー（排莢・硬直）— 攻撃判定を消してその場で止まる
+        isStrikePhase_ = false;
+        player->SetAttackHitboxActive(false);
     }
 
-    // ダッシュ移動後の位置で床・壁のレイキャストを更新し、接地スナップと重力を適用（地面へのめり込み防止）
     player->RayCastUpdate();
     player->UpdateGravity();
     player->UpdateRailPath();
 
-    timer_ += player->GetDeltaTime();
-    if (timer_ >= config.duration) {
+    if (timer_ >= totalDuration) {
         if (state) {
-            // ★ Factory 経由で Root に戻る
             if (auto factory = state->GetFactory()) {
                 state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Root));
             }
@@ -123,11 +128,15 @@ void BehaviorAttack::Update(Player* player) {
 }
 
 void BehaviorAttack::Finalize(Player* player) {
-    player->SetInvincible(false);
-    player->SetAttackHitboxActive(false); // 攻撃終了時にヒットボックスを確実にオフ
-    player->TriggerInvincibility(player->GetConfig().attackAction.invincibilityAfter); // 攻撃終了後無敵余韻を付与
+    isStrikePhase_ = false;
+    player->SetAttackHitboxActive(false);
+    player->TriggerInvincibility(player->GetConfig().attackAction.invincibilityAfter);
 }
-void BehaviorAttack::HandleInput(Player* player, ICommand* command) {}
+
+void BehaviorAttack::HandleInput(Player* player, ICommand* command) {
+    (void)player;
+    (void)command;
+}
 
 // --- BehaviorJump ---
 void BehaviorJump::Initialize(Player* player) {
@@ -147,7 +156,6 @@ void BehaviorJump::Update(Player* player) {
             return;
         }
         if (auto state = player->GetState()) {
-            // ★ Factory 経由で Root に戻る
             if (auto factory = state->GetFactory()) {
                 state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Root));
             }
@@ -165,116 +173,40 @@ void BehaviorJump::HandleInput(Player* player, ICommand* command) {
 
     CommandType type = command->GetType();
 
+    if (type == CommandType::Dash) {
+        player->SetDashing(true);
+        return;
+    }
+
     if (type == CommandType::Move) {
         auto moveCmd = static_cast<MoveCommand*>(command);
         if (auto moveAction = state->GetMoveAction()) {
             static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
             moveAction->Execute(player);
         }
+        return;
     }
 
-    // ★ Factory を取得して生成
+    // 空中でもマシンガン連射が可能
+    if (type == CommandType::Shoot) {
+        if (auto shootAction = state->GetShootAction()) {
+            shootAction->Execute(player);
+        }
+        return;
+    }
+
     auto factory = state->GetFactory();
     if (!factory) return;
 
     // 空中滞空中でもジャンプボタンの先行入力を受け付ける
     if (type == CommandType::Jump) {
         player->Jump();
+        return;
     }
 
     if (type == CommandType::Attack) {
         state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
-    }
-    if (type == CommandType::PreShoot) {
-        if (dynamic_cast<IStateRideOn*>(state)) {
-            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
-        }
-    }
-}
-
-// --- BehaviorAim ---
-void BehaviorAim::Initialize(Player* player) {
-    aimX_ = (float)player->GetMoveDirection();
-    aimY_ = 0.0f;
-}
-
-void BehaviorAim::Update(Player* player) {}
-void BehaviorAim::Finalize(Player* player) {}
-
-void BehaviorAim::HandleInput(Player* player, ICommand* command) {
-    if (!command) return;
-
-    CommandType type = command->GetType();
-
-    if (type == CommandType::Aim) {
-        auto aimCmd = static_cast<AimCommand*>(command);
-        aimX_ = aimCmd->GetX();
-        aimY_ = aimCmd->GetY();
-    }
-
-    if (type == CommandType::Shoot) {
-        auto state = dynamic_cast<IStateRideOn*>(player->GetState());
-        if (state) {
-            auto shootAction = state->GetShootAction();
-            if (shootAction) {
-                static_cast<ShootRobotAction*>(shootAction)->SetAimVector(aimX_, aimY_);
-                shootAction->Execute(player);
-            }
-        }
-    }
-}
-// --- BehaviorBound ---
-void BehaviorBound::Initialize(Player* player) {
-    // 状態開始と同時に最初の跳躍を実行
-    if (auto state = player->GetState()) {
-        if (auto jumpAction = state->GetJumpAction()) {
-            jumpAction->Execute(player);
-        }
-    }
-}
-
-void BehaviorBound::Update(Player* player) {
-    // 地面に就いた瞬間に自動で再度ジャンプする（常に跳ね続ける）
-    if (player->IsGround()) {
-        if (auto state = player->GetState()) {
-            if (auto jumpAction = state->GetJumpAction()) {
-                jumpAction->Execute(player);
-            }
-        }
-    }
-
-    // 重力更新
-    player->UpdateGravity();
-}
-
-void BehaviorBound::Finalize(Player* player) {}
-
-void BehaviorBound::HandleInput(Player* player, ICommand* command) {
-    if (!command) return;
-    auto state = player->GetState();
-    if (!state) return;
-
-    CommandType type = command->GetType();
-
-    // 空中・着地問わず左右移動は受け付ける
-    if (type == CommandType::Move) {
-        auto moveCmd = static_cast<MoveCommand*>(command);
-        if (auto moveAction = state->GetMoveAction()) {
-            static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
-            moveAction->Execute(player);
-        }
-    }
-    // ★ Factory を取得して生成
-    auto factory = state->GetFactory();
-    if (!factory) return;
-
-    if (type == CommandType::Attack) {
-        state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
-    }
-    if (type == CommandType::PreShoot) {
-        if (dynamic_cast<IStateRideOn*>(state)) {
-            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
-        }
+        return;
     }
 }
 
@@ -317,163 +249,6 @@ void BehaviorSlide::HandleInput(Player* player, ICommand* command) {
         auto state = player->GetState();
         if (state && state->GetFactory()) {
             state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Jump));
-        }
-    }
-}
-
-// --- BehaviorHover ---
-void BehaviorHover::Initialize(Player* player) {
-    timer_ = 0.0f;
-    isHovering_ = true;
-
-    // 初速度のYをリセットして、落下慣性を止めてホバー状態に突入
-    Vector3 v = player->GetVelocity();
-    v.y = player->GetConfig().hover.initialBoostY; // 少しフワッと浮く
-    player->SetVelocity(v);
-}
-
-void BehaviorHover::Update(Player* player) {
-    auto state = player->GetState();
-    const auto& config = player->GetConfig().hover;
-
-    // 着地したら即座にRootに戻る
-    if (player->IsGround()) {
-        if (state && state->GetFactory()) {
-            state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
-        }
-        return;
-    }
-
-    float dt = player->GetDeltaTime();
-    timer_ += dt;
-
-    if (isHovering_ && timer_ < config.maxDuration) {
-        // 重力を大幅に抑え、微小降下で滑空する
-        Vector3 v = player->GetVelocity();
-        v.y = config.fallSpeed;
-        player->SetVelocity(v);
-    } else {
-        // ホバー持続終了後は通常の重力落下
-        player->UpdateGravity();
-    }
-
-    player->RayCastUpdate();
-    player->UpdateRailPath();
-
-    // ホバー時間終了時は通常のジャンプ落下へ遷移
-    if (timer_ >= config.maxDuration) {
-        if (state && state->GetFactory()) {
-            state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Jump));
-        }
-    }
-}
-
-void BehaviorHover::Finalize(Player* player) {}
-
-void BehaviorHover::HandleInput(Player* player, ICommand* command) {
-    if (!command) return;
-    auto state = player->GetState();
-    if (!state) return;
-
-    CommandType type = command->GetType();
-
-    // 空中での左右移動は高速滑空
-    if (type == CommandType::Move) {
-        auto moveCmd = static_cast<MoveCommand*>(command);
-        if (auto moveAction = state->GetMoveAction()) {
-            static_cast<NormalMoveAction*>(moveAction)->SetSpeed(moveCmd->GetSpeed());
-            moveAction->Execute(player);
-        }
-    }
-
-    auto factory = state->GetFactory();
-    if (!factory) return;
-
-    if (type == CommandType::Attack) {
-        state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Attack));
-    }
-    if (type == CommandType::PreShoot) {
-        if (dynamic_cast<IStateRideOn*>(state)) {
-            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Aim));
-        }
-    }
-}
-
-// --- BehaviorGuard ---
-void BehaviorGuard::Initialize(Player* player) {
-    guardTimer_ = 0.0f;
-    isBashing_ = false;
-    bashTimer_ = 0.0f;
-    bashDir_ = player->GetMoveDirection();
-    player->SetInvincible(true); // ガード中は完全無敵
-}
-
-void BehaviorGuard::Update(Player* player) {
-    float dt = player->GetDeltaTime();
-    auto state = player->GetState();
-    const auto& config = player->GetConfig().guard;
-
-    if (isBashing_) {
-        // シールドバッシュ突進中
-        bashTimer_ += dt;
-        float progress = (config.bashDuration > 0.0f) ? (bashTimer_ / config.bashDuration) : 1.0f;
-        float speedFactor = (1.0f - progress * 0.5f);
-        player->Move(float(bashDir_) * config.bashSpeed * speedFactor * dt);
-
-        if (bashTimer_ >= config.bashDuration) {
-            // バッシュ終了
-            isBashing_ = false;
-            player->SetAttackHitboxActive(false);
-            if (state && state->GetFactory()) {
-                state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
-            }
-            return;
-        }
-    } else {
-        // ガード構え中（停止して完全防御）
-        guardTimer_ += dt;
-        if (guardTimer_ >= config.maxDuration) {
-            if (state && state->GetFactory()) {
-                state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(BehaviorType::Root));
-            }
-            return;
-        }
-    }
-
-    player->RayCastUpdate();
-    player->UpdateGravity();
-    player->UpdateRailPath();
-}
-
-void BehaviorGuard::Finalize(Player* player) {
-    player->SetInvincible(false);
-    player->SetAttackHitboxActive(false);
-    player->TriggerInvincibility(player->GetConfig().guard.invincibilityAfter); // ガード解除後わずかな無敵余韻
-}
-
-void BehaviorGuard::HandleInput(Player* player, ICommand* command) {
-    if (!command) return;
-    auto state = player->GetState();
-    if (!state) return;
-
-    CommandType type = command->GetType();
-
-    // ガード中に攻撃ボタンでシールドバッシュ発動！
-    if (type == CommandType::Attack) {
-        if (!isBashing_) {
-            isBashing_ = true;
-            bashTimer_ = 0.0f;
-            bashDir_ = player->GetMoveDirection();
-            player->SetAttackHitboxActive(true); // バッシュ攻撃判定ON
-            player->PlayHitSE();
-        }
-        return;
-    }
-
-    // ジャンプキーでガード解除＆ジャンプへ
-    if (type == CommandType::Jump) {
-        if (auto factory = state->GetFactory()) {
-            state->ChangeBehavior(player, factory->CreateBehavior(BehaviorType::Jump));
         }
     }
 }

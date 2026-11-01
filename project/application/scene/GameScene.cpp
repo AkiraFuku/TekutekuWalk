@@ -427,14 +427,9 @@ void GameScene::Update() {
         }
     }
 
-    // StateRideOnTestへ切り替えボタン（テスト用）
-    if (ImGui::Button("Switch to RideOnTest State")) {
+    // 通常状態へリセットボタン（テスト用）
+    if (ImGui::Button("Reset to Normal State")) {
         player->ChangeState(PlayerStateFactory::CreateState(PlayerFormType::Normal));
-    }
-
-    // 通常状態へ戻すボタン
-    if (ImGui::Button("Switch to Normal State")) {
-        player->ChangeState(PlayerStateFactory::CreateState(PlayerFormType::RideOnTest));
     }
 
     // 追跡エネミー（ChaseEnemy）をプレイヤー近傍に即座にスポーンさせるテストボタン
@@ -458,10 +453,12 @@ void GameScene::Update() {
         auto moveAction = currentState->GetMoveAction();
         auto jumpAction = currentState->GetJumpAction();
         auto attackAction = currentState->GetAttackAction_();
+        auto shootAction = currentState->GetShootAction();
 
         ImGui::Text("MoveAction: %s", moveAction ? "Available" : "Null");
         ImGui::Text("JumpAction: %s", jumpAction ? "Available" : "Null");
         ImGui::Text("AttackAction: %s", attackAction ? "Available" : "Null");
+        ImGui::Text("ShootAction: %s", shootAction ? "Available" : "Null");
 
         // テスト用：直接アクション実行ボタン
         if (ImGui::Button("Test: Execute Move Action")) {
@@ -471,13 +468,8 @@ void GameScene::Update() {
         }
 
         if (ImGui::Button("Test: Execute Shoot Action")) {
-            // RideOnTestの場合のみ射出可能
-            IStateRideOn* rideOnState = dynamic_cast<IStateRideOn*>(currentState);
-            if (rideOnState) {
-                auto shootAction = rideOnState->GetShootAction();
-                if (shootAction) {
-                    shootAction->Execute(player.get());
-                }
+            if (shootAction) {
+                shootAction->Execute(player.get());
             }
         }
     }

@@ -2,56 +2,54 @@
 #include "Vector2.h"
 class Player;
 class GameScene;
-enum PlayerActionType
-{
-    kJump,
-    kMove,
-    kAttack
 
+enum PlayerActionType { kJump, kMove, kAttack, kShoot };
 
-};
 // --- 行動ビヘイビア (Action) ---
 // 物理計算や移動ロジックを担当
 class IPlayerAction {
 public:
-    virtual ~IPlayerAction() = default;
-    virtual void Execute(Player* player) = 0;
-private:
-
+  virtual ~IPlayerAction() = default;
+  virtual void Execute(Player *player) = 0;
 };
+
 class NormalMoveAction : public IPlayerAction {
 public:
-    NormalMoveAction(float speed) : speed_(speed) {
-    }
-    void Execute(Player* player) override;
-    void SetSpeed(float speed) {
-        speed_ = speed;
-    }
+  NormalMoveAction(float speed) : speed_(speed) {}
+  void Execute(Player *player) override;
+  void SetSpeed(float speed) { speed_ = speed; }
+
 private:
-    float speed_;
-    PlayerActionType Type = kMove;
+  float speed_;
+  PlayerActionType Type = kMove;
 };
 
 // ジャンプアクション
 class NormalJumpAction : public IPlayerAction {
 public:
-    void Execute(Player* player) override;
+  void Execute(Player *player) override;
+
 public:
-    PlayerActionType Type = kJump;
+  PlayerActionType Type = kJump;
 };
+
+// 近接格闘アクション（アームパンチ／パイルバンカー）
 class NormalAttackAction : public IPlayerAction {
 public:
-    void Execute(Player* player) override;
-private:
-    float dashSpeed_ = 0.5f; // 突進速度（調整してください）
+  void Execute(Player *player) override;
+
+public:
+  PlayerActionType Type = kAttack;
 };
 
-//射出
-class ShootRobotAction : public IPlayerAction {
+// 連射アクション（ヘビィマシンガン連射）
+class RapidFireAction : public IPlayerAction {
 public:
-    void Execute(Player* player) override;
-    void SetAimVector(float x, float y) { aimDir_ = {x, y}; }
+  void Execute(Player *player) override;
+
+public:
+  PlayerActionType Type = kShoot;
 
 private:
-    Vector2 aimDir_ = {1.0f, 0.0f};
+  int shotCount_ = 0;
 };

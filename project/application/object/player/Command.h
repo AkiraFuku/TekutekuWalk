@@ -7,11 +7,8 @@ enum class CommandType {
     Jump,
     Attack,
     Shoot,
-    PreShoot,
     Dash,
     Slide,
-    Guard,
-    Aim
 };
 
 class ICommand {
@@ -44,11 +41,6 @@ public:
     CommandType GetType() const override { return CommandType::Shoot; }
 };
 
-class PreShootCommand : public ICommand {
-public:
-    CommandType GetType() const override { return CommandType::PreShoot; }
-};
-
 class DashCommand : public ICommand {
 public:
     CommandType GetType() const override { return CommandType::Dash; }
@@ -57,23 +49,4 @@ public:
 class SlideCommand : public ICommand {
 public:
     CommandType GetType() const override { return CommandType::Slide; }
-};
-
-class GuardCommand : public ICommand {
-public:
-    CommandType GetType() const override { return CommandType::Guard; }
-};
-
-class AimCommand : public ICommand {
-public:
-    // x, y は -1.0f ~ 1.0f の範囲
-    AimCommand(Vector2 direction) : direction_(direction) {}
-    CommandType GetType() const override { return CommandType::Aim; }
-    float GetX() const { return direction_.x; }
-    float GetY() const { return direction_.y; }
-    Vector2 GetDirection() const {
-        return direction_;
-    }   
-private:
-   Vector2 direction_;
 };

@@ -7,6 +7,7 @@ void IPlayerState::Initialize(Player* player) {
         moveAction_ = factory_->CreateMoveAction();
         jumpAction_ = factory_->CreateJumpAction();
         attackAction_ = factory_->CreateAttackAction();
+        shootAction_ = factory_->CreateShootAction();
 
         // 初期 Behavior を Factory から作成してセット
         ChangeBehavior(player, factory_->CreateBehavior(BehaviorType::Root));
@@ -40,23 +41,4 @@ void IPlayerState::ChangeBehavior(Player* player, std::unique_ptr<IPlayerBehavio
     if (currentBehavior_) {
         currentBehavior_->Initialize(player);
     }
-}
-
-// --- IStateRideOn ---
-void IStateRideOn::Initialize(Player* player) {
-    // 基底クラスの Action / Behavior 生成を実行
-    IPlayerState::Initialize(player);
-
-    // RideOn 固有の ShootAction を Factory から取得
-    if (factory_) {
-        shootAction_ = factory_->CreateShootAction();
-    }
-}
-
-void IStateRideOn::DoMove(Player* player) {
-    if (moveAction_) moveAction_->Execute(player);
-}
-
-void IStateRideOn::DoShoot(Player* player) {
-    if (shootAction_) shootAction_->Execute(player);
 }

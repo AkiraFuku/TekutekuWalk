@@ -91,9 +91,17 @@ void Player::LoadConfig(const std::string& filePath)
             config_.collider.bodyRadius = jc["body"].value("radius", config_.collider.bodyRadius);
         }
         if (jc.contains("attack")) {
-            config_.collider.attackOffsetY = jc["attack"].value("offsetY", config_.collider.attackOffsetY);
-            config_.collider.attackOffsetForward = jc["attack"].value("offsetForward", config_.collider.attackOffsetForward);
-            config_.collider.attackRadius = jc["attack"].value("radius", config_.collider.attackRadius);
+            const auto& ja = jc["attack"];
+            config_.collider.attackOffsetY = ja.value("offsetY", config_.collider.attackOffsetY);
+            config_.collider.attackOffsetForward = ja.value("offsetForward", config_.collider.attackOffsetForward);
+            config_.collider.attackRadius = ja.value("radius", config_.collider.attackRadius);
+            if (ja.contains("halfSize") && ja["halfSize"].is_array() && ja["halfSize"].size() >= 3) {
+                config_.collider.attackHalfSize = {
+                    ja["halfSize"][0].get<float>(),
+                    ja["halfSize"][1].get<float>(),
+                    ja["halfSize"][2].get<float>()
+                };
+            }
         }
     }
 
@@ -126,9 +134,19 @@ void Player::LoadConfig(const std::string& filePath)
     if (j.contains("attackAction")) {
         const auto& ja = j["attackAction"];
         config_.attackAction.duration = ja.value("duration", config_.attackAction.duration);
+        config_.attackAction.windupDuration = ja.value("windupDuration", config_.attackAction.windupDuration);
         config_.attackAction.rushDuration = ja.value("rushDuration", config_.attackAction.rushDuration);
+        config_.attackAction.recoveryDuration = ja.value("recoveryDuration", config_.attackAction.recoveryDuration);
         config_.attackAction.rushSpeedMultiplier = ja.value("rushSpeedMultiplier", config_.attackAction.rushSpeedMultiplier);
         config_.attackAction.invincibilityAfter = ja.value("invincibilityAfter", config_.attackAction.invincibilityAfter);
+    }
+
+    // RapidFire
+    if (j.contains("rapidFire")) {
+        const auto& jrf = j["rapidFire"];
+        config_.rapidFire.fireInterval = jrf.value("fireInterval", config_.rapidFire.fireInterval);
+        config_.rapidFire.bulletSpeed = jrf.value("bulletSpeed", config_.rapidFire.bulletSpeed);
+        config_.rapidFire.bulletSpreadY = jrf.value("bulletSpreadY", config_.rapidFire.bulletSpreadY);
     }
 
     // DropThrough
@@ -193,7 +211,12 @@ void Player::SaveConfig(const std::string& filePath)
         { "attack", {
             { "offsetY", config_.collider.attackOffsetY },
             { "offsetForward", config_.collider.attackOffsetForward },
-            { "radius", config_.collider.attackRadius }
+            { "radius", config_.collider.attackRadius },
+            { "halfSize", {
+                config_.collider.attackHalfSize.x,
+                config_.collider.attackHalfSize.y,
+                config_.collider.attackHalfSize.z
+            }}
         }}
     };
 
@@ -218,9 +241,17 @@ void Player::SaveConfig(const std::string& filePath)
 
     j["attackAction"] = {
         { "duration", config_.attackAction.duration },
+        { "windupDuration", config_.attackAction.windupDuration },
         { "rushDuration", config_.attackAction.rushDuration },
+        { "recoveryDuration", config_.attackAction.recoveryDuration },
         { "rushSpeedMultiplier", config_.attackAction.rushSpeedMultiplier },
         { "invincibilityAfter", config_.attackAction.invincibilityAfter }
+    };
+
+    j["rapidFire"] = {
+        { "fireInterval", config_.rapidFire.fireInterval },
+        { "bulletSpeed", config_.rapidFire.bulletSpeed },
+        { "bulletSpreadY", config_.rapidFire.bulletSpreadY }
     };
 
     j["dropThrough"] = {
@@ -243,7 +274,13 @@ void Player::ApplyColliderConfig()
         attackCollider_->initialize(this, config_.collider.attackRadius);
         attackCollider_->SetCategory(CollisionCategory::PlayerAttack);
         attackCollider_->SetCollide(isAttackHitboxActive_);
-        attackCollider_->AddSphere("Attack", { 0.0f, config_.collider.attackOffsetY, config_.collider.attackOffsetForward }, config_.collider.attackRadius);
+        attackCollider_->ClearSpheres();
+        attackCollider_->ClearAABBs();
+        attackCollider_->AddAABB(
+            "Attack",
+            { 0.0f, config_.collider.attackOffsetY, config_.collider.attackOffsetForward },
+            config_.collider.attackHalfSize
+        );
     }
 }
 
@@ -318,6 +355,14 @@ void Player::Update()
         }
     }
 
+    // 連射クールダウンタイマーの減衰
+    if (shootCooldownTimer_ > 0.0f) {
+        shootCooldownTimer_ -= deltaTime_;
+        if (shootCooldownTimer_ < 0.0f) {
+            shootCooldownTimer_ = 0.0f;
+        }
+    }
+
     HandleDamage();
     HandleKnockback();
     HandleInput();
@@ -365,34 +410,26 @@ void Player::UpdateTransform()
 
 void Player::Draw()
 {
-    //    if (!isActive_) return;
+    auto drawDebugColliders = [this]() {
+        if (auto* col = GetCollider()) {
+            col->Draw();
+        }
+        if (attackCollider_ && IsAttackHitboxActive()) {
+            attackCollider_->Draw();
+        }
+    };
 
-        // 無敵時間中のモデル点滅（0.08秒ごとに表示/非表示を切り替え、死亡時は点滅スキップしない）
+    // 無敵時間中のモデル点滅（0.08秒ごとに表示/非表示を切り替え、死亡時は点滅スキップしない）
     if (isAlive_ && hitInvincibilityTimer_ > 0.0f) {
         const float kBlinkInterval = 0.08f;
         if (fmodf(hitInvincibilityTimer_, kBlinkInterval * 2.0f) < kBlinkInterval) {
-            if (auto* col = GetCollider()) {
-                col->Draw();
-            }
+            drawDebugColliders();
             return;
         }
     }
 
     object_->Draw();
-
-    if (auto* col = GetCollider()) {
-        col->Draw();
-    }
-
-    // 攻撃ヒットボックスが有効な場合、オレンジ色のワイヤーフレーム球体を描画
-    if (attackCollider_ && IsAttackHitboxActive()) {
-#ifdef USE_LINE
-        auto attackSpheres = attackCollider_->GetWorldSpheres();
-        for (const auto& sphere : attackSpheres) {
-            PrimitiveDrawer::GetInstance()->DrawSphere(sphere, { 1.0f, 0.6f, 0.0f, 1.0f });
-        }
-#endif // USE_LINE
-    }
+    drawDebugColliders();
 }
 
 void Player::SetRailPosition(const Vector2& position)
@@ -567,11 +604,11 @@ void Player::UpdateRailPath()
         col->Update();
     }
 
-    // 攻撃用ヒットボックスの回転・位置の同期（前方に突き出し配置）
+    // 攻撃用AABBヒットボックスの回転・位置・サイズの同期（前方に突き出し配置）
     if (attackCollider_) {
         attackCollider_->SetRotation(EulerToQuaternion({ 0.0f, currentAngle_, 0.0f }));
-        attackCollider_->SetSphereOffset("Attack", { 0.0f, config_.collider.attackOffsetY, config_.collider.attackOffsetForward });
-        attackCollider_->SetSphereRadius("Attack", config_.collider.attackRadius);
+        attackCollider_->SetAABBOffset("Attack", { 0.0f, config_.collider.attackOffsetY, config_.collider.attackOffsetForward });
+        attackCollider_->SetAABBHalfSize("Attack", config_.collider.attackHalfSize);
         attackCollider_->SetCollide(IsAttackHitboxActive());
         attackCollider_->Update();
     }
@@ -1160,11 +1197,18 @@ void Player::ImGuiDrawDebugInfo() {
     ImGui::SliderFloat("Guard Invincibility After", &config_.guard.invincibilityAfter, 0.0f, 1.0f, "%.2f s");
 
     ImGui::Separator();
-    ImGui::Text("--- Attack Action Settings ---");
-    ImGui::SliderFloat("Attack Duration", &config_.attackAction.duration, 0.2f, 2.0f, "%.2f s");
-    ImGui::SliderFloat("Attack Rush Duration", &config_.attackAction.rushDuration, 0.1f, 1.0f, "%.2f s");
-    ImGui::SliderFloat("Attack Rush Speed Multiplier", &config_.attackAction.rushSpeedMultiplier, 1.0f, 6.0f, "%.2f");
+    ImGui::Text("--- Melee Attack Settings ---");
+    ImGui::SliderFloat("Windup Duration", &config_.attackAction.windupDuration, 0.0f, 0.3f, "%.2f s");
+    ImGui::SliderFloat("Strike Duration", &config_.attackAction.rushDuration, 0.05f, 0.5f, "%.2f s");
+    ImGui::SliderFloat("Recovery Duration", &config_.attackAction.recoveryDuration, 0.02f, 0.5f, "%.2f s");
+    ImGui::SliderFloat("Step Speed Multiplier", &config_.attackAction.rushSpeedMultiplier, 0.2f, 3.0f, "%.2f");
     ImGui::SliderFloat("Attack Invincibility After", &config_.attackAction.invincibilityAfter, 0.0f, 1.0f, "%.2f s");
+
+    ImGui::Separator();
+    ImGui::Text("--- Rapid Fire (Machine Gun) Settings ---");
+    ImGui::SliderFloat("Fire Interval", &config_.rapidFire.fireInterval, 0.03f, 0.50f, "%.2f s");
+    ImGui::SliderFloat("Bullet Speed", &config_.rapidFire.bulletSpeed, 0.10f, 1.50f, "%.2f");
+    ImGui::SliderFloat("Bullet Spread Y", &config_.rapidFire.bulletSpreadY, 0.0f, 0.20f, "%.3f");
 
     ImGui::Separator();
     ImGui::Text("--- Drop Through Settings ---");
@@ -1188,12 +1232,12 @@ void Player::ImGuiDrawDebugInfo() {
     }
 
     ImGui::Separator();
-    ImGui::Text("--- Attack Hitbox Settings ---");
+    ImGui::Text("--- Attack AABB Hitbox Settings ---");
     ImGui::Checkbox("Debug: Force Enable Hitbox", &debugForceAttackHitbox_);
     ImGui::Text("Active: %s", IsAttackHitboxActive() ? "YES (Attacking!)" : "NO");
-    if (ImGui::SliderFloat("Attack Offset Y", &config_.collider.attackOffsetY, 0.1f, 1.5f, "%.3f m") ||
-        ImGui::SliderFloat("Attack Offset Forward", &config_.collider.attackOffsetForward, 0.1f, 1.5f, "%.3f m") ||
-        ImGui::SliderFloat("Attack Radius", &config_.collider.attackRadius, 0.1f, 1.0f, "%.3f m")) {
+    if (ImGui::SliderFloat("Attack Offset Y", &config_.collider.attackOffsetY, -0.5f, 1.5f, "%.3f m") ||
+        ImGui::SliderFloat("Attack Offset Forward", &config_.collider.attackOffsetForward, 0.2f, 2.5f, "%.3f m") ||
+        ImGui::SliderFloat3("Attack Box HalfSize (X,Y,Z)", &config_.collider.attackHalfSize.x, 0.1f, 2.0f, "%.2f m")) {
         ApplyColliderConfig();
     }
 
@@ -1230,11 +1274,9 @@ void Player::OnCollision(GameObject* other) {
         Enemy* enemy = dynamic_cast<Enemy*>(other);
         if (!enemy) return;
 
-        // プレイヤーが攻撃中の場合
-        if (IsAttacking()) {
-            if (!enemy->IsDead()) {
-                OnAttackHit(enemy);
-            }
+        // プレイヤーが攻撃中、または攻撃ヒットボックス展開中は接触ダメージを受けない
+        // （敵への攻撃ヒット処理は Enemy::OnCollision 側で厳密にAABB交差判定を行って通知する）
+        if (IsAttacking() || IsAttackHitboxActive()) {
             return;
         }
 
@@ -1305,15 +1347,12 @@ bool Player::IsAttacking() const {
 }
 
 void Player::OnAttackHit(GameObject* target) {
+    (void)target;
     velocity_.x = 0.0f;
     velocity_.z = 0.0f;
 
-    // アタック成功時のBehavior復帰
-    if (baseState_ && baseState_->GetFactory()) {
-        baseState_->ChangeBehavior(this, baseState_->GetFactory()->CreateBehavior(BehaviorType::Root));
-    }
-    TriggerInvincibility(0.4f); // 撃破後0.4秒間の無敵余韻を付与
-    SetAttackHitboxActive(false); // ヒット後は直ちに攻撃判定を解除
+    // 近接攻撃ヒット時は無敵余韻を付与（ヒットボックス自体は打撃フェーズ終了まで表示・維持する）
+    TriggerInvincibility(0.3f);
 }
 
 void Player::TriggerSquashStretch(float intensityY, float duration) {

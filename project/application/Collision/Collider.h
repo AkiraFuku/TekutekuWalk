@@ -17,6 +17,13 @@ struct CollisionSphereDef {
     Quaternion localRotate = { 0.0f, 0.0f, 0.0f, 1.0f };     // ローカル回転
 };
 
+// コライダーを構成するAABB（箱型）パーツの定義
+struct CollisionAABBDef {
+    std::string name;                                        // パーツ名（"Attack" など）
+    Vector3 offset = { 0.0f, 0.0f, 0.0f };                   // オーナー中心からのローカルオフセット
+    Vector3 halfSize = { 0.5f, 0.5f, 0.5f };                 // 箱の半径サイズ（幅/2, 高さ/2, 奥行/2）
+};
+
 class Collider {
 public:
     Collider() = default;
@@ -71,6 +78,16 @@ public:
     // ワールド座標系での全 Sphere（center, radius, rotate）を取得
     std::vector<Sphere> GetWorldSpheres() const;
 
+    // ─── AABB 構造体によるボックス形状対応 ───
+    void ClearAABBs() { aabbDefs_.clear(); }
+    void AddAABB(const std::string& name, const Vector3& offset, const Vector3& halfSize);
+    bool SetAABBOffset(const std::string& name, const Vector3& offset);
+    bool SetAABBHalfSize(const std::string& name, const Vector3& halfSize);
+    const std::vector<CollisionAABBDef>& GetAABBDefs() const { return aabbDefs_; }
+
+    // ワールド座標系での全 AABB を取得
+    std::vector<AABB> GetWorldAABBs() const;
+
 private:
     Vector3 position_ = {};
     Vector3 Offset_ = {};
@@ -81,4 +98,5 @@ private:
     bool isCollide_ = true; // 衝突可能か？
 
     std::vector<CollisionSphereDef> sphereDefs_; // モデル形状に合わせた球体定義リスト
+    std::vector<CollisionAABBDef> aabbDefs_;     // ボックス形状（ヒットボックス等）定義リスト
 };

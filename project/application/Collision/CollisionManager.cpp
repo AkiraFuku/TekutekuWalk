@@ -159,11 +159,14 @@ void CollisionManager::CheckCollision(Collider* a, Collider* b) {
 
     auto spheresA = a->GetWorldSpheres();
     auto spheresB = b->GetWorldSpheres();
+    auto aabbsA   = a->GetWorldAABBs();
+    auto aabbsB   = b->GetWorldAABBs();
 
     bool isHit = false;
     Vector3 totalPushA = { 0.0f, 0.0f, 0.0f };
     Vector3 totalPushB = { 0.0f, 0.0f, 0.0f };
 
+    // 1. Sphere vs Sphere
     for (const auto& sa : spheresA) {
         for (const auto& sb : spheresB) {
             // 統一された Physics::Intersect (2乗距離・平方根なし) を使用
@@ -199,6 +202,33 @@ void CollisionManager::CheckCollision(Collider* a, Collider* b) {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // 2. AABB vs Sphere
+    for (const auto& ba : aabbsA) {
+        for (const auto& sb : spheresB) {
+            if (Physics::Intersect(ba, sb)) {
+                isHit = true;
+            }
+        }
+    }
+
+    // 3. Sphere vs AABB
+    for (const auto& sa : spheresA) {
+        for (const auto& bb : aabbsB) {
+            if (Physics::Intersect(sa, bb)) {
+                isHit = true;
+            }
+        }
+    }
+
+    // 4. AABB vs AABB
+    for (const auto& ba : aabbsA) {
+        for (const auto& bb : aabbsB) {
+            if (Physics::Intersect(ba, bb)) {
+                isHit = true;
             }
         }
     }

@@ -5,5 +5,5 @@ BoundRobot::BoundRobot() {}
 BoundRobot::~BoundRobot() = default;
 
 std::shared_ptr<IPlayerFactory> BoundRobot::CreatePlayerFactory() {
-    return std::make_shared<BoundPlayerFactory>();
+    return nullptr;
 }

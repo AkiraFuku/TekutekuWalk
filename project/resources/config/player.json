@@ -43,9 +43,10 @@
       "radius": 0.30
     },
     "attack": {
-      "offsetY": 0.0,
-      "offsetForward": 0.55,
-      "radius": 0.40
+      "offsetY": 0.25,
+      "offsetForward": 1.10,
+      "radius": 0.48,
+      "halfSize": [ 0.60, 0.65, 0.95 ]
     }
   },
   "slide": {
@@ -65,10 +66,17 @@
     "invincibilityAfter": 0.2
   },
   "attackAction": {
-    "duration": 0.65,
-    "rushDuration": 0.28,
-    "rushSpeedMultiplier": 2.5,
-    "invincibilityAfter": 0.35
+    "duration": 0.36,
+    "windupDuration": 0.04,
+    "rushDuration": 0.22,
+    "recoveryDuration": 0.10,
+    "rushSpeedMultiplier": 0.0,
+    "invincibilityAfter": 0.2
+  },
+  "rapidFire": {
+    "fireInterval": 0.1,
+    "bulletSpeed": 0.45,
+    "bulletSpreadY": 0.035
   },
   "dropThrough": {
     "duration": 0.3,
