@@ -18,7 +18,6 @@ void PlayPhase::Update(Scene* scene)
     GameScene* gameScene = static_cast<GameScene*>(scene);
 
     gameScene->GetGoal()->Update();
-    gameScene->GetStageRaill()->Update();
 
     // 2. ヒットストップ中はキャラクターや物理演算、衝突判定の更新をスキップする
     if (gameScene->IsHitStopActive()) {

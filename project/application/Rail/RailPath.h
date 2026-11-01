@@ -23,13 +23,18 @@ public:
 
     void Initialize() {
         points_.clear();
+        distanceTable_.clear();
+        totalLength_ = 0.0f;
+        isDirty_ = true;
     }
     void AddPoint(const Vector3& pos) {
         points_.push_back({ pos,  InterpolationType::Linear, {0,0,0}, {0,0,0} });
+        isDirty_ = true;
     }
     void AddPointCR(const Vector3& pos) {
         // control点は使わないのでゼロ初期化
         points_.push_back({ pos,  InterpolationType::CatmullRom, {0,0,0}, {0,0,0} });
+        isDirty_ = true;
     }
 
 
@@ -51,18 +56,26 @@ public:
     void SetPointPos(size_t index, const Vector3& pos)
     {
         if (index < points_.size()) {
-            points_[index].position = pos;
+            Vector3 delta = pos - points_[index].position;
+            if (delta.x != 0.0f || delta.y != 0.0f || delta.z != 0.0f) {
+                points_[index].position = pos;
+                points_[index].controlIn = points_[index].controlIn + delta;
+                points_[index].controlOut = points_[index].controlOut + delta;
+                isDirty_ = true;
+            }
         }
     }
 
     void SetControlPointOut(size_t index, const Vector3& control) {
         if (index < points_.size()) {
             points_[index].controlOut = control;
+            isDirty_ = true;
         }
     }
     void SetControlPointIn(size_t index, const Vector3& control) {
         if (index < points_.size()) {
             points_[index].controlIn = control;
+            isDirty_ = true;
         }
     }
     void Update();
@@ -75,12 +88,14 @@ public:
             pos + offsetOut, // 出ていくハンドル
             pos + offsetIn   // 入ってくるハンドル
             });
+        isDirty_ = true;
     }
     void SetBezierHandles(size_t index, const Vector3& offsetIn, const Vector3& offsetOut);
 
     void SetPointType(size_t index, InterpolationType type) {
         if (index < points_.size()) {
             points_[index].type = type;
+            isDirty_ = true;
         }
     }
     InterpolationType GetPointType(size_t index) const {
@@ -95,6 +110,7 @@ public:
         for (auto& pt : points_) {
             pt.type = type;
         }
+        isDirty_ = true;
     }
 
     Vector3 GetPosition(float globalT) const {
@@ -106,10 +122,16 @@ public:
             globalT = fmodf(globalT, maxT);
             if (globalT < 0) globalT += maxT;
         } else {
+            if (globalT <= 0.0f) return points_.front().position;
             if (globalT >= maxT) return points_.back().position;
         }
 
         size_t index1 = static_cast<size_t>(globalT);
+        if (!isLoop_ && index1 >= points_.size() - 1) {
+            index1 = points_.size() - 2;
+        } else if (isLoop_ && index1 >= points_.size()) {
+            index1 = points_.size() - 1;
+        }
         size_t index2 = (index1 + 1) % points_.size(); // ループして0に戻る
 
         float t = globalT - static_cast<float>(index1);
@@ -151,11 +173,15 @@ public:
     float GetDistanceFromT(float t) const;
     void DebugDraw();
     void SetLoop(bool loop) {
-        isLoop_ = loop;
+        if (isLoop_ != loop) {
+            isLoop_ = loop;
+            isDirty_ = true;
+        }
     }
     bool IsLoop()const{return isLoop_;}
 private:
     bool isLoop_ = false; // ループフラグ
+    bool isDirty_ = true; // 距離テーブル再計算フラグ（初期化時または点変更時のみ再計算）
     // RailPath.h に追加
     struct DistanceMap {
         float distance; // 始点からの累積距離

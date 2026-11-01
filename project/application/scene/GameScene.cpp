@@ -332,11 +332,18 @@ void GameScene::Update() {
         Vector3 point1_ = currentStageRail->GetPointPos(1);
         Vector3 point2_ = currentStageRail->GetPointPos(2);
 
-        ImGui::SliderFloat3("Point1", &(point1_.x), -10.0f, 10.0f);
-        ImGui::SliderFloat3("Point2", &(point2_.x), -10.0f, 1000.0f);
-
-        currentStageRail->SetPointPos(1, point1_);
-        currentStageRail->SetPointPos(2, point2_);
+        bool changed = false;
+        if (ImGui::SliderFloat3("Point1", &(point1_.x), -10.0f, 10.0f)) {
+            currentStageRail->SetPointPos(1, point1_);
+            changed = true;
+        }
+        if (ImGui::SliderFloat3("Point2", &(point2_.x), -10.0f, 1000.0f)) {
+            currentStageRail->SetPointPos(2, point2_);
+            changed = true;
+        }
+        if (changed) {
+            currentStageRail->Update();
+        }
     }
 
     // ステージリロードボタン（JSON再読み込み）
@@ -831,4 +838,3 @@ void GameScene::DrawBannerSprite()
         bannerSprite_->Draw();
     }
 }
-

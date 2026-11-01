@@ -105,9 +105,6 @@ void StartPhase::Update(Scene* scene)
     if (gameScene->GetGoal()) {
         gameScene->GetGoal()->Update();
     }
-    if (gameScene->GetStageRaill()) {
-        gameScene->GetStageRaill()->Update();
-    }
 
     bool hasInput = HasMovementInput();
     timer_ += 1.0f / 60.0f;

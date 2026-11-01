@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-
 /// <summary>
 /// プレイヤーの設定パラメータ・アセットパスを保持するデータ構造体
 /// </summary>
@@ -195,6 +194,7 @@ public:
   void ChangeBehavior(std::unique_ptr<IPlayerBehavior> newBehavior);
 
   void Move(float ratio);
+  void MoveAtSpeed(float speedMetersPerSec);
   void Jump();
   bool TryExecuteBufferedJump();
 
@@ -320,6 +320,7 @@ private:
   MoveState moveState_ = MoveState::Idle;
   bool isDashing_ = false;
   bool isMoving_ = false;
+  int frameMoveDir_ = 0; // 現フレームの実移動方向（1: 前進, -1: 後退, 0: 静止）
 
   // スクワッシュ＆ストレッチ（Squash & Stretch）演出パラメータ
   struct SquashStretchState {

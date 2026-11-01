@@ -46,7 +46,11 @@
       "offsetY": 0.25,
       "offsetForward": 1.10,
       "radius": 0.48,
-      "halfSize": [ 0.60, 0.65, 0.95 ]
+      "halfSize": [
+        0.60,
+        0.65,
+        0.95
+      ]
     }
   },
   "slide": {

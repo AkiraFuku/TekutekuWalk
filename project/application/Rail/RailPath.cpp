@@ -1,8 +1,14 @@
 #include "RailPath.h"
 #include "PrimitiveDrawer.h"
+#include <algorithm>
+#include <cmath>
+
 void RailPath::Update()
 {
-    BuildDistanceTable();
+    if (isDirty_) {
+        BuildDistanceTable();
+        isDirty_ = false;
+    }
 }
 
 void RailPath::SetBezierHandles(size_t index, const Vector3& offsetIn, const Vector3& offsetOut) {
@@ -10,69 +16,107 @@ void RailPath::SetBezierHandles(size_t index, const Vector3& offsetIn, const Vec
         points_[index].type = InterpolationType::Bezier;
         points_[index].controlIn = points_[index].position + offsetIn;
         points_[index].controlOut = points_[index].position + offsetOut;
+        isDirty_ = true;
     }
 }
 
 // 次の点への方向ベクトルを取得（回転制御用）
 Vector3 RailPath::GetDirection(float globalT) const {
-    const float delta = 0.01f; // 微小な変化量
-    const float maxT = GetMaxT();
-
-    // 現在の座標
-    Vector3 p1 = GetPosition(globalT);
-
-    // わずか先の座標（最大値を超えないようにクランプ）
-    float nextT = min(globalT + delta, maxT);
-    
-    // もし終端に達していて差分が取れない場合は、手前の点との差分で代用
-    if (globalT >= maxT) {
-        Vector3 p0 = GetPosition(max(0.0f, globalT - delta));
-        return Normalize(p1 - p0);
+    if (points_.size() < 2) {
+        return { 0.0f, 0.0f, 1.0f };
     }
 
-    Vector3 p2 = GetPosition(nextT);
+    const float delta = 0.01f; // 微小な変化量
+    const float maxT = GetMaxT();
+    float clampedT = std::clamp(globalT, 0.0f, maxT);
 
-    // 2点間の差分から方向を求める
-    return Normalize(p2 - p1);
+    Vector3 diff = { 0.0f, 0.0f, 0.0f };
+    if (clampedT >= maxT - delta) {
+        Vector3 p0 = GetPosition((std::max)(0.0f, clampedT - delta));
+        Vector3 p1 = GetPosition(clampedT);
+        diff = p1 - p0;
+    } else {
+        Vector3 p1 = GetPosition(clampedT);
+        Vector3 p2 = GetPosition((std::min)(clampedT + delta, maxT));
+        diff = p2 - p1;
+    }
+
+    // ベジェ制御点がアンカーと同一座標にある場合（始点・終端で速度が0になるケース）のフォールバック
+    if (Length(diff) < 1e-5f) {
+        const float wideDelta = 0.05f;
+        float t0 = (std::max)(0.0f, clampedT - wideDelta);
+        float t1 = (std::min)(maxT, clampedT + wideDelta);
+        diff = GetPosition(t1) - GetPosition(t0);
+    }
+
+    if (Length(diff) < 1e-5f) {
+        size_t idx = (std::min)(static_cast<size_t>(clampedT), points_.size() - 2);
+        diff = points_[idx + 1].position - points_[idx].position;
+    }
+
+    return (Length(diff) > 1e-5f) ? Normalize(diff) : Vector3{ 0.0f, 0.0f, 1.0f };
 }
 
 float RailPath::GetTFromDistance(float distance) const
 {
-    if (distance <= 0) return 0.0f;
+    if (distanceTable_.empty() || totalLength_ <= 0.0f) return 0.0f;
+    if (distance <= 0.0f) return 0.0f;
     if (distance >= totalLength_) return GetMaxT();
 
-    // 二分探索などで、指定された距離に対応する t を探す
-    for (size_t i = 0; i < distanceTable_.size() - 1; ++i) {
-        if (distance <= distanceTable_[i+1].distance) {
-            float d1 = distanceTable_[i].distance;
-            float d2 = distanceTable_[i+1].distance;
-            float t1 = distanceTable_[i].t;
-            float t2 = distanceTable_[i+1].t;
-            // 距離に基づいて線形補間
-            float factor = (distance - d1) / (d2 - d1);
-            return t1 + (t2 - t1) * factor;
-        }
+    // 二分探索で指定された距離に対応する区間を高速に探す
+    auto it = std::upper_bound(
+        distanceTable_.begin(), distanceTable_.end(), distance,
+        [](float val, const DistanceMap& entry) { return val < entry.distance; }
+    );
+
+    if (it == distanceTable_.begin()) return 0.0f;
+    if (it == distanceTable_.end()) return GetMaxT();
+
+    const auto& next = *it;
+    const auto& prev = *(it - 1);
+    float span = next.distance - prev.distance;
+    if (span <= 1e-6f) {
+        return prev.t;
     }
-    return GetMaxT();
+
+    float factor = (distance - prev.distance) / span;
+    return prev.t + (next.t - prev.t) * factor;
 }
+
 void RailPath::BuildDistanceTable() {
     distanceTable_.clear();
     totalLength_ = 0.0f;
-    float maxT = GetMaxT();
-    float step = 0.05f;
 
+    if (points_.size() < 2) {
+        distanceTable_.push_back({ 0.0f, 0.0f });
+        isDirty_ = false;
+        return;
+    }
+
+    const float maxT = GetMaxT();
+    const int subdivisionsPerSegment = 20; // 1区間あたり20分割（step = 0.05f 相当）
+    const int totalSteps = static_cast<int>(std::round(maxT)) * subdivisionsPerSegment;
+
+    if (totalSteps <= 0) {
+        distanceTable_.push_back({ 0.0f, 0.0f });
+        isDirty_ = false;
+        return;
+    }
+
+    distanceTable_.reserve(static_cast<size_t>(totalSteps) + 1);
     Vector3 prevPos = GetPosition(0.0f);
     distanceTable_.push_back({ 0.0f, 0.0f });
 
-    for (float t = step; t <= maxT + 0.001f; t += step) {
-        // maxTを超えないように clamp（浮動小数点の誤差対策）
-        float currentT = (t > maxT) ? maxT : t;
+    for (int i = 1; i <= totalSteps; ++i) {
+        float currentT = (static_cast<float>(i) / static_cast<float>(totalSteps)) * maxT;
         Vector3 currentPos = GetPosition(currentT);
         totalLength_ += Length(currentPos - prevPos);
         distanceTable_.push_back({ totalLength_, currentT });
         prevPos = currentPos;
     }
+    isDirty_ = false;
 }
+
 void RailPath::DebugDraw()
 {
 
@@ -126,23 +170,27 @@ void RailPath::DebugDraw()
 
 
 }
+
 float RailPath::GetDistanceFromT(float t) const {
-    if (distanceTable_.empty()) return 0.0f;
-    if (t <= 0) return 0.0f;
+    if (distanceTable_.empty() || totalLength_ <= 0.0f) return 0.0f;
+    if (t <= 0.0f) return 0.0f;
     if (t >= GetMaxT()) return totalLength_;
 
-    // t に対応する区間をテーブルから探す
-    for (size_t i = 0; i < distanceTable_.size() - 1; ++i) {
-        if (t <= distanceTable_[i + 1].t) {
-            float t1 = distanceTable_[i].t;
-            float t2 = distanceTable_[i + 1].t;
-            float d1 = distanceTable_[i].distance;
-            float d2 = distanceTable_[i + 1].distance;
+    auto it = std::upper_bound(
+        distanceTable_.begin(), distanceTable_.end(), t,
+        [](float val, const DistanceMap& entry) { return val < entry.t; }
+    );
 
-            // t に基づいて距離を線形補間
-            float factor = (t - t1) / (t2 - t1);
-            return d1 + (d2 - d1) * factor;
-        }
+    if (it == distanceTable_.begin()) return 0.0f;
+    if (it == distanceTable_.end()) return totalLength_;
+
+    const auto& next = *it;
+    const auto& prev = *(it - 1);
+    float span = next.t - prev.t;
+    if (span <= 1e-6f) {
+        return prev.distance;
     }
-    return totalLength_;
+
+    float factor = (t - prev.t) / span;
+    return prev.distance + (next.distance - prev.distance) * factor;
 }
