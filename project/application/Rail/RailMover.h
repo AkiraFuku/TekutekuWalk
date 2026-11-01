@@ -44,7 +44,7 @@ public:
         else localProgress_ = t;
     }
 
-    const RailPath* GetRailPath() {
+    const RailPath* GetRailPath() const {
 
         return path_;
     }

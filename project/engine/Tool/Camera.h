@@ -35,6 +35,7 @@ public:
     void SetAspectRatio(const float aspect) {
         this->aspect = aspect;
     }
+    float GetAspectRatio() const { return aspect; }
     void SetNearCrip(const float nearCrip) {
         this->nearCrip = nearCrip;
     }
@@ -107,4 +108,3 @@ private:
     void UpdateCameraBuffer();
 
 };
-

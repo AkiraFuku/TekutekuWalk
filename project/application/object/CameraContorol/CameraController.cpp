@@ -197,15 +197,17 @@ void CameraController::SetRailProgress(float progress)
 void CameraController::Reset() {
     const EulerTransform& targetWorldTransform = target_->GetTransform();
     camera_->SetTranslate(targetWorldTransform.translate + targetOffset_);
+    isFocusInitialized_ = false;
 }
 
 void CameraController::RotateCamera() {
     if (!target_ || !camera_) return;
 
-    // プレイヤーの座標
-    Vector3 targetPos = target_->GetTransform().translate;
-    // 注視点の高さを適用
-    targetPos.y += config_.autoOffset.lookAtHeight;
+    Vector3 targetPos = currentFocusPos_;
+    if (!isFocusInitialized_) {
+        targetPos = target_->GetTransform().translate;
+        targetPos.y += config_.autoOffset.lookAtHeight;
+    }
 
     // LookAt関数の実装（ターゲットの方向を向くように回転角を計算）
     Vector3 cameraPos = camera_->GetTranslate();
@@ -230,14 +232,43 @@ void CameraController::AutoOffsetCamera()
     if (!target_ || !camera_) return;
 
     Vector3 playerPos = target_->GetTransform().translate;
+    Vector3 focusBasePos = playerPos;
     Vector3 railFwd = { 0.0f, 0.0f, 1.0f };
 
     const RailMover* pMover = target_->GetRailMover();
-    if (pMover && pMover->isRailSet()) {
-        railFwd = pMover->GetCurrentDirection();
-    } else if (stageRail_) {
-        float prog = pMover ? pMover->GetProgress() : 0.0f;
-        railFwd = stageRail_->GetDirection(prog);
+    const RailPath* rail = (pMover && pMover->isRailSet()) ? pMover->GetRailPath() : stageRail_;
+
+    if (rail && rail->GetPointCount() >= 2) {
+        if (!rail->IsLoop() && rail->GetTotalLength() > 0.0f) {
+            // カメラの視野角(FOV)とアスペクト比、距離から画面端に映るレール上の半幅を算出
+            float d = config_.autoOffset.distance;
+            float h = config_.autoOffset.height;
+            float hLook = config_.autoOffset.lookAtHeight;
+            float dh = h - hLook;
+            float lookDist = std::sqrt(d * d + dh * dh);
+            float railDepth = (lookDist > 1e-4f) ? ((d * d + h * dh) / lookDist) : d;
+
+            float halfFovY = camera_->GetFovY() * 0.5f;
+            float aspect = camera_->GetAspectRatio();
+            float halfVisibleLength = railDepth * std::tan(halfFovY) * aspect;
+
+            float totalLen = rail->GetTotalLength();
+            float playerDist = pMover ? pMover->GetCurrentDistance() : 0.0f;
+
+            float clampedDist = playerDist;
+            if (totalLen > halfVisibleLength * 2.0f) {
+                clampedDist = std::clamp(playerDist, halfVisibleLength, totalLen - halfVisibleLength);
+            } else {
+                clampedDist = totalLen * 0.5f;
+            }
+
+            float clampedT = rail->GetTFromDistance(clampedDist);
+            Vector3 clampedRailPos = rail->GetPosition(clampedT);
+            focusBasePos = { clampedRailPos.x, playerPos.y, clampedRailPos.z };
+            railFwd = rail->GetDirection(clampedT);
+        } else {
+            railFwd = (pMover && pMover->isRailSet()) ? pMover->GetCurrentDirection() : rail->GetDirection(0.0f);
+        }
     }
 
     // 水平進行方向を抽出
@@ -263,15 +294,19 @@ void CameraController::AutoOffsetCamera()
         right = right * -1.0f;
     }
 
-    // 目標カメラ位置: プレイヤー位置 + 外側オフセット + 高さオフセット
-    Vector3 targetCamPos = playerPos + right * config_.autoOffset.distance + up * config_.autoOffset.height;
+    // 目標カメラ位置と注視点: クランプ済み基準位置 + オフセット
+    Vector3 targetCamPos = focusBasePos + right * config_.autoOffset.distance + up * config_.autoOffset.height;
+    Vector3 targetFocusPos = focusBasePos + up * config_.autoOffset.lookAtHeight;
 
     Vector3 currentCamPos = camera_->GetTranslate();
-    if (Length(currentCamPos) < 1e-4f) {
+    if (!isFocusInitialized_ || Length(currentCamPos) < 1e-4f) {
         currentCamPos = targetCamPos;
+        currentFocusPos_ = targetFocusPos;
+        isFocusInitialized_ = true;
     }
 
     Vector3 newCamPos = Lerp(currentCamPos, targetCamPos, config_.autoOffset.smoothSpeed);
+    currentFocusPos_ = Lerp(currentFocusPos_, targetFocusPos, config_.autoOffset.smoothSpeed);
     camera_->SetTranslate(newCamPos);
 }
 

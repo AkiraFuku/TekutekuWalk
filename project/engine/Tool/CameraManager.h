@@ -9,6 +9,7 @@ class CameraManager
 public:
     // シングルトン取得
     static CameraManager* GetInstance();
+    ~CameraManager() = default;
 
     // カメラの登録・削除
     void RegisterCamera(const std::string& name, Camera* camera);
@@ -36,7 +37,6 @@ public:
 private:
     // シングルトンパターン
     CameraManager() = default;
-    ~CameraManager() = default;
     CameraManager(const CameraManager&) = delete;
     CameraManager& operator=(const CameraManager&) = delete;
 

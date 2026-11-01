@@ -120,6 +120,8 @@ private:
 	Vector3 targetOffset_ = {0.0f, 0.0f, -15.0f};
 	Vector3 targetOffsetGoal_ = {0.0f, 0.0f, -15.0f};
 	bool isClearPhase_ = false;
+	Vector3 currentFocusPos_ = {0.0f, 0.0f, 0.0f};
+	bool isFocusInitialized_ = false;
 	Vector3 desetination_;
 	static inline const float kInterpolationRate = 0.1f;                 //
 	static inline const float kVelocityBias = 30.0f;                     //
@@ -138,5 +140,3 @@ private:
     std::function<float(float)> shakeEasing_ = nullptr;
     void UpdateShake();
 };
-
-
