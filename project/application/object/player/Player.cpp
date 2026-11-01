@@ -285,10 +285,9 @@ void Player::ApplyColliderConfig() {
   if (auto *col = GetCollider()) {
     col->initialize(this, config_.collider.radius);
     col->SetOffset({0.0f, 0.0f, 0.0f});
-    col->AddSphere("Head", {0.0f, config_.collider.headOffsetY, 0.0f},
-                   config_.collider.headRadius);
+    col->ClearSpheres();
     col->AddSphere("Body", {0.0f, config_.collider.bodyOffsetY, 0.0f},
-                   config_.collider.bodyRadius);
+                   config_.collider.radius);
   }
   if (attackCollider_) {
     attackCollider_->initialize(this, config_.collider.attackRadius);
@@ -309,10 +308,9 @@ void Player::Initialize() {
 
   inputHandler_ = std::make_unique<InputHandler>();
   object_ = std::make_unique<Object3d>();
-  ModelManager::GetInstance()->LoadModel(config_.paths.modelDir,
-                                         config_.paths.modelFile);
+  ModelManager::GetInstance()->CreateBoxModel("PlayerBox");
   object_->Initialize();
-  object_->SetModel(config_.paths.modelFile);
+  object_->SetModel("PlayerBox");
   object_->SetTexture(config_.paths.texture);
   /*   animation = std::make_unique<Animation>();
 

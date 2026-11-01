@@ -48,21 +48,21 @@ struct PlayerConfig {
   } juice;
 
   struct ColliderConfig {
-    float radius = 0.38f;         // コライダー基本半径
-    float modelRadius = 0.28f;    // 壁判定用モデル半径
-    float heightOffset = 0.432f;  // 足元オフセット
-    float wallRayHeight = -0.10f; // 壁検知レイ発射高さ
-    float headOffsetY = 0.25f;    // 頭部スフィア高さ
-    float headRadius = 0.38f;     // 頭部スフィア半径
-    float bodyOffsetY = 0.0f;     // 胴体スフィア高さ
-    float bodyRadius = 0.30f;     // 胴体スフィア半径
-    float attackOffsetY = 0.25f;  // 攻撃AABB中心高さ
+    float radius = 0.50f;         // コライダー基本半径（1m立方体に合わせ0.5m）
+    float modelRadius = 0.50f;    // 壁判定用モデル半径（1m立方体の半幅0.5m）
+    float heightOffset = 0.50f;   // 足元オフセット（1m立方体の底面が接地）
+    float wallRayHeight = 0.0f;   // 壁検知レイ発射高さ
+    float headOffsetY = 0.0f;     // 互換用
+    float headRadius = 0.50f;     // 互換用
+    float bodyOffsetY = 0.0f;     // 胴体スフィア高さ（立方体中心）
+    float bodyRadius = 0.50f;     // 胴体スフィア半径（0.5m）
+    float attackOffsetY = 0.0f;   // 攻撃AABB中心高さ（立方体中心と同じ高さ）
     float attackOffsetForward =
-        1.10f; // 攻撃AABB前方オフセット（プレイヤー前方へ突き出す距離）
-    float attackRadius = 0.48f; // 互換用
+        0.95f; // 攻撃AABB前方オフセット（プレイヤー前方へ突き出す距離）
+    float attackRadius = 0.50f; // 互換用
     Vector3 attackHalfSize = {
-        0.60f, 0.65f,
-        0.95f}; // 攻撃AABBの半径サイズ (横幅/2, 高さ/2, 前方リーチ長/2)
+        0.55f, 0.55f,
+        0.70f}; // 攻撃AABBの半径サイズ (横幅/2, 高さ/2, 前方リーチ長/2)
   } collider;
 
   struct Slide {
@@ -128,9 +128,7 @@ public:
 
   Vector3 GetCenterPosition() const {
     if (object_) {
-      Vector3 pos = object_->GetTranslate();
-      pos.y += 0.80f; // 足元からモデル中心（身長約1.65mの中間）
-      return pos;
+      return object_->GetTranslate(); // 1m立方体の原点はモデル中心
     }
     return {0.0f, 0.0f, 0.0f};
   }

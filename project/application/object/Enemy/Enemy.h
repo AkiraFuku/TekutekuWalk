@@ -18,7 +18,7 @@ struct EnemyConfig {
     } paths;
 
     struct TransformConfig {
-        Vector3 scale = { 0.9f, 0.9f, 0.9f };
+        Vector3 scale = { 0.5f, 0.5f, 0.5f };
         Vector3 rotate = { 90.0f, 0.0f, 0.0f };
     } transform;
 
@@ -38,7 +38,7 @@ struct EnemyConfig {
     } combat;
 
     struct ColliderConfig {
-        float radius = 1.0f;
+        float radius = 0.5f;
     } collider;
 };
 
