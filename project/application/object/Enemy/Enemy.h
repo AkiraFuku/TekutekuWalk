@@ -31,6 +31,7 @@ struct EnemyConfig {
     } movement;
 
     struct Combat {
+        int maxHP = 4;
         float hitInvincibilityDuration = 1.0f;
         float knockbackDuration = 0.6f;
         float knockbackSpeed = 7.0f;
@@ -174,6 +175,7 @@ public:
     virtual void ApplyProperties(const std::unordered_map<std::string, std::string>& properties) {}
     bool IsKnockback() const { return isKnockback_; }
     void TakeDamage(float knockbackDirection = -1.0f, bool isDeadly = true);
+    void TakeBulletDamage(float knockbackDirection = -1.0f);
     void HandleKnockback();
 
     // ロボットを設定するメソッド（外部または派生クラスのInitializeで呼ぶ）
@@ -287,6 +289,8 @@ private:
 
     bool isDamaged_ = false;              // クールダウン中かどうかのフラグ
     float hitInvincibilityTimer_ = 0.0f;     // クールダウンタイマー
+    int hitPoints_ = 4;                      // 敵の耐久値（マシンガン4発分）
+    float damageFlashTimer_ = 0.0f;          // 被弾時の赤点滅タイマー
 
     // ノックバック・放物線・のけぞり演出用変数
     bool isKnockback_ = false;

@@ -1,9 +1,11 @@
 {
   "projectile": {
     "modelPath": "playerCursor.obj",
-    "scale": [0.5, 0.5, 0.5],
-    "radius": 0.5,
-    "lifeTimer": 180
+    "scale": [0.16, 0.16, 0.55],
+    "radius": 0.2,
+    "lifeTimer": 28,
+    "gravity": -0.012,
+    "drag": 0.985
   },
   "coin": {
     "scoreValue": 100,

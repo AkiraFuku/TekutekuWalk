@@ -26,9 +26,11 @@ public:
 
     struct ProjectileConfig {
         std::string modelPath = "playerCursor.obj";
-        Vector3 scale = { 0.5f, 0.5f, 0.5f };
-        float radius = 0.5f;
-        int lifeTimer = 180;
+        Vector3 scale = { 0.16f, 0.16f, 0.55f }; // 細長い曳光弾（トレーサー）形状
+        float radius = 0.20f;                    // 実弾サイズの当たり判定半径
+        int lifeTimer = 28;                      // 有効射程寿命（約0.47秒 ≒ 15m）
+        float gravity = -0.012f;                 // 実弾の重力落下（Bullet Drop）
+        float drag = 0.985f;                     // 空気抵抗による速度減衰率
     };
 
     static void LoadGlobalConfig(const std::string& filePath = "resources/config/game_objects.json");
@@ -38,7 +40,7 @@ public:
     Projectile();
     virtual ~Projectile();
     // コリジョン
-  Vector3 GetWorldPosition() const override;
+    Vector3 GetWorldPosition() const override;
     float GetRadius() const {
         return radius_;
     }
@@ -46,14 +48,14 @@ public:
     CollisionCategory GetCategory() const override;
 
     // 初期化: 走行するレール、開始地点(t)、速度(正なら終点方向、負なら始点方向)
-   virtual void Initialize(const RailPath* path, const ProjectileSpawnParam& param, ProjectileOwner owner);
+    virtual void Initialize(const RailPath* path, const ProjectileSpawnParam& param, ProjectileOwner owner);
     virtual void Update();
     virtual void Draw();
 
     bool IsDead() const {
         return isDead_;
     }
-  
+
     void SetCamera(Camera* camera) {
         camera_ = camera;
         if (object_) {
@@ -62,6 +64,7 @@ public:
     }
     void SetScene(Scene* scene) { scene_ = scene; }
     ProjectileOwner GetOwner() const { return owner_; }
+    const RailMover* GetRailMover() const { return railMover_.get(); }
 protected:
     std::unique_ptr<RailMover> railMover_;
     std::unique_ptr<Object3d> object_;
@@ -69,9 +72,9 @@ protected:
     float worldY_ = 0.0f; // 追加：弾の高度を保持
     float velocityY_ = 0.0f;  // 追加：Y方向の移動速度
     float speed_ = 0.0f;
-    float radius_ = 0.5f;
+    float radius_ = 0.20f;
     bool isDead_ = false;
-    int lifeTimer_ = 180; // 3秒程度(60fps)
+    int lifeTimer_ = 28; // 有効射程寿命
     Scene* scene_ = nullptr;
 
     // 地形・壁との衝突判定
@@ -80,6 +83,6 @@ protected:
     static void ImGuiDrawDebugInfo();
 
 private:
-    ProjectileOwner owner_=ProjectileOwner::Unknown; // 持ち主を保持
+    ProjectileOwner owner_ = ProjectileOwner::Unknown; // 持ち主を保持
     static inline ProjectileConfig s_config;
 };

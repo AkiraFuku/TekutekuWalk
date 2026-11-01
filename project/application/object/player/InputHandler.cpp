@@ -74,7 +74,7 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
     }
 
     // 連射コマンド (Zキー / マウス右クリック / ゲームパッド Xボタン 押しっぱなしで連射)
-    if (input->PushedKeyDown(DIK_Z) || input->PushMouseDown(1) || input->PushPadDown(0, XINPUT_GAMEPAD_X)) {
+    if (input->PushedKeyDown(DIK_Z) || input->PushedKeyDown(DIK_J) || input->PushedKeyDown(DIK_RETURN) || input->PushMouseDown(1) || input->PushPadDown(0, XINPUT_GAMEPAD_X)) {
         commands.push_back(std::make_unique<ShootCommand>());
     }
 

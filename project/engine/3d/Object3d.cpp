@@ -117,7 +117,10 @@ void Object3d::Draw()
 
 
     if (model_) {
-        model_->Draw(GetWorldMatrix(), customTextureIndex_);
+        D3D12_GPU_VIRTUAL_ADDRESS customMatCBV = instanceMaterialResource_
+            ? instanceMaterialResource_->GetGPUVirtualAddress()
+            : 0;
+        model_->Draw(GetWorldMatrix(), customTextureIndex_, customMatCBV);
     }
 }
 
@@ -133,6 +136,28 @@ void Object3d::SetTexture(const std::string& textureFilePath)
     customTextureIndex_ = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath);
 }
 
+void Object3d::SetModelColor(const Vector4& color)
+{
+    instanceColor_ = color;
+    if (!instanceMaterialResource_) {
+        size_t size = (sizeof(Model::Material) + 0xff) & ~0xff;
+        instanceMaterialResource_ = DXCommon::GetInstance()->CreateBufferResource(size);
+        instanceMaterialResource_->Map(0, nullptr, reinterpret_cast<void**>(&instanceMaterialData_));
+        if (instanceMaterialData_) {
+            instanceMaterialData_->color = color;
+            instanceMaterialData_->enableLighting = 0;
+            instanceMaterialData_->environment = 0;
+            instanceMaterialData_->diffuseType = Model::HarfLambert;
+            instanceMaterialData_->specularType = Model::BlinnPhong;
+            instanceMaterialData_->uvTransform = Makeidentity4x4();
+            instanceMaterialData_->shininess = 50.0f;
+            instanceMaterialData_->environmentCoefficient = 0.0f;
+        }
+    }
+    if (instanceMaterialData_) {
+        instanceMaterialData_->color = color;
+    }
+}
 
 
 void Object3d::CreateWVPResource()
@@ -207,6 +232,3 @@ std::vector<Triangle> Object3d::GetWorldTriangles() const {
 
     return worldTriangles;
 }
-
-
-

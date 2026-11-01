@@ -25,7 +25,9 @@ void BehaviorRoot::HandleInput(Player *player, ICommand *command) {
   CommandType type = command->GetType();
 
   if (type == CommandType::Dash) {
-    player->SetDashing(true);
+    if (!player->IsLandingStaggered() && !player->IsShootingStance()) {
+      player->SetDashing(true);
+    }
     return;
   }
 
@@ -52,7 +54,7 @@ void BehaviorRoot::HandleInput(Player *player, ICommand *command) {
     return;
 
   if (type == CommandType::Slide) {
-    if (player->IsGround()) {
+    if (player->IsGround() && !player->IsLandingStaggered()) {
       state->ChangeBehavior(player,
                             factory->CreateBehavior(BehaviorType::Slide));
       return;
@@ -185,7 +187,9 @@ void BehaviorJump::HandleInput(Player *player, ICommand *command) {
   CommandType type = command->GetType();
 
   if (type == CommandType::Dash) {
-    player->SetDashing(true);
+    if (!player->IsLandingStaggered() && !player->IsShootingStance()) {
+      player->SetDashing(true);
+    }
     return;
   }
 

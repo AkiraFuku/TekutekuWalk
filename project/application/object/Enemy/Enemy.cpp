@@ -14,6 +14,7 @@
 #include "ParticleEmitter.h"
 #include "GameScene.h"
 #include "CameraController.h"
+#include "Projectile.h"
 #include "PrimitiveDrawer.h"
 #include "Collider.h"
 #include "Physics.h"
@@ -77,6 +78,7 @@ void Enemy::LoadConfig(const std::string& filePath)
     // Combat
     if (j.contains("combat")) {
         const auto& jc = j["combat"];
+        config_.combat.maxHP = jc.value("maxHP", config_.combat.maxHP);
         config_.combat.hitInvincibilityDuration = jc.value("hitInvincibilityDuration", config_.combat.hitInvincibilityDuration);
         config_.combat.knockbackDuration = jc.value("knockbackDuration", config_.combat.knockbackDuration);
         config_.combat.knockbackSpeed = jc.value("knockbackSpeed", config_.combat.knockbackSpeed);
@@ -114,6 +116,7 @@ void Enemy::SaveConfig(const std::string& filePath)
     };
 
     j["combat"] = {
+        { "maxHP", config_.combat.maxHP },
         { "hitInvincibilityDuration", config_.combat.hitInvincibilityDuration },
         { "knockbackDuration", config_.combat.knockbackDuration },
         { "knockbackSpeed", config_.combat.knockbackSpeed },
@@ -130,6 +133,7 @@ void Enemy::SaveConfig(const std::string& filePath)
 void Enemy::ApplyColliderConfig()
 {
     radius_ = config_.collider.radius;
+    hitPoints_ = config_.combat.maxHP;
     if (auto* col = GetCollider()) {
         col->initialize(this, radius_);
     }
@@ -153,6 +157,7 @@ void Enemy::Initialize()
     moveSpeed_ = config_.movement.moveSpeed;
     gravityScale_ = config_.movement.gravityScale;
     radius_ = config_.collider.radius;
+    hitPoints_ = config_.combat.maxHP;
 
     railMover_ = std::make_unique<RailMover>();
     ChangeBehavior(std::make_unique<EnemyBehaviorPatrol>());
@@ -181,6 +186,22 @@ void Enemy::Update()
         if (hitInvincibilityTimer_ <= 0.0f) {
             hitInvincibilityTimer_ = 0.0f;
             isDamaged_ = false; // クールダウン終了
+        }
+    }
+    if (damageFlashTimer_ > 0.0f) {
+        damageFlashTimer_ -= deltaTime_;
+        if (damageFlashTimer_ <= 0.0f) {
+            damageFlashTimer_ = 0.0f;
+            if (object_) {
+                object_->SetModelColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+            }
+        } else if (object_) {
+            // 0.04秒間隔で鮮やかな赤と通常色を高速点滅
+            const float kFlashInterval = 0.04f;
+            bool isRedPhase = std::fmod(damageFlashTimer_, kFlashInterval * 2.0f) > kFlashInterval;
+            object_->SetModelColor(isRedPhase
+                ? Vector4{ 1.0f, 0.15f, 0.15f, 1.0f }
+                : Vector4{ 1.0f, 1.0f, 1.0f, 1.0f });
         }
     }
     RayCastUpdate();
@@ -256,6 +277,7 @@ void Enemy::ImGuiDrawDebugInfo()
 
     ImGui::Separator();
     ImGui::Text("--- Combat Parameters ---");
+    ImGui::SliderInt("Max HP (Bullets to Kill)", &config_.combat.maxHP, 1, 20);
     ImGui::SliderFloat("Invincibility Duration", &config_.combat.hitInvincibilityDuration, 0.1f, 3.0f, "%.2f s");
     ImGui::SliderFloat("Knockback Duration", &config_.combat.knockbackDuration, 0.1f, 2.0f, "%.2f s");
     ImGui::SliderFloat("Knockback Speed", &config_.combat.knockbackSpeed, 1.0f, 25.0f, "%.1f m/s");
@@ -399,6 +421,10 @@ void Enemy::TakeDamage(float knockbackDirection, bool isDeadly)
     knockbackTilt_ = -35.0f;
     knockbackRoll_ = 0.0f;
 
+    damageFlashTimer_ = isDeadly ? 0.48f : 0.24f;
+    if (object_) {
+        object_->SetModelColor({ 1.0f, 0.15f, 0.15f, 1.0f });
+    }
     PlayHitEffect();
 
     if (isDeadly) {
@@ -442,7 +468,7 @@ void Enemy::HandleKnockback()
 void Enemy::OnCollision(GameObject* other) {
 
     // ぶつかった相手の有効性チェック（被弾中・ノックバック中・死亡演出後はスキップ）
-    if (!other || isDamaged_ || isKnockback_ || isDeathFinished_) return;
+    if (!other || isDeathFinished_ || (state_ && state_->IsDead())) return;
 
     if (other->GetCategory() == CollisionCategory::Player || other->GetCategory() == CollisionCategory::PlayerAttack) {
         Player* player = dynamic_cast<Player*>(other);
@@ -497,19 +523,51 @@ void Enemy::OnCollision(GameObject* other) {
                 hitDir = (enemyDist >= playerDist) ? 1.0f : -1.0f;
             }
 
+            isDamaged_ = false;
             TakeDamage(hitDir, true);
             return;
         }
 
         // プレイヤーの攻撃以外での接触（体当たりなど）
-        OnCollideWithPlayer(player);
+        if (!isDamaged_ && !isKnockback_) {
+            OnCollideWithPlayer(player);
+        }
     }
     // 弾カテゴリの判定
     if (other->GetCategory() == CollisionCategory::PlayerProjectile)
     {
         float hitDir = -moveDirection_;
-        TakeDamage(hitDir, true);
+        if (auto* proj = dynamic_cast<Projectile*>(other)) {
+            if (railMover_ && proj->GetRailMover()) {
+                hitDir = (railMover_->GetCurrentDistance() >= proj->GetRailMover()->GetCurrentDistance()) ? 1.0f : -1.0f;
+            }
+        }
+        TakeBulletDamage(hitDir);
     }
+}
+
+void Enemy::TakeBulletDamage(float knockbackDirection) {
+    if (isDeathFinished_ || (state_ && state_->IsDead())) return;
+
+    hitPoints_--;
+    damageFlashTimer_ = 0.24f;
+    if (object_) {
+        object_->SetModelColor({ 1.0f, 0.15f, 0.15f, 1.0f });
+    }
+    PlayHitEffect();
+
+    // 耐久値が0になったら大吹き飛ばしで撃破！
+    if (hitPoints_ <= 0) {
+        isDamaged_ = false;
+        TakeDamage(knockbackDirection, true);
+        return;
+    }
+
+    // まだHPが残っている間は無敵時間を貼らず、地上で小刻みに怯ませて次弾を連続ヒットさせる（ストッピングパワー）
+    isKnockback_ = true;
+    knockbackDirection_ = knockbackDirection;
+    knockbackTimer_ = 0.10f;
+    knockbackTilt_ = -20.0f;
 }
 
 void Enemy::OnCollideWithPlayer(Player* player) {

@@ -98,7 +98,7 @@ void Model::Update()
 #endif // USE_IMGUI
 
 }
-void Model::Draw(const Matrix4x4& worldMatrix, std::optional<uint32_t> customTextureIndex) {
+void Model::Draw(const Matrix4x4& worldMatrix, std::optional<uint32_t> customTextureIndex, D3D12_GPU_VIRTUAL_ADDRESS customMaterialCBV) {
     //VBVの設定
 
     if (hasSkinning_)
@@ -121,7 +121,8 @@ void Model::Draw(const Matrix4x4& worldMatrix, std::optional<uint32_t> customTex
     //IBVの設定
    // DXCommon::GetInstance()->GetCommandList()->IASetIndexBuffer(&indexBufferView_);
     //マテリアルリソースの設定
-    DXCommon::GetInstance()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource_.Get()->GetGPUVirtualAddress());
+    D3D12_GPU_VIRTUAL_ADDRESS matCBV = (customMaterialCBV != 0) ? customMaterialCBV : materialResource_.Get()->GetGPUVirtualAddress();
+    DXCommon::GetInstance()->GetCommandList()->SetGraphicsRootConstantBufferView(0, matCBV);
     //SRVのディスクリプタテーブルの設定
     uint32_t texIndex = customTextureIndex.value_or(modelData_.material.textureIndex);
     DXCommon::GetInstance()->

@@ -1,6 +1,7 @@
 #include "Projectile.h"
 #include "Enemy.h"
 #include "RailMover.h"
+#include "RailPath.h"
 #include "ModelManager.h"
 #include "Collider.h"
 #include "Scene.h"
@@ -8,6 +9,8 @@
 #include "Physics.h"
 #include "JsonManager.h"
 #include "Logger.h"
+#include <algorithm>
+#include <cmath>
 
 #ifdef USE_IMGUI
 #include "imgui.h"
@@ -30,6 +33,8 @@ void Projectile::LoadGlobalConfig(const std::string& filePath) {
     }
     s_config.radius = j.value("radius", s_config.radius);
     s_config.lifeTimer = j.value("lifeTimer", s_config.lifeTimer);
+    s_config.gravity = j.value("gravity", s_config.gravity);
+    s_config.drag = j.value("drag", s_config.drag);
 }
 
 void Projectile::SaveGlobalConfig(const std::string& filePath) {
@@ -43,7 +48,9 @@ void Projectile::SaveGlobalConfig(const std::string& filePath) {
         {"modelPath", s_config.modelPath},
         {"scale", {s_config.scale.x, s_config.scale.y, s_config.scale.z}},
         {"radius", s_config.radius},
-        {"lifeTimer", s_config.lifeTimer}
+        {"lifeTimer", s_config.lifeTimer},
+        {"gravity", s_config.gravity},
+        {"drag", s_config.drag}
     };
 
     jsonMgr->Save(filePath, root);
@@ -64,7 +71,9 @@ void Projectile::ImGuiDrawDebugInfo() {
 
     ImGui::SliderFloat3("Scale", &s_config.scale.x, 0.05f, 3.0f);
     ImGui::SliderFloat("Radius", &s_config.radius, 0.05f, 3.0f);
-    ImGui::SliderInt("Life Timer (frames)", &s_config.lifeTimer, 10, 600);
+    ImGui::SliderInt("Life Timer (frames)", &s_config.lifeTimer, 5, 180);
+    ImGui::SliderFloat("Gravity (Bullet Drop)", &s_config.gravity, -0.05f, 0.0f, "%.4f");
+    ImGui::SliderFloat("Air Drag", &s_config.drag, 0.90f, 1.0f, "%.3f");
 
     ImGui::End();
 #endif
@@ -98,7 +107,6 @@ void Projectile::Initialize(const RailPath* path, const ProjectileSpawnParam& pa
     speed_ = param.speed * param.direction.x;
 
     // 2. 高度方向の速度（Y方向の入力に基づき設定）
-    // param.direction.y は入力の上下 (-1.0 ~ 1.0)
     velocityY_ = param.speed * param.direction.y;
 
     radius_ = s_config.radius;
@@ -108,14 +116,20 @@ void Projectile::Initialize(const RailPath* path, const ProjectileSpawnParam& pa
     object_->Initialize();
     object_->SetModel(s_config.modelPath);
     object_->SetScale(s_config.scale);
-    //モデルの向きを進行方向に合わせるための回転を設定
-    Vector3 dir3D = { param.direction.x, 0.0f, param.direction.y };
-    object_->SetRotate(dir3D);
 
     // レール設定
     railMover_->SetPath(path);
     railMover_->SetProgress(param.position.x);
     worldY_ = param.position.y;
+
+    // 初期向きをレール進行方向と仰角に合わせて設定
+    Vector3 railDir = railMover_->GetCurrentDirection();
+    if (param.direction.x < 0.0f) {
+        railDir = Multiply(-1.0f, railDir);
+    }
+    float initYaw = (Length(railDir) > 0.001f) ? std::atan2(railDir.x, railDir.z) : 0.0f;
+    float initPitch = -std::atan2(param.direction.y, std::abs(param.direction.x));
+    object_->SetRotate({ initPitch, initYaw, 0.0f });
 
     // 初期位置を設定
     Vector3 railPos = railMover_->GetCurrentPosition();
@@ -135,20 +149,55 @@ void Projectile::Update() {
 
     Vector3 prevPos = GetWorldPosition();
 
-    // レール上の位置を更新
-    railMover_->Advance(speed_);
+    // 1. 空気抵抗によるわずかな減速と、重力による弾道落下（Bullet Drop）
+    speed_ *= s_config.drag;
+    velocityY_ += s_config.gravity;
 
-    // 【追加】高度を更新
+    // 2. レール上の位置と高度を更新
+    railMover_->Advance(speed_);
     worldY_ += velocityY_;
 
-    // 座標の合成
+    // 非ループのレール端（始点0.0 / 終点 GetMaxT()）に到達したら即座に消滅
+    const RailPath* path = railMover_->GetRailPath();
+    if (path && !path->IsLoop()) {
+        float prog = railMover_->GetProgress();
+        float maxT = path->GetMaxT();
+        if (maxT > 0.0f && (prog <= 0.0005f || prog >= maxT - 0.0005f)) {
+            isDead_ = true;
+            return;
+        }
+    }
+
+    // 3. 座標の合成
     Vector3 railPos = railMover_->GetCurrentPosition();
     Vector3 finalPos = { railPos.x, worldY_, railPos.z }; // 更新された worldY_ を使う
 
-    // 壁・地形との衝突判定（めり込む前に判定し、衝突した場合は潜った座標に更新せず消滅）
+    // 4. 壁・地形との衝突判定（めり込む前に判定し、衝突した場合は潜った座標に更新せず消滅）
     if (CheckMapCollision(prevPos, finalPos)) {
         isDead_ = true;
         return;
+    }
+
+    // 5. 3D移動ベクトルから弾頭の向き（Yaw / Pitch）を算出して飛翔方向へ真っ直ぐ向ける
+    Vector3 moveVec = Subtract(finalPos, prevPos);
+    if (Length(moveVec) > 0.0001f) {
+        float yaw = std::atan2(moveVec.x, moveVec.z);
+        float horizontalDist = std::sqrt(moveVec.x * moveVec.x + moveVec.z * moveVec.z);
+        float pitch = -std::atan2(moveVec.y, (std::max)(horizontalDist, 0.0001f));
+        object_->SetRotate({ pitch, yaw, 0.0f });
+    }
+
+    // 6. 消滅直前（残り6フレーム）は曳光剤が燃え尽きるように弾体を細く収束させる
+    constexpr int kFadeFrames = 6;
+    if (lifeTimer_ <= kFadeFrames) {
+        float fadeRatio = static_cast<float>((std::max)(lifeTimer_, 0)) / static_cast<float>(kFadeFrames);
+        object_->SetScale({
+            s_config.scale.x * fadeRatio,
+            s_config.scale.y * fadeRatio,
+            s_config.scale.z
+        });
+    } else {
+        object_->SetScale(s_config.scale);
     }
 
     object_->SetTranslate(finalPos);
@@ -171,7 +220,7 @@ Vector3 Projectile::GetWorldPosition() const {
     return object_ ? object_->GetTranslate() : Vector3{ 0.0f, 0.0f, 0.0f };
 }
 
-void Projectile::OnCollision( GameObject* other) {
+void Projectile::OnCollision(GameObject* other) {
     other; // 使わない場合は警告回避のために記述
     isDead_ = true; // 敵に当たったら1回で確実に消滅（貫通しない）
 }

@@ -94,22 +94,16 @@ public:
     std::vector<Triangle> GetWorldTriangles() const;
 
 
-    void SetModelColor(const Vector4& color) {
-        if (model_) {
-            model_->SetColor(color);
-        }
-    }
+    void SetModelColor(const Vector4& color);
     Vector4 GetModelInstanceColor() const {
+        if (instanceColor_.has_value()) {
+            return instanceColor_.value();
+        }
         if (model_) {
-            return    model_->GetColor();
+            return model_->GetColor();
         }
         return { 1.0f, 1.0f, 1.0f, 1.0f }; // デフォルトの白色
     }
-
-
-
-
-
 
     void SetSkyBox(SkyBox* box) {
         box_ = box;
@@ -150,39 +144,44 @@ public:
     }
 
     // --- 単一軸用 (度数法) ---
-void SetRotateXDegree(float degree) {
-    worldTransform_.rotate.x =ToRadians(degree);
-}
-void SetRotateYDegree(float degree) {
-    worldTransform_.rotate.y = ToRadians(degree);
-}
-void SetRotateZDegree(float degree) {
-    worldTransform_.rotate.z = ToRadians(degree);
-}
+    void SetRotateXDegree(float degree) {
+        worldTransform_.rotate.x = ToRadians(degree);
+    }
+    void SetRotateYDegree(float degree) {
+        worldTransform_.rotate.y = ToRadians(degree);
+    }
+    void SetRotateZDegree(float degree) {
+        worldTransform_.rotate.z = ToRadians(degree);
+    }
 
-// --- Vector3用 (度数法) ---
-void SetRotateDegree(const Vector3& rotateDegree) {
-    worldTransform_.rotate.x =ToRadians(rotateDegree.x);
-    worldTransform_.rotate.y = ToRadians(rotateDegree.y);
-    worldTransform_.rotate.z = ToRadians(rotateDegree.z);
-}
-void SetTexture(const std::string& textureFilePath);
-void SetTextureByIndex(uint32_t textureIndex) {
-    customTextureIndex_ = textureIndex;
-}
-void ResetTexture() {
-    customTextureIndex_ = std::nullopt;
-}
+    // --- Vector3用 (度数法) ---
+    void SetRotateDegree(const Vector3& rotateDegree) {
+        worldTransform_.rotate.x = ToRadians(rotateDegree.x);
+        worldTransform_.rotate.y = ToRadians(rotateDegree.y);
+        worldTransform_.rotate.z = ToRadians(rotateDegree.z);
+    }
+    void SetTexture(const std::string& textureFilePath);
+    void SetTextureByIndex(uint32_t textureIndex) {
+        customTextureIndex_ = textureIndex;
+    }
+    void ResetTexture() {
+        customTextureIndex_ = std::nullopt;
+    }
 
-// 空間湾曲率 (負値ならObject3dCommonのGlobalCurvatureを使用)
-void SetCurvature(float curvature) { curvature_ = curvature; }
-float GetCurvature() const { return curvature_; }
+    // 空間湾曲率 (負値ならObject3dCommonのGlobalCurvatureを使用)
+    void SetCurvature(float curvature) { curvature_ = curvature; }
+    float GetCurvature() const { return curvature_; }
 
 private:
 
     //float radius_ = 1.0f;
     std::shared_ptr<Model> model_ = nullptr;
     std::optional<uint32_t> customTextureIndex_ = std::nullopt; // 個別オーバーライド用テクスチャ
+
+    // 個体別マテリアルカラーオーバーライド用定数バッファ
+    Microsoft::WRL::ComPtr<ID3D12Resource> instanceMaterialResource_;
+    Model::Material* instanceMaterialData_ = nullptr;
+    std::optional<Vector4> instanceColor_ = std::nullopt;
 
     //WVP行列リソース
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
@@ -195,7 +194,7 @@ private:
 
     //トランスフォーム
     EulerTransform worldTransform_ = {};
-     EulerTransform localTransform_ = {};   // モデルのローカルトランスフォーム
+    EulerTransform localTransform_ = {};   // モデルのローカルトランスフォーム
 
     //カメラ　
     Camera* camera_ = nullptr;
@@ -211,4 +210,3 @@ private:
     float curvature_ = -1.0f; // 個別湾曲率 (負数ならグローバルを使用)
 
 };
-

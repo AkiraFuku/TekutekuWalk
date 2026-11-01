@@ -16,6 +16,7 @@
     "heightOffset": 0.5
   },
   "combat": {
+    "maxHP": 4,
     "hitInvincibilityDuration": 1.0,
     "knockbackDuration": 0.6,
     "knockbackSpeed": 7.0,

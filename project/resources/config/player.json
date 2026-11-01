@@ -15,7 +15,10 @@
     "jumpBufferDuration": 0.15,
     "maxSlopeCos": 0.65,
     "maxStepHeight": 0.35,
-    "groundSnapDistance": 1.2
+    "groundSnapDistance": 1.2,
+    "landingStaggerDuration": 0.12,
+    "landingStaggerMinFallSpeed": 8.0,
+    "landingSpeedMultiplier": 0.25
   },
   "combat": {
     "hitInvincibilityDuration": 1.5,
@@ -78,9 +81,9 @@
     "invincibilityAfter": 0.2
   },
   "rapidFire": {
-    "fireInterval": 0.1,
-    "bulletSpeed": 0.45,
-    "bulletSpreadY": 0.035
+    "fireInterval": 0.09,
+    "bulletSpeed": 0.72,
+    "bulletSpreadY": 0.025
   },
   "dropThrough": {
     "duration": 0.3,

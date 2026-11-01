@@ -1,6 +1,7 @@
 #include "PlayerAction.h"
 #include "Player.h"
 #include "Projectile.h"
+#include "RailPath.h"
 #include "Scene.h"
 #include "GameScene.h"
 #include "MathFunction.h"
@@ -34,23 +35,31 @@ void RapidFireAction::Execute(Player* player) {
 
     const auto& rfConfig = player->GetConfig().rapidFire;
 
-    // クールダウンタイマーをセット
+    // クールダウンタイマー＆射撃姿勢タイマーをセット
     player->ResetShootCooldown();
     player->PlayHitSE();
 
-    // 発射反動の微小な伸縮演出（機関銃の振動感）
-    player->TriggerSquashStretch(-0.06f, 0.06f);
+    // 発射反動の微小な伸縮演出（機関砲の振動感、着地怯み演出中は上書きしない）
+    if (!player->IsLandingStaggered()) {
+        player->TriggerSquashStretch(-0.04f, 0.05f);
+    }
 
-    // 銃口の微小な上下バラつき（弾幕感）
+    // 銃口の微小な上下バラつき（機関砲のガタつき）＋実弾の重力落下を見越したわずかな仰角
     shotCount_++;
-    float spreadPattern = std::sin(static_cast<float>(shotCount_) * 2.3f) * rfConfig.bulletSpreadY;
+    float spreadPattern = std::sin(static_cast<float>(shotCount_) * 2.7f) * rfConfig.bulletSpreadY + 0.015f;
 
     Vector2 finalDir = { static_cast<float>(player->GetMoveDirection()), spreadPattern };
     finalDir = Normalize(finalDir);
 
+    // プレイヤー立方体（半径0.5m）の前面にある銃口位置（約0.65m前方）から発射
+    float startProgress = player->GetRailProgress();
+    if (const RailPath* rail = player->GetRailPath()) {
+        float muzzleDist = player->GetCurrentDistance() + static_cast<float>(player->GetMoveDirection()) * 0.65f;
+        startProgress = rail->GetTFromDistance(muzzleDist);
+    }
+
     Projectile::ProjectileSpawnParam param;
-    float forwardOffset = static_cast<float>(player->GetMoveDirection()) * 0.002f;
-    param.position = { player->GetRailProgress() + forwardOffset, player->GetCenterPosition().y + 0.05f };
+    param.position = { startProgress, player->GetWorldY() };
     param.direction = finalDir;
     param.speed = rfConfig.bulletSpeed;
 

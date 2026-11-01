@@ -22,15 +22,18 @@ struct PlayerConfig {
   } paths;
 
   struct Movement {
-    float walkSpeed = 7.5f;           // 通常歩き速度 (m/s)
-    float dashSpeed = 15.0f;          // ダッシュ走り速度 (m/s)
-    float gravity = -50.0f;           // 重力加速度 (m/s^2)
-    float jumpAcceleration = 24.0f;   // ジャンプ初速度
-    float coyoteDuration = 0.12f;     // 崖落ち後ジャンプ猶予時間 (秒)
-    float jumpBufferDuration = 0.15f; // 着地前ジャンプ先行入力猶予時間 (秒)
-    float maxSlopeCos = 0.65f;        // 登れる最大傾斜（cos約49度）
-    float maxStepHeight = 0.35f;      // 乗り越えられる段差の最大高さ (m)
-    float groundSnapDistance = 1.2f;  // 地面吸着距離 (m)
+    float walkSpeed = 7.5f;                  // 通常歩き速度 (m/s)
+    float dashSpeed = 15.0f;                 // ダッシュ走り速度 (m/s)
+    float gravity = -50.0f;                  // 重力加速度 (m/s^2)
+    float jumpAcceleration = 24.0f;          // ジャンプ初速度
+    float coyoteDuration = 0.12f;            // 崖落ち後ジャンプ猶予時間 (秒)
+    float jumpBufferDuration = 0.15f;        // 着地前ジャンプ先行入力猶予時間 (秒)
+    float maxSlopeCos = 0.65f;               // 登れる最大傾斜（cos約49度）
+    float maxStepHeight = 0.35f;             // 乗り越えられる段差の最大高さ (m)
+    float groundSnapDistance = 1.2f;         // 地面吸着距離 (m)
+    float landingStaggerDuration = 0.12f;    // 着地時の怯み（硬直）時間 (秒)
+    float landingStaggerMinFallSpeed = 8.0f; // 着地怯みが発生する最小落下速度 (m/s)
+    float landingSpeedMultiplier = 0.25f;    // 着地怯み中の移動速度倍率 (0.25 = 75%減速)
   } movement;
 
   struct Combat {
@@ -96,9 +99,9 @@ struct PlayerConfig {
   } attackAction;
 
   struct RapidFire {
-    float fireInterval = 0.10f;   // 連射間隔 (秒: 0.10 = 秒間10発)
-    float bulletSpeed = 0.45f;    // 弾速
-    float bulletSpreadY = 0.035f; // 連射時の上下ブレ幅
+    float fireInterval = 0.09f;   // 連射間隔 (秒: 0.09 ≒ 秒間11発)
+    float bulletSpeed = 0.72f;    // 実弾機関砲の高初速
+    float bulletSpreadY = 0.025f; // 連射時の上下ブレ幅
   } rapidFire;
 
   struct DropThrough {
@@ -205,7 +208,11 @@ public:
   bool CanShoot() const { return shootCooldownTimer_ <= 0.0f; }
   void ResetShootCooldown() {
     shootCooldownTimer_ = config_.rapidFire.fireInterval;
+    shootSlowdownTimer_ = 0.14f;
   }
+  bool IsLandingStaggered() const { return landingRecoveryTimer_ > 0.0f; }
+  float GetLandingRecoveryTimer() const { return landingRecoveryTimer_; }
+  bool IsShootingStance() const { return shootSlowdownTimer_ > 0.0f; }
 
   float GetRailProgress() const;
   float GetCurrentDistance() const;
@@ -253,9 +260,12 @@ public:
   float GetHitVisualTimer() const { return hitInvincibilityTimer_; }
   void SetInvincible(bool invincible) { isInvincible_ = invincible; }
   void TriggerInvincibility(float duration) {
-    hitInvincibilityTimer_ = (std::max)(hitInvincibilityTimer_, duration);
+    actionInvincibilityTimer_ = (std::max)(actionInvincibilityTimer_, duration);
   }
-  void ResetHitInvincibility() { hitInvincibilityTimer_ = 0.0f; }
+  void ResetHitInvincibility() {
+    hitInvincibilityTimer_ = 0.0f;
+    actionInvincibilityTimer_ = 0.0f;
+  }
 
   InputHandler *GetInputHandler() const { return inputHandler_.get(); }
   const char *GetStateName() const;
@@ -336,6 +346,9 @@ private:
   float coyoteTimer_ = 0.0f;
   float jumpBufferTimer_ = 0.0f;
   float shootCooldownTimer_ = 0.0f; // 連射クールダウンタイマー
+  float shootSlowdownTimer_ = 0.0f; // 連射反動中の腰だめ歩行タイマー
+  float landingRecoveryTimer_ = 0.0f; // 着地時の怯み（硬直）タイマー
+  float squashGroundedOffsetY_ = 0.0f; // 1m立方体の底面を地面に固定するスクワッシュY補正
 
   void HandleInput();
   void HandleDamage();
@@ -377,7 +390,8 @@ private:
 
   bool isDamaged_ = false;
   Gauge hitPoints_ = {3, 3};
-  float hitInvincibilityTimer_ = 0.0f;
+  float hitInvincibilityTimer_ = 0.0f;    // 被弾時の無敵＆点滅タイマー
+  float actionInvincibilityTimer_ = 0.0f; // 攻撃・回避後の無敵余韻タイマー（点滅しない）
 
   bool isKnockback_ = false;
   float knockbackTimer_ = 0.0f;

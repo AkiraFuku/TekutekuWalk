@@ -62,6 +62,13 @@ void Player::LoadConfig(const std::string &filePath) {
         jm.value("maxStepHeight", config_.movement.maxStepHeight);
     config_.movement.groundSnapDistance =
         jm.value("groundSnapDistance", config_.movement.groundSnapDistance);
+    config_.movement.landingStaggerDuration = jm.value(
+        "landingStaggerDuration", config_.movement.landingStaggerDuration);
+    config_.movement.landingStaggerMinFallSpeed =
+        jm.value("landingStaggerMinFallSpeed",
+                 config_.movement.landingStaggerMinFallSpeed);
+    config_.movement.landingSpeedMultiplier = jm.value(
+        "landingSpeedMultiplier", config_.movement.landingSpeedMultiplier);
   }
 
   // Combat
@@ -209,15 +216,20 @@ void Player::SaveConfig(const std::string &filePath) {
                 {"hitSE", config_.paths.hitSE},
                 {"damageSE", config_.paths.damageSE}};
 
-  j["movement"] = {{"walkSpeed", config_.movement.walkSpeed},
-                   {"dashSpeed", config_.movement.dashSpeed},
-                   {"gravity", config_.movement.gravity},
-                   {"jumpAcceleration", config_.movement.jumpAcceleration},
-                   {"coyoteDuration", config_.movement.coyoteDuration},
-                   {"jumpBufferDuration", config_.movement.jumpBufferDuration},
-                   {"maxSlopeCos", config_.movement.maxSlopeCos},
-                   {"maxStepHeight", config_.movement.maxStepHeight},
-                   {"groundSnapDistance", config_.movement.groundSnapDistance}};
+  j["movement"] = {
+      {"walkSpeed", config_.movement.walkSpeed},
+      {"dashSpeed", config_.movement.dashSpeed},
+      {"gravity", config_.movement.gravity},
+      {"jumpAcceleration", config_.movement.jumpAcceleration},
+      {"coyoteDuration", config_.movement.coyoteDuration},
+      {"jumpBufferDuration", config_.movement.jumpBufferDuration},
+      {"maxSlopeCos", config_.movement.maxSlopeCos},
+      {"maxStepHeight", config_.movement.maxStepHeight},
+      {"groundSnapDistance", config_.movement.groundSnapDistance},
+      {"landingStaggerDuration", config_.movement.landingStaggerDuration},
+      {"landingStaggerMinFallSpeed",
+       config_.movement.landingStaggerMinFallSpeed},
+      {"landingSpeedMultiplier", config_.movement.landingSpeedMultiplier}};
 
   j["combat"] = {
       {"hitInvincibilityDuration", config_.combat.hitInvincibilityDuration},
@@ -363,19 +375,33 @@ void Player::Update() {
     }
   }
 
-  // 先行入力タイマーの減衰
-  if (jumpBufferTimer_ > 0.0f) {
+  // 着地怯み（硬直）タイマーの減衰
+  if (landingRecoveryTimer_ > 0.0f) {
+    landingRecoveryTimer_ -= deltaTime_;
+    if (landingRecoveryTimer_ < 0.0f) {
+      landingRecoveryTimer_ = 0.0f;
+    }
+  }
+
+  // 先行入力タイマーの減衰（着地怯み中はホールドして立ち上がりジャンプを保証）
+  if (jumpBufferTimer_ > 0.0f && !IsLandingStaggered()) {
     jumpBufferTimer_ -= deltaTime_;
     if (jumpBufferTimer_ < 0.0f) {
       jumpBufferTimer_ = 0.0f;
     }
   }
 
-  // 連射クールダウンタイマーの減衰
+  // 連射クールダウン＆射撃姿勢タイマーの減衰
   if (shootCooldownTimer_ > 0.0f) {
     shootCooldownTimer_ -= deltaTime_;
     if (shootCooldownTimer_ < 0.0f) {
       shootCooldownTimer_ = 0.0f;
+    }
+  }
+  if (shootSlowdownTimer_ > 0.0f) {
+    shootSlowdownTimer_ -= deltaTime_;
+    if (shootSlowdownTimer_ < 0.0f) {
+      shootSlowdownTimer_ = 0.0f;
     }
   }
 
@@ -434,8 +460,8 @@ void Player::Draw() {
     }
   };
 
-  // 無敵時間中のモデル点滅（0.08秒ごとに表示/非表示を切り替え、死亡時は点滅スキップしない）
-  if (isAlive_ && hitInvincibilityTimer_ > 0.0f) {
+  // 被弾無敵時間中のモデル点滅（0.08秒ごとに表示/非表示を切り替え、近接攻撃時等は点滅しない）
+  if (isAlive_ && isDamaged_ && hitInvincibilityTimer_ > 0.0f) {
     const float kBlinkInterval = 0.08f;
     if (fmodf(hitInvincibilityTimer_, kBlinkInterval * 2.0f) < kBlinkInterval) {
       drawDebugColliders();
@@ -497,8 +523,15 @@ void Player::Move(float ratio) {
     isMoving_ = true;
     frameMoveDir_ = (ratio > 0.0f) ? 1 : -1;
   }
+  // 着地怯み中、または機関砲の連射反動中はダッシュを解除して腰を据える
+  if (IsLandingStaggered() || IsShootingStance()) {
+    isDashing_ = false;
+  }
   float speed =
       isDashing_ ? config_.movement.dashSpeed : config_.movement.walkSpeed;
+  if (IsLandingStaggered()) {
+    speed *= config_.movement.landingSpeedMultiplier;
+  }
   railMover_->Advance(ratio * (speed * deltaTime_));
 }
 
@@ -517,7 +550,7 @@ void Player::Jump() {
 }
 
 bool Player::TryExecuteBufferedJump() {
-  if (jumpBufferTimer_ <= 0.0f) {
+  if (jumpBufferTimer_ <= 0.0f || IsLandingStaggered()) {
     return false;
   }
 
@@ -594,7 +627,7 @@ void Player::UpdateRailPath() {
   Vector3 railPos = railMover_->GetCurrentPosition();
   Vector3 railDir = railMover_->GetCurrentDirection();
 
-  Vector3 finalPos = {railPos.x, worldY_, railPos.z};
+  Vector3 finalPos = {railPos.x, worldY_ + squashGroundedOffsetY_, railPos.z};
   finalPos = Add(finalPos, wallPushOffset_);
   object_->SetTranslate(finalPos);
 
@@ -712,7 +745,7 @@ void Player::UpdateGravity() {
   // 2. 地面との当たり判定・めり込み押し上げ・下り坂スナップ
   CheckGroundCollision();
 
-  // 3. 着地（空中から地面に触れた瞬間）を検知してスクワッシュ（縦潰れ）を発動！
+  // 3. 着地（空中から地面に触れた瞬間）を検知してスクワッシュ（縦潰れ）＆着地怯みを発動！
   if (!wasGrounded_ && isGrounded_) {
     const float kMinFallSpeed = 1.2f;
     if (landingFallSpeed_ >= kMinFallSpeed) {
@@ -722,6 +755,20 @@ void Player::UpdateGravity() {
       float squashIntensity =
           -config_.juice.landSquashIntensityMax * speedFactor;
       TriggerSquashStretch(squashIntensity, config_.juice.landSquashDuration);
+    }
+
+    // 重量級メカの着地怯み（硬直・ブレーキ・カメラ微振動）
+    if (landingFallSpeed_ >= config_.movement.landingStaggerMinFallSpeed) {
+      float staggerFactor = std::clamp(
+          (landingFallSpeed_ - config_.movement.landingStaggerMinFallSpeed) /
+              16.0f,
+          0.6f, 1.25f);
+      landingRecoveryTimer_ =
+          config_.movement.landingStaggerDuration * staggerFactor;
+      isDashing_ = false;
+      if (scene_) {
+        scene_->RequestCameraShake(0.08f, 0.35f * staggerFactor);
+      }
     }
   }
   wasGrounded_ = isGrounded_;
@@ -1050,6 +1097,12 @@ void Player::HandleDamage() {
       isDamaged_ = false;
     }
   }
+  if (actionInvincibilityTimer_ > 0.0f) {
+    actionInvincibilityTimer_ -= deltaTime_;
+    if (actionInvincibilityTimer_ <= 0.0f) {
+      actionInvincibilityTimer_ = 0.0f;
+    }
+  }
 }
 
 void Player::HandleKnockback() {
@@ -1074,7 +1127,8 @@ void Player::HandleKnockback() {
 }
 
 void Player::TakeDamage(int knockbackDirection) {
-  if (hitInvincibilityTimer_ <= 0.0f && !isInvincible_) {
+  if (hitInvincibilityTimer_ <= 0.0f && actionInvincibilityTimer_ <= 0.0f &&
+      !isInvincible_) {
     isDamaged_ = true;
     hitInvincibilityTimer_ = config_.combat.hitInvincibilityDuration;
     hitPoints_.value--;
@@ -1187,6 +1241,15 @@ void Player::ImGuiDrawDebugInfo() {
                      0.1f, 3.0f, "%.2f m");
   ImGui::SliderFloat("Max Slope Cos", &config_.movement.maxSlopeCos, 0.2f,
                      0.95f, "%.2f");
+  ImGui::SliderFloat("Landing Stagger Duration",
+                     &config_.movement.landingStaggerDuration, 0.0f, 0.5f,
+                     "%.2f s");
+  ImGui::SliderFloat("Landing Stagger Min Speed",
+                     &config_.movement.landingStaggerMinFallSpeed, 1.0f, 25.0f,
+                     "%.1f m/s");
+  ImGui::SliderFloat("Landing Speed Mult",
+                     &config_.movement.landingSpeedMultiplier, 0.0f, 1.0f,
+                     "%.2f");
 
   ImGui::Separator();
   ImGui::Text("--- Combat Parameters ---");
@@ -1369,7 +1432,7 @@ void Player::OnCollision(GameObject *other) {
 
     // 敵が通常状態の場合、ダメージおよびノックバック
     if (enemy->CanDamagePlayer()) {
-      if (hitInvincibilityTimer_ <= 0.0f) {
+      if (hitInvincibilityTimer_ <= 0.0f && actionInvincibilityTimer_ <= 0.0f) {
         // レール上の位置関係からノックバック方向を決定
         int knockDir = -1;
         float playerDist = GetCurrentDistance();
@@ -1460,8 +1523,19 @@ void Player::UpdateSquashStretch() {
     if (progress >= 1.0f) {
       squashStretch_.isActive = false;
       currentOffsetY = 0.0f;
+    } else if (squashStretch_.intensityY < 0.0f) {
+      // 着地・踏み込み時：油圧サスペンションのように素早く沈み込み、重々しく立ち上がる
+      if (progress < 0.22f) {
+        float t = progress / 0.22f;
+        currentOffsetY = squashStretch_.intensityY *
+                         std::sin(t * std::numbers::pi_v<float> * 0.5f);
+      } else {
+        float t = (progress - 0.22f) / 0.78f;
+        float easeOut = (1.0f - t) * (1.0f - t);
+        currentOffsetY = squashStretch_.intensityY * easeOut;
+      }
     } else {
-      // 減衰サイン波（ゴムのようにポヨンと揺れ戻って収束）
+      // ジャンプ時：減衰サイン波
       float damp = expf(-4.2f * progress);
       float wave = cosf(progress * std::numbers::pi_v<float> * 2.5f) * damp;
       currentOffsetY = squashStretch_.intensityY * wave;
@@ -1472,13 +1546,22 @@ void Player::UpdateSquashStretch() {
     currentOffsetY = 0.10f * fallFactor;
   }
 
-  // 体積保存則: ScaleY が変化した分、ScaleX と ScaleZ
-  // を反比例させて体積を一定に保つ
   float targetScaleY = (std::max)(1.0f + currentOffsetY, 0.35f);
-  float targetScaleXZ = sqrtf(1.0f / targetScaleY);
+  // メカ筐体らしく、沈み込み時の横膨張を抑える（ゴムのような過度な膨張を防ぐ）
+  float targetScaleXZ = (currentOffsetY < 0.0f)
+                            ? (1.0f - currentOffsetY * 0.18f)
+                            : sqrtf(1.0f / targetScaleY);
 
   Vector3 finalScale = {baseScale_.x * targetScaleXZ,
                         baseScale_.y * targetScaleY,
                         baseScale_.z * targetScaleXZ};
   object_->SetScale(finalScale);
+
+  // 1m立方体（中心原点）が着地で縮む際、底面が地面から浮かないよう足元基準にY座標を補正
+  if (isGrounded_ && currentOffsetY < 0.0f) {
+    squashGroundedOffsetY_ =
+        (finalScale.y - baseScale_.y) * config_.collider.heightOffset;
+  } else {
+    squashGroundedOffsetY_ = 0.0f;
+  }
 }
