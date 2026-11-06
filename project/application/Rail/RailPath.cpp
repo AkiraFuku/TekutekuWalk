@@ -68,7 +68,7 @@ float RailPath::GetTFromDistance(float distance) const
         distanceTable_.begin(), distanceTable_.end(), distance,
         [](float val, const DistanceMap& entry) { return val < entry.distance; }
     );
-
+    
     if (it == distanceTable_.begin()) return 0.0f;
     if (it == distanceTable_.end()) return GetMaxT();
 

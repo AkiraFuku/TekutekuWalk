@@ -33,6 +33,7 @@
 #include "StartPhase.h"
 #include "Fade.h"
 #include "PauseMenu.h"
+#include "DamagePopupManager.h"
 
 void GameScene::Initialize() {
 
@@ -259,6 +260,8 @@ void GameScene::Initialize() {
 
     gaidUI_ = std::make_unique<GaidUI>();
     gaidUI_->Initialize(player.get());
+
+    DamagePopupManager::GetInstance()->Initialize();
 
     ChangePhase(std::make_unique<StartPhase>());
 
@@ -614,6 +617,8 @@ void GameScene::Update() {
     }
     playerHPUI_->Update();
     scoreUI_->Update();
+    DamagePopupManager::GetInstance()->Update();
+    DamagePopupManager::GetInstance()->DrawImGui();
 
 }
 void GameScene::Draw() {
@@ -679,6 +684,7 @@ void GameScene::Draw() {
 
     playerHPUI_->Draw();
     scoreUI_->Draw();
+    DamagePopupManager::GetInstance()->Draw();
 
     if (gaidUI_) {
         gaidUI_->Draw();

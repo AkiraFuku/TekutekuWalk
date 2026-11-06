@@ -18,6 +18,7 @@
 #include "RailPath.h"
 #include "Robot.h"
 #include "enemyBehavior.h"
+#include "DamagePopupManager.h"
 #include "imgui.h"
 #include <cmath>
 
@@ -539,6 +540,9 @@ void Enemy::OnCollision(GameObject *other) {
       // プレイヤー側に攻撃ヒット（突進停止＆硬直解除）を通知
       player->OnAttackHit(this);
 
+      // ダメージポップアップ要求をキューに追加（近接攻撃: 100）
+      DamagePopupManager::GetInstance()->AddDamagePopupFromWorld(100, GetWorldPosition() + Vector3{ 0.0f, 1.2f, 0.0f }, camera_);
+
       // プレイヤーから見て後ろへ吹き飛ぶ向きを計算
       float hitDir = -1.0f;
       if (railMover_ && player->GetRailMover()) {
@@ -582,6 +586,9 @@ void Enemy::TakeBulletDamage(float knockbackDirection) {
     object_->SetModelColor({1.0f, 0.15f, 0.15f, 1.0f});
   }
   PlayHitEffect();
+
+  // マシンガン被弾時のダメージ要求をキューに追加
+  DamagePopupManager::GetInstance()->AddDamagePopupFromWorld(25, GetWorldPosition() + Vector3{ 0.0f, 1.2f, 0.0f }, camera_);
 
   // 耐久値が0になったら大吹き飛ばしで撃破！
   if (hitPoints_ <= 0) {

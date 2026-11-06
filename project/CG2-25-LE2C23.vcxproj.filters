@@ -436,6 +436,9 @@
     <ClCompile Include="application\UI\ScoreUI.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="application\UI\DamagePopupManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
 
     <ClCompile Include="application\UI\PauseMenu.cpp">
 
@@ -780,6 +783,9 @@
 
     </ClInclude>
     <ClInclude Include="application\UI\ScoreUI.h">
+
+    </ClInclude>
+    <ClInclude Include="application\UI\DamagePopupManager.h">
 
     </ClInclude>
     <ClInclude Include="application\UI\PauseMenu.h">
