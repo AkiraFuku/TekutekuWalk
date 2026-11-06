@@ -50,6 +50,7 @@ public:
        return empty;
    }
    virtual Player* GetPlayer() { return nullptr; }
+   virtual bool IsGameTimeStopped() const { return false; }
 
 private:
     SceneManager* sceneManager_ = nullptr;

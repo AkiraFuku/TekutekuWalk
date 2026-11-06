@@ -6,6 +6,8 @@
 #include "Camera.h"
 #include "mathfunction.h"
 #include "TextureManager.h"
+#include "SceneManager.h"
+#include "Scene.h"
 #ifdef USE_IMGUI
 #include "imgui.h"
 #endif // USE_IMGUI
@@ -205,7 +207,10 @@ void OffScreen::Draw()
     // 1. 定数バッファの更新
     if (materialData_)
     {
-        materialData_->time += DXCommon::GetInstance()->kDeltaTime;
+        Scene* curScene = SceneManager::GetInstance()->GetCurrentScene();
+        if (!curScene || !curScene->IsGameTimeStopped()) {
+            materialData_->time += DXCommon::GetInstance()->kDeltaTime;
+        }
         materialData_->projectionInverse = Inverse(camera_->GetProjectionMatrix());
         materialData_->activeFlags = static_cast<uint32_t>(activeFlags_); // フラグをセット
     }

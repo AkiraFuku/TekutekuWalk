@@ -83,6 +83,11 @@ void ImGuiManager::End() {
 void ImGuiManager::Draw() {
     #ifdef USE_IMGUI
 
+    // 非表示設定時はGPU描画をスキップ
+    if (!isShow_) {
+        return;
+    }
+
     ID3D12GraphicsCommandList* commandList = DXCommon::GetInstance()->GetCommandList().Get();
 
     ID3D12DescriptorHeap* ppHeaps[] = { SrvManager::GetInstance()->GetDescriptorHeap().Get() };

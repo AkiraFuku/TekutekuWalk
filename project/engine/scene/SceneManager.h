@@ -31,6 +31,7 @@ public:
         sceneFactory_ = sceneFactory;
     }
     void ChangeScene(const std::string& sceneName);
+    Scene* GetCurrentScene() const { return scene_.get(); }
 private:
     std::unique_ptr<Scene> scene_ = nullptr;
     std::unique_ptr<Scene> nextScene_ = nullptr;

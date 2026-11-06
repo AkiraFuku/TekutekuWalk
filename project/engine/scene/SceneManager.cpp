@@ -53,8 +53,10 @@ void SceneManager::Update() {
     if (scene_) {
         scene_->Update();
         LightManager::GetInstance()->Update();
-        ParticleManager::GetInstance()->Update();
-        EffectManager::GetInstance()->Update();
+        if (!scene_->IsGameTimeStopped()) {
+            ParticleManager::GetInstance()->Update();
+            EffectManager::GetInstance()->Update();
+        }
     }
 }
 

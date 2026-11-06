@@ -134,6 +134,7 @@
     <ClCompile Include="application\UI\PlayerHPUI.cpp" />
     <ClCompile Include="application\UI\NumberTex.cpp" />
     <ClCompile Include="application\UI\ScoreUI.cpp" />
+    <ClCompile Include="application\UI\PauseMenu.cpp" />
     <ClCompile Include="application\Phase\GameScene\StartPhase.cpp" />
     <ClCompile Include="ResultScene.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
@@ -250,6 +251,7 @@
     <ClInclude Include="application\Phase\GameScene\PlayPhase.h" />
     <ClInclude Include="application\UI\PlayerHPUI.h" />
     <ClInclude Include="application\UI\ScoreUI.h" />
+    <ClInclude Include="application\UI\PauseMenu.h" />
     <ClInclude Include="application\UI\NumberTex.h" />
     <ClInclude Include="application\object\player\Behavior\IPlayerFactory.h" />
     <ClInclude Include="Fade.h" />

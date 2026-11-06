@@ -68,6 +68,22 @@ public:
     void DrawSegment(const Segment& segment, const Vector4& color);
     void DrawPlane(const Plane& plane, const Vector4& color);
 
+    // 全体ON/OFF
+    bool IsEnable() const { return isEnabled_; }
+    void SetEnable(bool enable) { isEnabled_ = enable; }
+    void ToggleEnable() { isEnabled_ = !isEnabled_; }
+
+    // 種類別ON/OFF
+    bool IsTypeEnable(PrimtiveType type) const {
+        return isTypeEnabled_[static_cast<size_t>(type)];
+    }
+    void SetTypeEnable(PrimtiveType type, bool enable) {
+        isTypeEnabled_[static_cast<size_t>(type)] = enable;
+    }
+
+    // ImGuiデバッグ用コントロール描画
+    void DrawImGui();
+
 private:
     PrimitiveDrawer() = default;
     ~PrimitiveDrawer() = default;
@@ -101,6 +117,18 @@ private:
     void WVPResourceCreate();
 
     Camera* camera_ = nullptr;
+
+    bool isEnabled_ = true;
+    bool isTypeEnabled_[static_cast<size_t>(PrimtiveType::kCount)] = {
+        true, // kLine
+        true, // kTriangle
+        true, // kPoint
+        true, // kSpher
+        true, // kGrid
+        true, // kAABB
+        true, // kSegment
+        true  // Plane
+    };
 
 
 

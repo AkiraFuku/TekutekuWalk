@@ -21,6 +21,7 @@ class GoalObject;
 class Phase;
 class PlayerHPUI;
 class ScoreUI;
+class PauseMenu;
 class GameScene :public Scene
 {
 public:
@@ -64,6 +65,9 @@ public:
     ScoreUI* GetScore() {
         return scoreUI_.get();
     }
+    PauseMenu* GetPauseMenu() { return pauseMenu_.get(); }
+    bool IsDebugFrozen() const { return isDebugFrozen_; }
+    bool IsGameTimeStopped() const override;
     StageManager* GetStageManager() {
         return stageManager_.get();
     }
@@ -137,6 +141,12 @@ private:
     //UI
     std::unique_ptr<PlayerHPUI> playerHPUI_;
     std::unique_ptr<ScoreUI> scoreUI_;
+    std::unique_ptr<PauseMenu> pauseMenu_;
+
+    // デバッグ時間停止・コマ送り用
+    bool isDebugFrozen_ = false;
+    bool isStepFrame_ = false;
+    bool isGameTimeUpdatedThisFrame_ = true;
 
     // ヒットストップ用変数
     bool isHitStop_ = false;

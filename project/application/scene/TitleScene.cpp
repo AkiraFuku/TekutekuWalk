@@ -54,6 +54,7 @@ void TitleScene::Initialize() {
   ModelManager::GetInstance()->CreateBoxModel("TitleRoad");
   roadObject_ = std::make_unique<Object3d>();
   roadObject_->Initialize();
+
   roadObject_->SetModel("TitleRoad");
   roadObject_->SetTexture("resources/Stagemap/863603.png");
   roadObject_->SetScale(roadScale_);

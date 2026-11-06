@@ -32,6 +32,7 @@
 #include "ScoreUI.h"
 #include "StartPhase.h"
 #include "Fade.h"
+#include "PauseMenu.h"
 
 void GameScene::Initialize() {
 
@@ -207,6 +208,9 @@ void GameScene::Initialize() {
     scoreUI_ = std::make_unique<ScoreUI>();
     scoreUI_->Initialize(player.get());
 
+    pauseMenu_ = std::make_unique<PauseMenu>();
+    pauseMenu_->Initialize(this);
+
     cameraController = std::make_unique<CameraController>();
     cameraController->Initialize(cameraMap_["Main"].get());
     cameraController->SetTarget(player.get());
@@ -266,19 +270,58 @@ void GameScene::Finalize() {
         Audio::GetInstance()->StopAudio(BGMHandle_);
     }
     bannerSprite_.reset();
+    pauseMenu_.reset();
 }
 
 void GameScene::Update() {
+    // 1. 通常ポーズメニューの更新
+    if (pauseMenu_) {
+        pauseMenu_->Update();
+        if (pauseMenu_->IsPaused()) {
+            isGameTimeUpdatedThisFrame_ = false;
+            return; // ポーズ中はゲーム内の時間を完全停止
+        }
+    }
+
+    // 2. デバッグ用：時間停止・コマ送り機能
+#ifdef USE_IMGUI
+    Input* input = Input::GetInstance();
+    if (input->TriggerKeyDown(DIK_F1)) {
+        isDebugFrozen_ = !isDebugFrozen_;
+    }
+    if (input->TriggerKeyDown(DIK_F2)) {
+        isStepFrame_ = true;
+    }
+
+    ImGui::Begin("Debug Time Control");
+    if (ImGui::Button(isDebugFrozen_ ? "Resume Time (F1)" : "Freeze Time (F1)")) {
+        isDebugFrozen_ = !isDebugFrozen_;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Step 1 Frame (F2)")) {
+        isStepFrame_ = true;
+    }
+    ImGui::Text(isDebugFrozen_ ? "Status: [TIME FROZEN]" : "Status: [RUNNING]");
+    ImGui::End();
+#endif
+
+    // デバッグカメラ・メインカメラの更新（時止め中もデバッグカメラで周囲を観察可能）
+    debugCameraC->Update();
+    activeCamera_->Update();
+
+    // デバッグ時間停止中で、かつ1コマ送りトリガーもない場合はゲーム世界更新をスキップ
+    bool allowGameWorldUpdate = !isDebugFrozen_ || isStepFrame_;
+    isStepFrame_ = false;
+    isGameTimeUpdatedThisFrame_ = allowGameWorldUpdate;
+
+    if (!allowGameWorldUpdate) {
+        return;
+    }
+
     // 統合物理システム(Physics)にステージの三角ポリゴンリストを登録
     Physics::SetTriangles(&GetTriangle());
 
     CheckPhaseTransition();
-
-
-
-    debugCameraC->Update();
-
-    activeCamera_->Update();
 
     UpdateHitStop();
     if (currentPhase_)
@@ -316,6 +359,8 @@ void GameScene::Update() {
 
 #ifdef USE_IMGUI
     ImGui::Begin("Debug");
+    PrimitiveDrawer::GetInstance()->DrawImGui();
+    ImGui::Separator();
 
     ImGui::Text("Sprite");
 
@@ -644,6 +689,10 @@ void GameScene::Draw() {
         currentPhase_->Draw(this);
     }
     DrawBannerSprite();
+
+    if (pauseMenu_) {
+        pauseMenu_->Draw();
+    }
 }
 void GameScene::CheckPhaseTransition()
 {
@@ -837,4 +886,14 @@ void GameScene::DrawBannerSprite()
     if (bannerSprite_) {
         bannerSprite_->Draw();
     }
+}
+
+bool GameScene::IsGameTimeStopped() const {
+    if (pauseMenu_ && pauseMenu_->IsPaused()) {
+        return true;
+    }
+    if (!isGameTimeUpdatedThisFrame_) {
+        return true;
+    }
+    return false;
 }

@@ -431,8 +431,14 @@
     </ClCompile>
     <ClCompile Include="application\UI\PlayerHPUI.cpp">
       <Filter>ヘッダー ファイル</Filter>
+
     </ClCompile>
     <ClCompile Include="application\UI\ScoreUI.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+
+    <ClCompile Include="application\UI\PauseMenu.cpp">
+
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="application\UI\NumberTex.cpp">
@@ -771,58 +777,64 @@
       <Filter>App\Phase</Filter>
     </ClInclude>
     <ClInclude Include="application\UI\PlayerHPUI.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\UI\ScoreUI.h">
+
+    </ClInclude>
+    <ClInclude Include="application\UI\PauseMenu.h">
       <Filter>ヘッダー ファイル</Filter>
+
+    </ClInclude>
+
     </ClInclude>
     <ClInclude Include="application\UI\NumberTex.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\object\Enemy\BoundEnemy.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\object\Enemy\ChaseEnemy.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\object\player\Behavior\IPlayerFactory.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\object\Robot\BoundRobot.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="engine\Tool\EffectManager.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\Collision\Collider.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\Collision\Physics.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="Fade.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\Phase\GameScene\StartPhase.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="TitlePhase.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="ResultScene.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\scene\GameOverScene.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\UI\GaidUI.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="engine\base\RenderTypes.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="engine\Tool\CameraManager.h">
-      <Filter>ヘッダー ファイル</Filter>
+
     </ClInclude>
     <ClInclude Include="application\level\EventTrigger.h">
       <Filter>App\Level</Filter>

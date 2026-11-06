@@ -19,6 +19,7 @@
 #include "LightManager.h"
 #include "OffScreen.h"
 #include "JsonManager.h"
+#include "PrimitiveDrawer.h"
 static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
     //ダンプファイルの作成
     SYSTEMTIME time;
@@ -145,6 +146,14 @@ void Framework::Update()
     ImGuiManager::GetInstance()->Begin();
 #endif
     Input::GetInstance()->Update();
+#ifdef USE_IMGUI
+    if (Input::GetInstance()->TriggerKeyDown(DIK_F3)) {
+        ImGuiManager::GetInstance()->ToggleShow();
+    }
+    if (Input::GetInstance()->TriggerKeyDown(DIK_F4)) {
+        PrimitiveDrawer::GetInstance()->ToggleEnable();
+    }
+#endif
     Audio::GetInstance()->Update();
     LightManager::GetInstance()->Update();
 

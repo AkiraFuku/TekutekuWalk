@@ -320,9 +320,9 @@ void Player::Initialize() {
 
   inputHandler_ = std::make_unique<InputHandler>();
   object_ = std::make_unique<Object3d>();
-  ModelManager::GetInstance()->CreateBoxModel("PlayerBox");
+  ModelManager::GetInstance()->LoadModel(config_.paths.modelDir, config_.paths.modelFile);
   object_->Initialize();
-  object_->SetModel("PlayerBox");
+  object_->SetModel(config_.paths.modelFile);
   object_->SetTexture(config_.paths.texture);
   /*   animation = std::make_unique<Animation>();
 
@@ -405,7 +405,8 @@ void Player::Update() {
     }
   }
 
-  // 1. 毎フレームの移動状態リセット＆入力・ノックバック・ビヘイビア更新（レール進行確定）
+  // 1.
+  // 毎フレームの移動状態リセット＆入力・ノックバック・ビヘイビア更新（レール進行確定）
   frameMoveDir_ = 0;
   HandleDamage();
   HandleKnockback();
@@ -733,7 +734,8 @@ void Player::UpdateGravity() {
   // 落下速度を着地直前判定用に記録
   landingFallSpeed_ = (velocity_.y < 0.0f) ? -velocity_.y : 0.0f;
 
-  // 1. 重力加速度と垂直速度の積分（先に移動してから床判定を行うことで1フレームの地面めり込みを防止）
+  // 1.
+  // 重力加速度と垂直速度の積分（先に移動してから床判定を行うことで1フレームの地面めり込みを防止）
   if (!isGrounded_) {
     velocity_.y += (config_.movement.gravity * gravityScale_) * deltaTime_;
   } else if (velocity_.y < 0.0f) {
@@ -745,7 +747,8 @@ void Player::UpdateGravity() {
   // 2. 地面との当たり判定・めり込み押し上げ・下り坂スナップ
   CheckGroundCollision();
 
-  // 3. 着地（空中から地面に触れた瞬間）を検知してスクワッシュ（縦潰れ）＆着地怯みを発動！
+  // 3.
+  // 着地（空中から地面に触れた瞬間）を検知してスクワッシュ（縦潰れ）＆着地怯みを発動！
   if (!wasGrounded_ && isGrounded_) {
     const float kMinFallSpeed = 1.2f;
     if (landingFallSpeed_ >= kMinFallSpeed) {
@@ -823,7 +826,8 @@ void Player::UpdateRayCollisions() {
 
   const std::vector<Triangle> &triangles = scene_->GetTriangle();
 
-  // 1フレーム遅れの object_->GetTranslate() ではなく、現在のレール進捗と worldY_ から最新中心座標を取得
+  // 1フレーム遅れの object_->GetTranslate() ではなく、現在のレール進捗と
+  // worldY_ から最新中心座標を取得
   Vector3 railPos = railMover_->GetCurrentPosition();
   Vector3 center = {railPos.x, worldY_, railPos.z};
 
@@ -841,7 +845,8 @@ void Player::UpdateRayCollisions() {
 
   float maxPushBackProgress = 0.0f;
 
-  // ─── Phase 1: 壁レイ（FrontWall / BackWall / LeftWall / RightWall）の判定 ───
+  // ─── Phase 1: 壁レイ（FrontWall / BackWall / LeftWall / RightWall）の判定
+  // ───
   for (auto &rayInfo : rayList_) {
     if (rayInfo.name == "Floor")
       continue;
@@ -889,9 +894,9 @@ void Player::UpdateRayCollisions() {
     Vector3 dir = Normalize(rayInfo.ray.diff);
     Vector3 drawEnd = Add(rayInfo.ray.origin, Multiply(drawLen, dir));
     bool isWallNear = rayInfo.isColide && (rayInfo.distance <= drawLen);
-    PrimitiveDrawer::GetInstance()->DrawLine(
-        rayInfo.ray.origin, drawEnd,
-        isWallNear ? Vector4{1, 0, 0, 1} : Vector4{0, 1, 0, 1});
+    PrimitiveDrawer::GetInstance()->DrawLine(rayInfo.ray.origin, drawEnd,
+                                             isWallNear ? Vector4{1, 0, 0, 1}
+                                                        : Vector4{0, 1, 0, 1});
 
     if (rayInfo.isColide) {
       float targetWallDist = config_.collider.modelRadius + 0.005f;
@@ -917,7 +922,8 @@ void Player::UpdateRayCollisions() {
   }
 
   // ─── Phase 2: 段差ステップアップ（Step-up）判定 ───
-  // FrontWallに当たっていても、maxStepHeight 以下の上面があり、かつその上の胸高さに壁がなければ段差として登る
+  // FrontWallに当たっていても、maxStepHeight
+  // 以下の上面があり、かつその上の胸高さに壁がなければ段差として登る
   if (isGrounded_ && !isJumping_ && !triangles.empty() && moveDir != 0) {
     bool isSideWallBlocked = false;
     const auto *lw = GetRayInfo("LeftWall");
@@ -937,10 +943,9 @@ void Player::UpdateRayCollisions() {
 
       // 段差より上の高さ（maxStepHeight + 0.25m）に高い壁がないか確認
       Ray upperWallRay;
-      upperWallRay.origin = {center.x,
-                             playerBottomY + config_.movement.maxStepHeight +
-                                 0.25f,
-                             center.z};
+      upperWallRay.origin = {
+          center.x, playerBottomY + config_.movement.maxStepHeight + 0.25f,
+          center.z};
       upperWallRay.diff = Multiply(stepCheckDist + 0.05f, stepForward);
       RaycastHit upperWallHit;
       bool hasUpperWall =
@@ -952,7 +957,8 @@ void Player::UpdateRayCollisions() {
       if (!hasUpperWall) {
         Ray stepRay;
         stepRay.origin = Add(center, Multiply(stepCheckDist, stepForward));
-        stepRay.origin.y = playerBottomY + config_.movement.maxStepHeight + 0.05f;
+        stepRay.origin.y =
+            playerBottomY + config_.movement.maxStepHeight + 0.05f;
         stepRay.diff = {0.0f, -(config_.movement.maxStepHeight + 0.2f), 0.0f};
 
         RaycastHit stepHit;
@@ -972,7 +978,9 @@ void Player::UpdateRayCollisions() {
     }
   }
 
-  // ─── Phase 3: 壁によるレール押し戻しを先に適用（壁の上面をFloorレイが誤検知してワープするのを防ぐ） ───
+  // ─── Phase 3:
+  // 壁によるレール押し戻しを先に適用（壁の上面をFloorレイが誤検知してワープするのを防ぐ）
+  // ───
   if (std::abs(maxPushBackProgress) > 0.0001f) {
     float currentDist = railMover_->GetCurrentDistance();
     float targetDist = currentDist - maxPushBackProgress;
@@ -990,7 +998,8 @@ void Player::UpdateRayCollisions() {
   // ─── Phase 4: 押し戻し後の確定XZ座標で Floor レイを判定 ───
   float playerBottomY = worldY_ - config_.collider.heightOffset;
   float floorOriginOffsetY =
-      config_.movement.maxStepHeight + 0.35f; // 頭上の天井や高い壁の上面を拾わない安全な高さ
+      config_.movement.maxStepHeight +
+      0.35f; // 頭上の天井や高い壁の上面を拾わない安全な高さ
 
   for (auto &rayInfo : rayList_) {
     if (rayInfo.name != "Floor")
@@ -1021,8 +1030,10 @@ void Player::UpdateRayCollisions() {
             continue;
           }
         }
-        // 足元より maxStepHeight + 0.1m 以上高い面は天井/壁上面として除外（壁上ワープ防止）
-        if (hit.point.y > playerBottomY + config_.movement.maxStepHeight + 0.10f) {
+        // 足元より maxStepHeight + 0.1m
+        // 以上高い面は天井/壁上面として除外（壁上ワープ防止）
+        if (hit.point.y >
+            playerBottomY + config_.movement.maxStepHeight + 0.10f) {
           continue;
         }
 

@@ -22,18 +22,20 @@ struct PlayerConfig {
   } paths;
 
   struct Movement {
-    float walkSpeed = 7.5f;                  // 通常歩き速度 (m/s)
-    float dashSpeed = 15.0f;                 // ダッシュ走り速度 (m/s)
-    float gravity = -50.0f;                  // 重力加速度 (m/s^2)
-    float jumpAcceleration = 24.0f;          // ジャンプ初速度
-    float coyoteDuration = 0.12f;            // 崖落ち後ジャンプ猶予時間 (秒)
-    float jumpBufferDuration = 0.15f;        // 着地前ジャンプ先行入力猶予時間 (秒)
-    float maxSlopeCos = 0.65f;               // 登れる最大傾斜（cos約49度）
-    float maxStepHeight = 0.35f;             // 乗り越えられる段差の最大高さ (m)
-    float groundSnapDistance = 1.2f;         // 地面吸着距離 (m)
-    float landingStaggerDuration = 0.12f;    // 着地時の怯み（硬直）時間 (秒)
-    float landingStaggerMinFallSpeed = 8.0f; // 着地怯みが発生する最小落下速度 (m/s)
-    float landingSpeedMultiplier = 0.25f;    // 着地怯み中の移動速度倍率 (0.25 = 75%減速)
+    float walkSpeed = 7.5f;               // 通常歩き速度 (m/s)
+    float dashSpeed = 15.0f;              // ダッシュ走り速度 (m/s)
+    float gravity = -50.0f;               // 重力加速度 (m/s^2)
+    float jumpAcceleration = 24.0f;       // ジャンプ初速度
+    float coyoteDuration = 0.12f;         // 崖落ち後ジャンプ猶予時間 (秒)
+    float jumpBufferDuration = 0.15f;     // 着地前ジャンプ先行入力猶予時間 (秒)
+    float maxSlopeCos = 0.65f;            // 登れる最大傾斜（cos約49度）
+    float maxStepHeight = 0.35f;          // 乗り越えられる段差の最大高さ (m)
+    float groundSnapDistance = 1.2f;      // 地面吸着距離 (m)
+    float landingStaggerDuration = 0.12f; // 着地時の怯み（硬直）時間 (秒)
+    float landingStaggerMinFallSpeed =
+        8.0f; // 着地怯みが発生する最小落下速度 (m/s)
+    float landingSpeedMultiplier =
+        0.25f; // 着地怯み中の移動速度倍率 (0.25 = 75%減速)
   } movement;
 
   struct Combat {
@@ -51,15 +53,15 @@ struct PlayerConfig {
   } juice;
 
   struct ColliderConfig {
-    float radius = 0.50f;         // コライダー基本半径（1m立方体に合わせ0.5m）
-    float modelRadius = 0.50f;    // 壁判定用モデル半径（1m立方体の半幅0.5m）
-    float heightOffset = 0.50f;   // 足元オフセット（1m立方体の底面が接地）
-    float wallRayHeight = 0.0f;   // 壁検知レイ発射高さ
-    float headOffsetY = 0.0f;     // 互換用
-    float headRadius = 0.50f;     // 互換用
-    float bodyOffsetY = 0.0f;     // 胴体スフィア高さ（立方体中心）
-    float bodyRadius = 0.50f;     // 胴体スフィア半径（0.5m）
-    float attackOffsetY = 0.0f;   // 攻撃AABB中心高さ（立方体中心と同じ高さ）
+    float radius = 0.50f;       // コライダー基本半径（1m立方体に合わせ0.5m）
+    float modelRadius = 0.50f;  // 壁判定用モデル半径（1m立方体の半幅0.5m）
+    float heightOffset = 0.50f; // 足元オフセット（1m立方体の底面が接地）
+    float wallRayHeight = 0.0f; // 壁検知レイ発射高さ
+    float headOffsetY = 0.0f;   // 互換用
+    float headRadius = 0.50f;   // 互換用
+    float bodyOffsetY = 0.0f;   // 胴体スフィア高さ（立方体中心）
+    float bodyRadius = 0.50f;   // 胴体スフィア半径（0.5m）
+    float attackOffsetY = 0.0f; // 攻撃AABB中心高さ（立方体中心と同じ高さ）
     float attackOffsetForward =
         0.95f; // 攻撃AABB前方オフセット（プレイヤー前方へ突き出す距離）
     float attackRadius = 0.50f; // 互換用
@@ -345,10 +347,11 @@ private:
   // コヨーテタイム & 先行入力用タイマー
   float coyoteTimer_ = 0.0f;
   float jumpBufferTimer_ = 0.0f;
-  float shootCooldownTimer_ = 0.0f; // 連射クールダウンタイマー
-  float shootSlowdownTimer_ = 0.0f; // 連射反動中の腰だめ歩行タイマー
+  float shootCooldownTimer_ = 0.0f;   // 連射クールダウンタイマー
+  float shootSlowdownTimer_ = 0.0f;   // 連射反動中の腰だめ歩行タイマー
   float landingRecoveryTimer_ = 0.0f; // 着地時の怯み（硬直）タイマー
-  float squashGroundedOffsetY_ = 0.0f; // 1m立方体の底面を地面に固定するスクワッシュY補正
+  float squashGroundedOffsetY_ =
+      0.0f; // 1m立方体の底面を地面に固定するスクワッシュY補正
 
   void HandleInput();
   void HandleDamage();
@@ -390,8 +393,9 @@ private:
 
   bool isDamaged_ = false;
   Gauge hitPoints_ = {3, 3};
-  float hitInvincibilityTimer_ = 0.0f;    // 被弾時の無敵＆点滅タイマー
-  float actionInvincibilityTimer_ = 0.0f; // 攻撃・回避後の無敵余韻タイマー（点滅しない）
+  float hitInvincibilityTimer_ = 0.0f; // 被弾時の無敵＆点滅タイマー
+  float actionInvincibilityTimer_ =
+      0.0f; // 攻撃・回避後の無敵余韻タイマー（点滅しない）
 
   bool isKnockback_ = false;
   float knockbackTimer_ = 0.0f;
