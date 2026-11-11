@@ -40,13 +40,15 @@ void StageSelectScene::Initialize()
     // ステージ＆タイトル戻る項目の構築
     const std::string kTextureDir = "resources/stageTitle/";
     itemList_ = {
-        { ItemType::Stage, "Stage 1", "resources/Stagemap/stage1.json", "チュートリアル・基本ステージ", "Stage1.png" },
-        { ItemType::Stage, "Stage 2", "resources/Stagemap/stage2.json", "中級ステージ 2", "Stage2.png" },
-        { ItemType::Stage, "Stage 3", "resources/Stagemap/stage3.json", "上級ステージ 3", "Stage3.png" },
-        { ItemType::Stage, "Stage 4", "resources/Stagemap/stage4.json", "高難易度ステージ 4", "Stage4.png" },
-        { ItemType::Stage, "Stage 5", "resources/Stagemap/stage5.json", "巨大ステージ 5", "Stage5.png" },
-        { ItemType::Stage, "Test Stage", "resources/Stagemap/test_stage.json", "開発・テスト用ステージ", "Test.png" },
-        { ItemType::BackToTitle, "Title に戻る", "", "タイトル画面に戻ります", "Back.png" },
+        // { 種類, 表示名, JSONパス, 説明, 画像, 選択可能フラグ }
+        // ※ Stage 1 は旧 Stage 5 の内容 (stage5.json) を使用
+        { ItemType::Stage, "Stage 1", "resources/Stagemap/stage5.json", "チュートリアル・基本ステージ", "Stage1.png", true },
+        { ItemType::Stage, "Stage 2", "resources/Stagemap/stage2.json", "中級ステージ 2", "Stage2.png", false },
+        { ItemType::Stage, "Stage 3", "resources/Stagemap/stage3.json", "上級ステージ 3", "Stage3.png", false },
+        { ItemType::Stage, "Stage 4", "resources/Stagemap/stage4.json", "高難易度ステージ 4", "Stage4.png", false },
+        { ItemType::Stage, "Stage 5", "resources/Stagemap/stage5.json", "巨大ステージ 5", "Stage5.png", false },
+        { ItemType::Stage, "Test Stage", "resources/Stagemap/test_stage.json", "開発・テスト用ステージ", "Test.png", false },
+        { ItemType::BackToTitle, "Title に戻る", "", "タイトル画面に戻ります", "Back.png", true },
     };
 
     // ModelManager を使ってキューブモデルを生成
@@ -113,6 +115,23 @@ void StageSelectScene::Finalize()
     roadObject_.reset();
 }
 
+void StageSelectScene::MoveSelection(int direction)
+{
+    const int itemCount = static_cast<int>(itemList_.size());
+    if (itemCount <= 0) {
+        return;
+    }
+    // 選択可能な項目が見つかるまで指定方向に進める (一周したら現状維持)
+    int index = selectedIndex_;
+    for (int step = 0; step < itemCount; ++step) {
+        index = (index + direction + itemCount) % itemCount;
+        if (itemList_[index].isSelectable) {
+            selectedIndex_ = index;
+            return;
+        }
+    }
+}
+
 void StageSelectScene::Update()
 {
     if (activeCamera_) {
@@ -128,16 +147,17 @@ void StageSelectScene::Update()
         if (input->TriggerKeyDown(DIK_LEFT) || input->TriggerKeyDown(DIK_UP) ||
             input->TriggerKeyDown(DIK_A) || input->TriggerKeyDown(DIK_W) ||
             input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_LEFT) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_UP)) {
-            selectedIndex_ = (selectedIndex_ - 1 + itemCount) % itemCount;
+            MoveSelection(-1);
         }
         if (input->TriggerKeyDown(DIK_RIGHT) || input->TriggerKeyDown(DIK_DOWN) ||
             input->TriggerKeyDown(DIK_D) || input->TriggerKeyDown(DIK_S) ||
             input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_RIGHT) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_DOWN)) {
-            selectedIndex_ = (selectedIndex_ + 1) % itemCount;
+            MoveSelection(1);
         }
 
-        // 決定 (Enter / Space / Aボタン)
-        if (input->TriggerKeyDown(DIK_RETURN) || input->TriggerKeyDown(DIK_SPACE) || input->TriggerPadDown(0, XINPUT_GAMEPAD_A)) {
+        // 決定 (Enter / Space / Aボタン) ※選択可能な項目のみ
+        if ((input->TriggerKeyDown(DIK_RETURN) || input->TriggerKeyDown(DIK_SPACE) || input->TriggerPadDown(0, XINPUT_GAMEPAD_A)) &&
+            itemList_[selectedIndex_].isSelectable) {
             isDecided_ = true;
             decisionBlinkTimer_ = 0.0f;
             exitTimer_ = 0.0f;
@@ -269,9 +289,17 @@ void StageSelectScene::Update()
     ImGui::Separator();
 
     for (int i = 0; i < itemCount; ++i) {
-        if (ImGui::RadioButton(itemList_[i].name.c_str(), &selectedIndex_, i)) {
-            // ImGui で選択された場合もカルーセルと連動
+        ImGui::PushID(i);
+        ImGui::Checkbox("##Selectable", &itemList_[i].isSelectable);
+        ImGui::SameLine();
+        if (itemList_[i].isSelectable) {
+            if (ImGui::RadioButton(itemList_[i].name.c_str(), &selectedIndex_, i)) {
+                // ImGui で選択された場合もカルーセルと連動
+            }
+        } else {
+            ImGui::TextDisabled("%s (Locked)", itemList_[i].name.c_str());
         }
+        ImGui::PopID();
     }
 
     ImGui::Separator();
@@ -289,7 +317,7 @@ void StageSelectScene::Update()
 
     ImGui::Separator();
     if (ImGui::Button("Decide / Start", ImVec2(120, 30))) {
-        if (!isDecided_) {
+        if (!isDecided_ && itemList_[selectedIndex_].isSelectable) {
             isDecided_ = true;
             decisionBlinkTimer_ = 0.0f;
             exitTimer_ = 0.0f;

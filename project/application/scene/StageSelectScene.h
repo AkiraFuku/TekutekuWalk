@@ -34,7 +34,13 @@ private:
         std::string filePath;    // JSONファイルパス (ステージの場合)
         std::string description; // 説明
         std::string textureName; // stageTitle内の画像ファイル名 (例: "Stage1.png")
+        bool isSelectable = true; // 選択可能かどうかのフラグ
     };
+
+    /// <summary>
+    /// 指定方向(+1 / -1)にある次の選択可能な項目へ移動する
+    /// </summary>
+    void MoveSelection(int direction);
 
     // 選択項目リスト
     std::vector<SelectItem> itemList_;
