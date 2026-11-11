@@ -20,14 +20,17 @@ public:
     void SetPosition(const Vector2& position) { position_ = position; }
     void SetCounterOffset(const Vector2& offset) { counterOffset_ = offset; }
     void SetCounterSpacing(float spacing) { counterSpacing_ = spacing; }
-    void SetCounterSize(float size) { counterSize_ = size; }
+    void SetCounterSize(float width, float height) { counterWidth_ = width; counterHeight_ = height; }
+    void SetCounterSize(float size) { counterWidth_ = size; counterHeight_ = size; }
     void SetScoreSpriteWidth(float width) { ScoreSpriteWidth_ = width; }
 
     // ゲッター
     const Vector2& GetPosition() const { return position_; }
     const Vector2& GetCounterOffset() const { return counterOffset_; }
     float GetCounterSpacing() const { return counterSpacing_; }
-    float GetCounterSize() const { return counterSize_; }
+    float GetCounterWidth() const { return counterWidth_; }
+    float GetCounterHeight() const { return counterHeight_; }
+    float GetCounterSize() const { return counterWidth_; }
     float GetScoreSpriteWidth() const { return ScoreSpriteWidth_; }
 
     void AddScore(int32_t score=1) {
@@ -36,12 +39,14 @@ public:
 
 private:
     // ---- 配置・デザイン用定数 ----
-    static constexpr float kDefaultScale = 2.0f;              // UIの拡大率
-    static constexpr float kDefaultPositionTop = 10.0f;        // 画面上部からの配置位置
-    static constexpr float kMarginRight = 15.0f;               // 画面右端からのマージン
-    static constexpr float kDefaultScoreSpriteWidth = 60.0f;  // スコアUIの背景幅
-    static constexpr float kDefaultCounterSize = 20.0f;        // 数字のサイズ
-    static constexpr float kDefaultCounterSpacing = 25.0f;     // 数字ごとの間隔
+    static constexpr float kDefaultScale = 1.0f;              // UIの拡大率
+    static constexpr float kDefaultPositionX = 35.0f;          // 画面左端からの配置位置
+    static constexpr float kDefaultPositionY = 642.0f;         // 画面上部からの配置位置
+    static constexpr float kDefaultScoreSpriteWidth = 100.0f;  // スコアUIの背景幅
+    static constexpr float kDefaultScoreSpriteHeight = 66.0f; // スコアUIの背景高さ
+    static constexpr float kDefaultCounterWidth = 38.0f;       // 数字の幅
+    static constexpr float kDefaultCounterHeight = 50.0f;      // 数字の高さ
+    static constexpr float kDefaultCounterSpacing = 42.0f;     // 数字ごとの間隔
 
     // ---- スコアロジック用定数 ----
     static constexpr int32_t kMaxDigits = 2;                  // 表示する桁数[cite: 6]
@@ -68,9 +73,10 @@ private:
     // スコアのカウンタースプライト用
     std::vector<std::unique_ptr<Sprite>> CounterSprite_;
     
-    Vector2 counterOffset_ = { -60.0f, 5.0f }; // 右上基準からの数字のオフセット位置
+    Vector2 counterOffset_ = { 10.0f, 8.0f }; // 左上基準からの数字のオフセット位置
     float counterSpacing_ = kDefaultCounterSpacing;
-    float counterSize_ = kDefaultCounterSize;
+    float counterWidth_ = kDefaultCounterWidth;
+    float counterHeight_ = kDefaultCounterHeight;
     float ScoreSpriteWidth_ = kDefaultScoreSpriteWidth;
-    int32_t currentScore ;
+    int32_t currentScore = 0;
 };

@@ -258,8 +258,8 @@ void GameScene::Initialize() {
     }
 
 
-    gaidUI_ = std::make_unique<GaidUI>();
-    gaidUI_->Initialize(player.get());
+    // 操作ガイドUIは下部非表示
+    gaidUI_ = nullptr;
 
     DamagePopupManager::GetInstance()->Initialize();
 
@@ -627,9 +627,13 @@ void GameScene::Draw() {
 
     if (stageManager_) {
         stageManager_->Draw();
+#ifdef _DEBUG
         stageManager_->DebugDraw();
+#endif
     }
+#ifdef _DEBUG
     if (stageRail) stageRail->DebugDraw();
+#endif
     if (!isDefeated_) {
         player->Draw();
     }
@@ -662,6 +666,7 @@ void GameScene::Draw() {
         TestGround_->Draw();
     }
 
+#ifdef _DEBUG
     // --- レイキャストのデバッグ描画 ---
     // 衝突した三角形があれば赤色で強調描画する
     if (player && player->IsRayHit()) {
@@ -678,6 +683,7 @@ void GameScene::Draw() {
         PrimitiveDrawer::GetInstance()->DrawLine(hitTriangle_.vertices[1], hitTriangle_.vertices[2], { 1.0f, 1.0f, 1.0f, 1.0f });
         PrimitiveDrawer::GetInstance()->DrawLine(hitTriangle_.vertices[2], hitTriangle_.vertices[0], { 1.0f, 1.0f, 1.0f, 1.0f });
     }
+#endif
 
     ParticleManager::GetInstance()->Draw();
 

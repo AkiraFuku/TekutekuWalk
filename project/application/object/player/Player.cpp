@@ -346,6 +346,9 @@ void Player::Initialize() {
 
   object_->Update();
 
+  lastGroundY_ = worldY_ - config_.collider.heightOffset;
+  hitPoints_.value = hitPoints_.max;
+
   HitSE_ = Audio::GetInstance()->LoadAudio(config_.paths.hitSE);
   DamageSE_ = Audio::GetInstance()->LoadAudio(config_.paths.damageSE);
 }
@@ -685,11 +688,15 @@ void Player::CheckGroundCollision() {
         isGrounded_ = true;
         isJumping_ = false;
       }
-      // 2. 下り坂・段差下り吸着（Ground Snapping）:
-      // 直前に接地しており、現在ジャンプ中でなく、地面が下がった距離がスナップ範囲内であれば吸着
+      // 2. 下り坂吸着（Ground Snapping）:
+      // 直前に接地しており、現在ジャンプ中でなく、落下初速がない
+      // かつ、直前フレームの地面からの高低差が段差制限（maxStepHeight）以内の緩やかなスロープでのみ吸着
+      // （プレハブブロックや崖など急激に地面が落ちる場所では吸着させず自然落下に移行）
       else if (isGrounded_ && !isJumping_ && velocity_.y <= 0.0f &&
-               playerBottomY <=
-                   rayHitParam_.groundY + config_.movement.groundSnapDistance) {
+               (playerBottomY - rayHitParam_.groundY) <=
+                   config_.movement.groundSnapDistance &&
+               (lastGroundY_ - rayHitParam_.groundY) <=
+                   config_.movement.maxStepHeight) {
         isGrounded_ = true;
       } else {
         isGrounded_ = false;
@@ -727,6 +734,11 @@ void Player::CheckGroundCollision() {
     velocity_.y = 0.0f;
     isGrounded_ = true;
     isJumping_ = false;
+  }
+
+  // 接地中の確定地面高さを記録（段差降り・崖落ちの判定に使用）
+  if (isGrounded_ && hitFloor) {
+    lastGroundY_ = rayHitParam_.groundY;
   }
 }
 

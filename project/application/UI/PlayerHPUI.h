@@ -47,8 +47,11 @@ public:
     void SetCounterSpacing(float spacing) {
         counterSpacing_ = spacing;
     }
-    void SetCounterSize(float size) {
+    void SetCounterSize(const Vector2& size) {
         counterSize_ = size;
+    }
+    void SetCounterSize(float size) {
+        counterSize_ = { size, size };
     }
     void SetHPSpriteWidth(float width) {
         hpSpriteWidth_ = width;
@@ -64,7 +67,7 @@ public:
     float GetCounterSpacing() const {
         return counterSpacing_;
     }
-    float GetCounterSize() const {
+    const Vector2& GetCounterSize() const {
         return counterSize_;
     }
     float GetHPSpriteWidth() const {
@@ -73,15 +76,17 @@ public:
 
 private:
 
-    Vector2 position_ = { 15.0f, 10.0f }; // HP UIの位置
-    float scale_ = 2.0f; // HP UIのスケール
-
-
+    Vector2 position_ = { 0.0f, 630.0f }; // 下部バー基準位置
+    float scale_ = 1.0f;                  // HP UIのスケール
 
     //プレイヤー
     Player* player_ = nullptr;
-    //HPの背景スプライト用
+    //HP下部バーの背景スプライト（木目調オーカー）
     std::unique_ptr<Sprite> hpSprite_ = nullptr;
+    //下部バー上部の木枠トリムラインスプライト
+    std::unique_ptr<Sprite> barTrimSprite_ = nullptr;
+    //右側：形態（能力）表示カード背景スプライト
+    std::unique_ptr<Sprite> stateCardSprite_ = nullptr;
     //プレイヤーの形態状態の把握用スプライト（Markアイコン表示）
     std::unique_ptr<Sprite> stateSprite_ = nullptr;
 
@@ -90,10 +95,8 @@ private:
     size_t markTexIndexJump_   = 1; // JumpMark
     size_t markTexIndexBullet_ = 2; // BulletMark
 
-    // ライフカウンター右端からMarkアイコンまでのオフセット
-    Vector2 markOffset_ = { 15.0f, 0.0f };
     // Markアイコンのサイズ
-    float markSize_ = 32.0f;
+    float markSize_ = 60.0f;
 
     //HPのカウンター用スプライト
     std::unique_ptr<Sprite> baseCounterSprite_ = nullptr;
@@ -102,12 +105,10 @@ private:
     size_t texIndexFull_ = ACTIVE;  // HPが有る時のインデックス
     size_t texIndexEmpty_ = INACTIVE; // HPが空の時のインデックス
 
-    Vector2 counterOffset_ = { 5.0f, 0.5f }; // カウンタースプライトのオフセット位置
-    
-
-    float counterSpacing_ = 20.0f; // カウンタースプライト間のスペース
-    float counterSize_ = 20.0f;    // カウンタースプライトのサイズ
-    float hpSpriteWidth_ = 200.0f; // HP UIの幅
+    Vector2 counterOffset_ = { 155.0f, 18.0f }; // カウンタースプライトのオフセット位置
+    float counterSpacing_ = 48.0f;              // カウンタースプライト間のスペース
+    Vector2 counterSize_ = { 40.0f, 54.0f };    // カウンタースプライトのサイズ
+    float hpSpriteWidth_ = 1280.0f;             // HP UIの幅
 
 };
 

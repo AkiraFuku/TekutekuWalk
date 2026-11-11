@@ -439,9 +439,9 @@ void Enemy::TakeDamage(float knockbackDirection, bool isDeadly) {
   if (object_) {
     object_->SetModelColor({1.0f, 0.15f, 0.15f, 1.0f});
   }
-  PlayHitEffect();
 
   if (isDeadly) {
+    PlayHitEffect();
     ChangeState(std::make_unique<StateEnemyDead>());
   }
 }
@@ -585,7 +585,6 @@ void Enemy::TakeBulletDamage(float knockbackDirection) {
   if (object_) {
     object_->SetModelColor({1.0f, 0.15f, 0.15f, 1.0f});
   }
-  PlayHitEffect();
 
   // マシンガン被弾時のダメージ要求をキューに追加
   DamagePopupManager::GetInstance()->AddDamagePopupFromWorld(25, GetWorldPosition() + Vector3{ 0.0f, 1.2f, 0.0f }, camera_);

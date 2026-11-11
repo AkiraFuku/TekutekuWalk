@@ -3,21 +3,143 @@
 #include "Input.h"
 #include "Audio.h"
 #include "SceneManager.h"
+#include "Sprite.h"
 #include "WinApp.h"
-#include "imgui.h"
-#include "ImGuiManager.h"
 #include <algorithm>
+#include <cmath>
 
 void PauseMenu::Initialize(GameScene* gameScene)
 {
     gameScene_ = gameScene;
     isPaused_ = false;
+    animTimer_ = 0.0f;
     ClearMenu();
 
     // 効果音のロード
     selectSE_ = Audio::GetInstance()->LoadAudio("resources/Audio/SE/Hit.mp3");
     decideSE_ = Audio::GetInstance()->LoadAudio("resources/Audio/SE/Hit.mp3");
     cancelSE_ = Audio::GetInstance()->LoadAudio("resources/Audio/SE/Hit.mp3");
+
+    // 1. 背景・枠スプライト
+    backdropSprite_ = std::make_unique<Sprite>();
+    backdropSprite_->Initialize("resources/white.png");
+    backdropSprite_->SetPosition({ static_cast<float>(WinApp::kClientWidth) * 0.5f, static_cast<float>(WinApp::kClientHeight) * 0.5f });
+    backdropSprite_->SetSize({ static_cast<float>(WinApp::kClientWidth), static_cast<float>(WinApp::kClientHeight) });
+    backdropSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.65f });
+    backdropSprite_->SetAnchorPoint(Anchor::Center);
+
+    boardBackSprite_ = std::make_unique<Sprite>();
+    boardBackSprite_->Initialize("resources/white.png");
+    boardBackSprite_->SetPosition({ 640.0f, 360.0f });
+    boardBackSprite_->SetSize({ 580.0f, 470.0f });
+    boardBackSprite_->SetColor({ 0.35f, 0.22f, 0.10f, 0.98f }); // 木枠の外枠
+    boardBackSprite_->SetAnchorPoint(Anchor::Center);
+
+    boardInnerSprite_ = std::make_unique<Sprite>();
+    boardInnerSprite_->Initialize("resources/white.png");
+    boardInnerSprite_->SetPosition({ 640.0f, 360.0f });
+    boardInnerSprite_->SetSize({ 564.0f, 454.0f });
+    boardInnerSprite_->SetColor({ 0.13f, 0.10f, 0.08f, 0.96f }); // 内側ダークプレート
+    boardInnerSprite_->SetAnchorPoint(Anchor::Center);
+
+    headerPlateSprite_ = std::make_unique<Sprite>();
+    headerPlateSprite_->Initialize("resources/white.png");
+    headerPlateSprite_->SetPosition({ 640.0f, 180.0f });
+    headerPlateSprite_->SetSize({ 430.0f, 58.0f });
+    headerPlateSprite_->SetColor({ 0.78f, 0.58f, 0.26f, 0.98f }); // カービィ64風 木目調ゴールド
+    headerPlateSprite_->SetAnchorPoint(Anchor::Center);
+
+    // 2. タイトルスプライト
+    pauseTitleSprite_ = std::make_unique<Sprite>();
+    pauseTitleSprite_->Initialize("resources/Pause/PauseTitle.png");
+    pauseTitleSprite_->SetPosition({ 640.0f, 180.0f });
+    pauseTitleSprite_->SetSize({ 420.0f, 90.0f });
+    pauseTitleSprite_->SetAnchorPoint(Anchor::Center);
+
+    optionsTitleSprite_ = std::make_unique<Sprite>();
+    optionsTitleSprite_->Initialize("resources/Pause/OptionsTitle.png");
+    optionsTitleSprite_->SetPosition({ 640.0f, 180.0f });
+    optionsTitleSprite_->SetSize({ 420.0f, 90.0f });
+    optionsTitleSprite_->SetAnchorPoint(Anchor::Center);
+
+    soundTitleSprite_ = std::make_unique<Sprite>();
+    soundTitleSprite_->Initialize("resources/Pause/SoundTitle.png");
+    soundTitleSprite_->SetPosition({ 640.0f, 180.0f });
+    soundTitleSprite_->SetSize({ 420.0f, 90.0f });
+    soundTitleSprite_->SetAnchorPoint(Anchor::Center);
+
+    // 3. メインメニュー項目
+    resumeSprite_ = std::make_unique<Sprite>();
+    resumeSprite_->Initialize("resources/Pause/BtnResume.png");
+    resumeSprite_->SetAnchorPoint(Anchor::Center);
+
+    optionsSprite_ = std::make_unique<Sprite>();
+    optionsSprite_->Initialize("resources/Pause/BtnOptions.png");
+    optionsSprite_->SetAnchorPoint(Anchor::Center);
+
+    retrySprite_ = std::make_unique<Sprite>();
+    retrySprite_->Initialize("resources/Pause/BtnRetry.png");
+    retrySprite_->SetAnchorPoint(Anchor::Center);
+
+    titleSprite_ = std::make_unique<Sprite>();
+    titleSprite_->Initialize("resources/Pause/BtnTitle.png");
+    titleSprite_->SetAnchorPoint(Anchor::Center);
+
+    // 4. オプションメニュー項目
+    soundSettingSprite_ = std::make_unique<Sprite>();
+    soundSettingSprite_->Initialize("resources/Pause/BtnSound.png");
+    soundSettingSprite_->SetAnchorPoint(Anchor::Center);
+
+    optionBackSprite_ = std::make_unique<Sprite>();
+    optionBackSprite_->Initialize("resources/Pause/BtnBack.png");
+    optionBackSprite_->SetAnchorPoint(Anchor::Center);
+
+    // 5. サウンドメニュー項目
+    bgmVolumeSprite_ = std::make_unique<Sprite>();
+    bgmVolumeSprite_->Initialize("resources/Pause/BtnBgm.png");
+    bgmVolumeSprite_->SetAnchorPoint(Anchor::Center);
+
+    seVolumeSprite_ = std::make_unique<Sprite>();
+    seVolumeSprite_->Initialize("resources/Pause/BtnSe.png");
+    seVolumeSprite_->SetAnchorPoint(Anchor::Center);
+
+    soundBackSprite_ = std::make_unique<Sprite>();
+    soundBackSprite_->Initialize("resources/Pause/BtnBack.png");
+    soundBackSprite_->SetAnchorPoint(Anchor::Center);
+
+    // 音量バー背景・充填
+    bgmBarBg_ = std::make_unique<Sprite>();
+    bgmBarBg_->Initialize("resources/white.png");
+    bgmBarBg_->SetAnchorPoint(Anchor::CenterLeft);
+    bgmBarBg_->SetSize({ 140.0f, 16.0f });
+    bgmBarBg_->SetColor({ 0.25f, 0.20f, 0.15f, 0.95f });
+
+    bgmBarFill_ = std::make_unique<Sprite>();
+    bgmBarFill_->Initialize("resources/white.png");
+    bgmBarFill_->SetAnchorPoint(Anchor::CenterLeft);
+    bgmBarFill_->SetSize({ 140.0f * bgmVolume_, 16.0f });
+    bgmBarFill_->SetColor({ 0.96f, 0.82f, 0.25f, 1.0f });
+
+    seBarBg_ = std::make_unique<Sprite>();
+    seBarBg_->Initialize("resources/white.png");
+    seBarBg_->SetAnchorPoint(Anchor::CenterLeft);
+    seBarBg_->SetSize({ 140.0f, 16.0f });
+    seBarBg_->SetColor({ 0.25f, 0.20f, 0.15f, 0.95f });
+
+    seBarFill_ = std::make_unique<Sprite>();
+    seBarFill_->Initialize("resources/white.png");
+    seBarFill_->SetAnchorPoint(Anchor::CenterLeft);
+    seBarFill_->SetSize({ 140.0f * seVolume_, 16.0f });
+    seBarFill_->SetColor({ 0.96f, 0.82f, 0.25f, 1.0f });
+
+    // 6. カーソル（星）
+    cursorLeft_ = std::make_unique<Sprite>();
+    cursorLeft_->Initialize("resources/Pause/CursorStar.png");
+    cursorLeft_->SetAnchorPoint(Anchor::Center);
+
+    cursorRight_ = std::make_unique<Sprite>();
+    cursorRight_->Initialize("resources/Pause/CursorStar.png");
+    cursorRight_->SetAnchorPoint(Anchor::Center);
 }
 
 void PauseMenu::ClearMenu()
@@ -37,7 +159,6 @@ void PauseMenu::PopMenu()
 
     menuStack_.pop();
 
-    // 全て閉じたらポーズ解除
     if (menuStack_.empty()) {
         SetPaused(false);
     }
@@ -51,10 +172,7 @@ void PauseMenu::SetPaused(bool paused)
     ClearMenu();
 
     if (isPaused_) {
-        ImGuiManager::GetInstance()->SetShow(true);
-        // トップ画面を積んで開く
         menuStack_.push({ MenuId::PauseMain, 0 });
-
         if (gameScene_) {
             Audio::GetInstance()->PauseAudio(gameScene_->getBGMPlayHundle());
         }
@@ -63,6 +181,17 @@ void PauseMenu::SetPaused(bool paused)
             Audio::GetInstance()->ResumeAudio(gameScene_->getBGMPlayHundle());
         }
     }
+}
+
+void PauseMenu::SetupItemSprite(Sprite* sprite, const Vector2& centerPos, bool isSelected, const Vector2& baseSize)
+{
+    if (!sprite) return;
+    float pulse = 1.0f + 0.05f * std::sin(animTimer_ * 6.0f);
+    float scale = isSelected ? (1.08f * pulse) : 0.95f;
+    sprite->SetPosition(centerPos);
+    sprite->SetSize({ baseSize.x * scale, baseSize.y * scale });
+    sprite->SetColor(isSelected ? Vector4{ 1.0f, 0.95f, 0.45f, 1.0f } : Vector4{ 0.70f, 0.70f, 0.70f, 0.80f });
+    sprite->Update();
 }
 
 void PauseMenu::Update()
@@ -77,13 +206,21 @@ void PauseMenu::Update()
 
     if (!isPaused_ || menuStack_.empty()) return;
 
+    animTimer_ += 1.0f / 60.0f;
+
     // キャンセルボタン（ESCキー / パッドBボタン）で直前へ戻る (pop)
     if (input->TriggerKeyDown(DIK_ESCAPE) || input->TriggerPadDown(0, XINPUT_GAMEPAD_B)) {
         PopMenu();
         return;
     }
 
-    // 現在一番上にある画面に応じた処理
+    // 共通スプライト更新
+    if (backdropSprite_) backdropSprite_->Update();
+    if (boardBackSprite_) boardBackSprite_->Update();
+    if (boardInnerSprite_) boardInnerSprite_->Update();
+    if (headerPlateSprite_) headerPlateSprite_->Update();
+
+    // 画面状態に応じた処理
     MenuState& current = menuStack_.top();
     switch (current.menuId) {
     case MenuId::PauseMain:
@@ -129,7 +266,6 @@ void PauseMenu::UpdateMainMenu()
             SetPaused(false);
             break;
         case MainAction::Options:
-            // 設定メニューを push（カーソルは0から開始）
             menuStack_.push({ MenuId::Options, 0 });
             break;
         case MainAction::Retry:
@@ -147,7 +283,39 @@ void PauseMenu::UpdateMainMenu()
         default:
             break;
         }
+        return;
     }
+
+    // スプライト配置＆アニメーション
+    if (pauseTitleSprite_) pauseTitleSprite_->Update();
+
+    Vector2 baseBtnSize = { 340.0f, 70.0f };
+    Vector2 positions[4] = {
+        { 640.0f, 255.0f },
+        { 640.0f, 320.0f },
+        { 640.0f, 385.0f },
+        { 640.0f, 450.0f }
+    };
+
+    SetupItemSprite(resumeSprite_.get(), positions[0], current.selectedIndex == 0, baseBtnSize);
+    SetupItemSprite(optionsSprite_.get(), positions[1], current.selectedIndex == 1, baseBtnSize);
+    SetupItemSprite(retrySprite_.get(), positions[2], current.selectedIndex == 2, baseBtnSize);
+    SetupItemSprite(titleSprite_.get(), positions[3], current.selectedIndex == 3, baseBtnSize);
+
+    // カーソル配置
+    Vector2 selPos = positions[current.selectedIndex];
+    float starPulse = 1.0f + 0.12f * std::sin(animTimer_ * 8.0f);
+    Vector2 starSize = { 38.0f * starPulse, 38.0f * starPulse };
+
+    cursorLeft_->SetPosition({ selPos.x - 175.0f, selPos.y });
+    cursorLeft_->SetSize(starSize);
+    cursorLeft_->SetRotation(animTimer_ * 3.0f);
+    cursorLeft_->Update();
+
+    cursorRight_->SetPosition({ selPos.x + 175.0f, selPos.y });
+    cursorRight_->SetSize(starSize);
+    cursorRight_->SetRotation(-animTimer_ * 3.0f);
+    cursorRight_->Update();
 }
 
 void PauseMenu::UpdateOptionsMenu()
@@ -178,7 +346,6 @@ void PauseMenu::UpdateOptionsMenu()
 
         switch (static_cast<OptionAction>(current.selectedIndex)) {
         case OptionAction::Sound:
-            // サウンド設定を push
             menuStack_.push({ MenuId::Sound, 0 });
             break;
         case OptionAction::Back:
@@ -187,7 +354,33 @@ void PauseMenu::UpdateOptionsMenu()
         default:
             break;
         }
+        return;
     }
+
+    if (optionsTitleSprite_) optionsTitleSprite_->Update();
+
+    Vector2 baseBtnSize = { 340.0f, 70.0f };
+    Vector2 positions[2] = {
+        { 640.0f, 290.0f },
+        { 640.0f, 390.0f }
+    };
+
+    SetupItemSprite(soundSettingSprite_.get(), positions[0], current.selectedIndex == 0, baseBtnSize);
+    SetupItemSprite(optionBackSprite_.get(), positions[1], current.selectedIndex == 1, baseBtnSize);
+
+    Vector2 selPos = positions[current.selectedIndex];
+    float starPulse = 1.0f + 0.12f * std::sin(animTimer_ * 8.0f);
+    Vector2 starSize = { 38.0f * starPulse, 38.0f * starPulse };
+
+    cursorLeft_->SetPosition({ selPos.x - 175.0f, selPos.y });
+    cursorLeft_->SetSize(starSize);
+    cursorLeft_->SetRotation(animTimer_ * 3.0f);
+    cursorLeft_->Update();
+
+    cursorRight_->SetPosition({ selPos.x + 175.0f, selPos.y });
+    cursorRight_->SetSize(starSize);
+    cursorRight_->SetRotation(-animTimer_ * 3.0f);
+    cursorRight_->Update();
 }
 
 void PauseMenu::UpdateSoundMenu()
@@ -216,11 +409,13 @@ void PauseMenu::UpdateSoundMenu()
             bgmVolume_ -= 0.1f;
             if (bgmVolume_ < 0.0f) bgmVolume_ = 0.0f;
             Audio::GetInstance()->SetCategoryVolume("BGM", bgmVolume_);
+            if (selectSE_ != 0) Audio::GetInstance()->PlayAudio(selectSE_, false, 0.4f, "SE");
         }
         if (input->TriggerKeyDown(DIK_RIGHT) || input->TriggerKeyDown(DIK_D) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_RIGHT)) {
             bgmVolume_ += 0.1f;
             if (bgmVolume_ > 1.0f) bgmVolume_ = 1.0f;
             Audio::GetInstance()->SetCategoryVolume("BGM", bgmVolume_);
+            if (selectSE_ != 0) Audio::GetInstance()->PlayAudio(selectSE_, false, 0.4f, "SE");
         }
     } else if (current.selectedIndex == static_cast<int>(SoundAction::SeVolume)) {
         if (input->TriggerKeyDown(DIK_LEFT) || input->TriggerKeyDown(DIK_A) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_LEFT)) {
@@ -241,84 +436,98 @@ void PauseMenu::UpdateSoundMenu()
     if (input->TriggerKeyDown(DIK_SPACE) || input->TriggerKeyDown(DIK_RETURN) || input->TriggerPadDown(0, XINPUT_GAMEPAD_A)) {
         if (current.selectedIndex == static_cast<int>(SoundAction::Back)) {
             PopMenu();
+            return;
         }
     }
+
+    if (soundTitleSprite_) soundTitleSprite_->Update();
+
+    Vector2 baseBtnSize = { 300.0f, 65.0f };
+    Vector2 positions[3] = {
+        { 515.0f, 275.0f },
+        { 515.0f, 350.0f },
+        { 640.0f, 435.0f }
+    };
+
+    SetupItemSprite(bgmVolumeSprite_.get(), positions[0], current.selectedIndex == 0, baseBtnSize);
+    SetupItemSprite(seVolumeSprite_.get(), positions[1], current.selectedIndex == 1, baseBtnSize);
+    SetupItemSprite(soundBackSprite_.get(), positions[2], current.selectedIndex == 2, { 320.0f, 65.0f });
+
+    // 音量バーの更新
+    bgmBarBg_->SetPosition({ 680.0f, 275.0f });
+    bgmBarBg_->Update();
+
+    bgmBarFill_->SetPosition({ 680.0f, 275.0f });
+    bgmBarFill_->SetSize({ (std::max)(1.0f, 150.0f * bgmVolume_), 16.0f });
+    bgmBarFill_->Update();
+
+    seBarBg_->SetPosition({ 680.0f, 350.0f });
+    seBarBg_->Update();
+
+    seBarFill_->SetPosition({ 680.0f, 350.0f });
+    seBarFill_->SetSize({ (std::max)(1.0f, 150.0f * seVolume_), 16.0f });
+    seBarFill_->Update();
+
+    // カーソル位置
+    Vector2 selPos = positions[current.selectedIndex];
+    float leftOffset = (current.selectedIndex == 2) ? 170.0f : 160.0f;
+    float rightOffset = (current.selectedIndex == 2) ? 170.0f : 330.0f;
+
+    float starPulse = 1.0f + 0.12f * std::sin(animTimer_ * 8.0f);
+    Vector2 starSize = { 38.0f * starPulse, 38.0f * starPulse };
+
+    cursorLeft_->SetPosition({ selPos.x - leftOffset, selPos.y });
+    cursorLeft_->SetSize(starSize);
+    cursorLeft_->SetRotation(animTimer_ * 3.0f);
+    cursorLeft_->Update();
+
+    cursorRight_->SetPosition({ selPos.x + rightOffset, selPos.y });
+    cursorRight_->SetSize(starSize);
+    cursorRight_->SetRotation(-animTimer_ * 3.0f);
+    cursorRight_->Update();
 }
 
 void PauseMenu::Draw()
 {
     if (!isPaused_ || menuStack_.empty()) return;
 
+    // 共通の背景枠
+    if (backdropSprite_) backdropSprite_->Draw();
+    if (boardBackSprite_) boardBackSprite_->Draw();
+    if (boardInnerSprite_) boardInnerSprite_->Draw();
+    if (headerPlateSprite_) headerPlateSprite_->Draw();
+
     MenuState& current = menuStack_.top();
     switch (current.menuId) {
     case MenuId::PauseMain:
-        DrawMenuItems("=== PAUSE ===", mainLabels_, current.selectedIndex);
+        if (pauseTitleSprite_) pauseTitleSprite_->Draw();
+        if (resumeSprite_) resumeSprite_->Draw();
+        if (optionsSprite_) optionsSprite_->Draw();
+        if (retrySprite_) retrySprite_->Draw();
+        if (titleSprite_) titleSprite_->Draw();
+        if (cursorLeft_) cursorLeft_->Draw();
+        if (cursorRight_) cursorRight_->Draw();
         break;
+
     case MenuId::Options:
-        DrawMenuItems("=== OPTIONS ===", optionLabels_, current.selectedIndex);
+        if (optionsTitleSprite_) optionsTitleSprite_->Draw();
+        if (soundSettingSprite_) soundSettingSprite_->Draw();
+        if (optionBackSprite_) optionBackSprite_->Draw();
+        if (cursorLeft_) cursorLeft_->Draw();
+        if (cursorRight_) cursorRight_->Draw();
         break;
-    case MenuId::Sound: {
-        std::vector<std::string> soundLabelsDisplay = soundLabels_;
-        soundLabelsDisplay[0] += " < " + std::to_string(static_cast<int>(bgmVolume_ * 100)) + "% >";
-        soundLabelsDisplay[1] += " < " + std::to_string(static_cast<int>(seVolume_ * 100)) + "% >";
-        DrawMenuItems("=== SOUND SETTINGS ===", soundLabelsDisplay, current.selectedIndex);
+
+    case MenuId::Sound:
+        if (soundTitleSprite_) soundTitleSprite_->Draw();
+        if (bgmVolumeSprite_) bgmVolumeSprite_->Draw();
+        if (bgmBarBg_) bgmBarBg_->Draw();
+        if (bgmBarFill_) bgmBarFill_->Draw();
+        if (seVolumeSprite_) seVolumeSprite_->Draw();
+        if (seBarBg_) seBarBg_->Draw();
+        if (seBarFill_) seBarFill_->Draw();
+        if (soundBackSprite_) soundBackSprite_->Draw();
+        if (cursorLeft_) cursorLeft_->Draw();
+        if (cursorRight_) cursorRight_->Draw();
         break;
     }
-    }
-}
-
-void PauseMenu::DrawMenuItems(const std::string& title, const std::vector<std::string>& labels, int selectedIndex)
-{
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(static_cast<float>(WinApp::kClientWidth), static_cast<float>(WinApp::kClientHeight)), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.65f);
-
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-                            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-                            ImGuiWindowFlags_NoSavedSettings;
-
-    if (ImGui::Begin("PauseOverlay", nullptr, flags)) {
-        float centerX = static_cast<float>(WinApp::kClientWidth) * 0.5f;
-        float centerY = static_cast<float>(WinApp::kClientHeight) * 0.32f;
-
-        // タイトル表示
-        ImGui::SetWindowFontScale(2.3f);
-        ImVec2 titleSize = ImGui::CalcTextSize(title.c_str());
-        ImGui::SetCursorPos(ImVec2(centerX - titleSize.x * 0.5f, centerY));
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", title.c_str());
-
-        // 階層表示（パンくずリスト）
-        ImGui::SetWindowFontScale(1.2f);
-        std::string breadcrumb = "MENU > ";
-        if (menuStack_.size() >= 1) breadcrumb += "PAUSE";
-        if (menuStack_.size() >= 2) breadcrumb += " > OPTIONS";
-        if (menuStack_.size() >= 3) breadcrumb += " > SOUND";
-        ImVec2 crumbSize = ImGui::CalcTextSize(breadcrumb.c_str());
-        ImGui::SetCursorPos(ImVec2(centerX - crumbSize.x * 0.5f, centerY + 50.0f));
-        ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 0.8f), "%s", breadcrumb.c_str());
-
-        // 項目一覧表示
-        ImGui::SetWindowFontScale(1.7f);
-        for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
-            std::string label = (i == selectedIndex) ? "> " + labels[i] + " <" : "  " + labels[i] + "  ";
-            ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
-            ImGui::SetCursorPos(ImVec2(centerX - textSize.x * 0.5f, centerY + 100.0f + i * 48.0f));
-
-            if (i == selectedIndex) {
-                ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "%s", label.c_str());
-            } else {
-                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "%s", label.c_str());
-            }
-        }
-
-        // 操作ガイド（画面下部）
-        ImGui::SetWindowFontScale(1.1f);
-        const char* guide = "[W/S/十字キー]: 選択   [SPACE/ENTER/A]: 決定   [ESC/B]: 戻る";
-        ImVec2 guideSize = ImGui::CalcTextSize(guide);
-        ImGui::SetCursorPos(ImVec2(centerX - guideSize.x * 0.5f, static_cast<float>(WinApp::kClientHeight) - 80.0f));
-        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 0.9f), "%s", guide);
-
-        ImGui::SetWindowFontScale(1.0f);
-    }
-    ImGui::End();
 }

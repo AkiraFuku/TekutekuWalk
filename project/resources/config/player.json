@@ -15,7 +15,7 @@
     "jumpBufferDuration": 0.15,
     "maxSlopeCos": 0.65,
     "maxStepHeight": 0.35,
-    "groundSnapDistance": 1.2,
+    "groundSnapDistance": 0.35,
     "landingStaggerDuration": 0.12,
     "landingStaggerMinFallSpeed": 8.0,
     "landingSpeedMultiplier": 0.25

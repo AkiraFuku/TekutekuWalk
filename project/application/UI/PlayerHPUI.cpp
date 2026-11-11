@@ -8,67 +8,61 @@ void PlayerHPUI::Initialize(Player *player) {
   if (!player) {
     return;
   }
-  // HP UIの背景部分
   player_ = player;
+
+  // 1. カービィ64風 下部UIベースバー（木目調の温かみのあるゴールド・オーカー色）
   hpSprite_ = std::make_unique<Sprite>();
   hpSprite_->Initialize("resources/white.png");
-  hpSprite_->SetColor({0.1f, 0.1f, 0.1f, 0.6f});
+  hpSprite_->SetColor({0.78f, 0.58f, 0.26f, 0.95f});
   hpSprite_->SetAnchorPoint({Anchor::TopLeft});
   hpSprite_->SetPosition({position_.x, position_.y});
-  hpSprite_->SetSize({hpSpriteWidth_ * scale_, 30.0f * scale_});
-  //
+  hpSprite_->SetSize({hpSpriteWidth_, 90.0f});
 
+  // バー上部の木枠トリムライン（濃い茶色）
+  barTrimSprite_ = std::make_unique<Sprite>();
+  barTrimSprite_->Initialize("resources/white.png");
+  barTrimSprite_->SetColor({0.32f, 0.20f, 0.10f, 1.0f});
+  barTrimSprite_->SetAnchorPoint({Anchor::TopLeft});
+  barTrimSprite_->SetPosition({position_.x, position_.y});
+  barTrimSprite_->SetSize({hpSpriteWidth_, 4.0f});
+
+  // 2. HPカウンター（卵型アイコン）の雛形
   baseCounterSprite_ = std::make_unique<Sprite>();
-  // 1. 初期テクスチャ（実HP）で初期化
   baseCounterSprite_->Initialize("resources/HPUI/ActiveHP.png");
+  baseCounterSprite_->RegisterTexture("resources/HPUI/DeactiveHP.png");
+  baseCounterSprite_->SetSize({counterSize_.x, counterSize_.y});
+  baseCounterSprite_->SetAnchorPoint({Anchor::TopLeft});
 
-  // 2. 空テクスチャを追加登録
-  baseCounterSprite_->RegisterTexture("resources//HPUI/DeactiveHP.png");
-
-  // 座標とサイズの設定
-  baseCounterSprite_->SetPosition(
-      {position_.x + counterOffset_.x +
-           (counterSpacing_ + counterSize_) * scale_,
-       position_.y + counterOffset_.y});
-  baseCounterSprite_->SetSize({counterSize_ * scale_, counterSize_ * scale_});
-  baseCounterSprite_->SetAnchorPoint({Anchor::TopLeft}); // 中心を基準にする場合
-
-  // プレイヤーの最大HPを取得
-  // (※関数名は実際のPlayerクラスのものに合わせてください)
+  // プレイヤーの最大HPを取得してスプライト生成
   int maxHP = player_->GetMaxHitPoints();
+  CounterSprite_.clear();
 
-  if (maxHP > 0) {
-    for (int i = 0; i < maxHP; i++) {
-      // 2. 雛形からコピーを作成
-      auto counterSprite = baseCounterSprite_->Clone();
+  float counterStartX = position_.x + counterOffset_.x;
+  float counterStartY = position_.y + counterOffset_.y;
 
-      // ステートマーク幅 + 間隔分だけ右にオフセットして配置
-      // レイアウト: [MarkIcon] + markOffset_.x(間隔) + [Counter×n]
-      float counterStartX =
-          position_.x + counterOffset_.x + markSize_ * scale_ + markOffset_.x;
-      counterSprite->SetPosition(
-          {counterStartX + i * (counterSpacing_ + counterSize_) * scale_,
-           position_.y + counterOffset_.y});
-      CounterSprite_.push_back(std::move(counterSprite));
-    }
+  for (int i = 0; i < maxHP; i++) {
+    auto counterSprite = baseCounterSprite_->Clone();
+    counterSprite->SetPosition(
+        {counterStartX + i * counterSpacing_, counterStartY});
+    CounterSprite_.push_back(std::move(counterSprite));
   }
 
-  // --- Markアイコンスプライトの初期化 ---
-  // ステートマークは counterOffset_ の位置（カウンターより左）に配置
-  float markX = position_.x + counterOffset_.x;
-  float markY = position_.y + counterOffset_.y;
+  // 3. カービィ64風 右側：コピー能力（形態）表示カード枠（白カード）
+  stateCardSprite_ = std::make_unique<Sprite>();
+  stateCardSprite_->Initialize("resources/white.png");
+  stateCardSprite_->SetColor({0.96f, 0.96f, 0.96f, 0.95f});
+  stateCardSprite_->SetAnchorPoint({Anchor::TopLeft});
+  stateCardSprite_->SetPosition({1145.0f, position_.y + 12.0f});
+  stateCardSprite_->SetSize({95.0f, 66.0f});
 
+  // 形態アイコンスプライト
   stateSprite_ = std::make_unique<Sprite>();
-  // テクスチャ登録：インデックス0 = WarlkMark（通常時）
   stateSprite_->Initialize("resources/Mark/WarlkMark.png");
-  // インデックス1 = JumpMark（バウンドロボット形態）
   stateSprite_->RegisterTexture("resources/Mark/JumpMark.png");
-  // インデックス2 = BulletMark（テストロボット形態）
   stateSprite_->RegisterTexture("resources/Mark/BulletMark.png");
-
   stateSprite_->SetAnchorPoint({Anchor::TopLeft});
-  stateSprite_->SetPosition({markX, markY});
-  stateSprite_->SetSize({markSize_ * scale_, markSize_ * scale_});
+  stateSprite_->SetPosition({1162.0f, position_.y + 15.0f});
+  stateSprite_->SetSize({markSize_, markSize_});
 }
 
 void PlayerHPUI::Update() {
@@ -77,34 +71,37 @@ void PlayerHPUI::Update() {
   }
   int currentHP = player_->GetHitPoints(); // 現在のHPを取得
   int maxHP = player_->GetMaxHitPoints();  // 最大のHPを取得
-  // もしゲーム中に最大HPが上昇・下降した場合に備え、スプライト数を最大HPに同期させる
+
+  float counterStartX = position_.x + counterOffset_.x;
+  float counterStartY = position_.y + counterOffset_.y;
+
   while (CounterSprite_.size() > static_cast<size_t>(maxHP)) {
     CounterSprite_.pop_back();
   }
   while (CounterSprite_.size() < static_cast<size_t>(maxHP)) {
     auto counterSprite = baseCounterSprite_->Clone();
-    // Mark右端 + 間隔 + i番目の位置
-    float counterStartX =
-        position_.x + counterOffset_.x + markSize_ * scale_ + markOffset_.x;
     counterSprite->SetPosition(
-        {counterStartX +
-             CounterSprite_.size() * (counterSpacing_ + counterSize_) * scale_,
-         position_.y + counterOffset_.y});
+        {counterStartX + CounterSprite_.size() * counterSpacing_,
+         counterStartY});
     CounterSprite_.push_back(std::move(counterSprite));
   }
 
   // 各スプライトのテクスチャを現在HPに応じて切り替える
-  for (int i = 0; i < CounterSprite_.size(); i++) {
-    if (i < currentHP) {
-      // 現在HP以下のインデックスは「実HP(インデックス0)」
+  for (size_t i = 0; i < CounterSprite_.size(); i++) {
+    if (static_cast<int>(i) < currentHP) {
       CounterSprite_[i]->SetTextureByIndex(texIndexFull_);
     } else {
-      // 現在HPを超えたインデックスは「空HP(インデックス1)」
       CounterSprite_[i]->SetTextureByIndex(texIndexEmpty_);
     }
   }
 
   hpSprite_->Update();
+  if (barTrimSprite_) {
+    barTrimSprite_->Update();
+  }
+  if (stateCardSprite_) {
+    stateCardSprite_->Update();
+  }
 
   for (auto &counterSprite : CounterSprite_) {
     counterSprite->Update();
@@ -112,19 +109,15 @@ void PlayerHPUI::Update() {
 
   // --- Markアイコンの切り替え ---
   if (stateSprite_) {
-    // プレイヤーの状態名で形態を判定
     const char *stateName =
         player_->GetState() ? player_->GetState()->GetName() : "Normal";
     std::string name(stateName);
 
     if (name == "Bound") {
-      // バウンドロボット形態 → JumpMark
       stateSprite_->SetTextureByIndex(markTexIndexJump_);
     } else if (name == "RideOnTest") {
-      // テストロボット形態 → BulletMark
       stateSprite_->SetTextureByIndex(markTexIndexBullet_);
     } else {
-      // 通常（Normal / Dead など）→ WarlkMark
       stateSprite_->SetTextureByIndex(markTexIndexWalk_);
     }
 
@@ -138,12 +131,17 @@ void PlayerHPUI::Draw() {
   }
 
   hpSprite_->Draw();
+  if (barTrimSprite_) {
+    barTrimSprite_->Draw();
+  }
+  if (stateCardSprite_) {
+    stateCardSprite_->Draw();
+  }
 
   for (auto &counterSprite : CounterSprite_) {
     counterSprite->Draw();
   }
 
-  // --- Markアイコンの描画 ---
   if (stateSprite_) {
     stateSprite_->Draw();
   }

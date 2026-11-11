@@ -30,7 +30,7 @@ struct PlayerConfig {
     float jumpBufferDuration = 0.15f;     // 着地前ジャンプ先行入力猶予時間 (秒)
     float maxSlopeCos = 0.65f;            // 登れる最大傾斜（cos約49度）
     float maxStepHeight = 0.35f;          // 乗り越えられる段差の最大高さ (m)
-    float groundSnapDistance = 1.2f;      // 地面吸着距離 (m)
+    float groundSnapDistance = 0.35f;     // 地面吸着距離 (m)
     float landingStaggerDuration = 0.12f; // 着地時の怯み（硬直）時間 (秒)
     float landingStaggerMinFallSpeed =
         8.0f; // 着地怯みが発生する最小落下速度 (m/s)
@@ -373,6 +373,7 @@ private:
   bool isJumping_ = false;             // ジャンプ中フラグ（吸着解除用）
   float dropThroughTimer_ = 0.0f;      // すり抜け足場（OneWay）下層降下タイマー
   bool isCurrentGroundOneway_ = false; // 現在乗っている床がすり抜け足場かどうか
+  float lastGroundY_ = 0.0f;           // 直前フレームの確定接地高さ（段差落下判定用）
 
   // 地面レイキャスト判定パラメータ
   struct GroundRayParam {
@@ -392,7 +393,7 @@ private:
   bool debugForceAttackHitbox_ = false; // デバッグ用：常時有効化トグル
 
   bool isDamaged_ = false;
-  Gauge hitPoints_ = {3, 3};
+  Gauge hitPoints_ = {6, 6};
   float hitInvincibilityTimer_ = 0.0f; // 被弾時の無敵＆点滅タイマー
   float actionInvincibilityTimer_ =
       0.0f; // 攻撃・回避後の無敵余韻タイマー（点滅しない）
