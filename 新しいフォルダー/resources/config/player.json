@@ -1,0 +1,92 @@
+{
+  "paths": {
+    "modelDir": "resources/player/",
+    "modelFile": "player.obj",
+    "texture": "resources/player/player.png",
+    "hitSE": "resources/Audio/SE/Hit.mp3",
+    "damageSE": "resources/Audio/SE/Damage.mp3"
+  },
+  "movement": {
+    "walkSpeed": 7.5,
+    "dashSpeed": 15.0,
+    "gravity": -50.0,
+    "jumpAcceleration": 24.0,
+    "coyoteDuration": 0.12,
+    "jumpBufferDuration": 0.15,
+    "maxSlopeCos": 0.65,
+    "maxStepHeight": 0.35,
+    "groundSnapDistance": 0.35,
+    "landingStaggerDuration": 0.12,
+    "landingStaggerMinFallSpeed": 8.0,
+    "landingSpeedMultiplier": 0.25
+  },
+  "combat": {
+    "hitInvincibilityDuration": 1.5,
+    "knockbackDuration": 0.25,
+    "knockbackSpeed": 7.0,
+    "knockbackJumpForce": 6.0
+  },
+  "juice": {
+    "jumpStretchIntensity": 0.25,
+    "jumpStretchDuration": 0.22,
+    "landSquashIntensityMax": 0.32,
+    "landSquashDuration": 0.25
+  },
+  "collider": {
+    "radius": 0.50,
+    "modelRadius": 0.50,
+    "heightOffset": 0.50,
+    "wallRayHeight": 0.0,
+    "head": {
+      "offsetY": 0.0,
+      "radius": 0.50
+    },
+    "body": {
+      "offsetY": 0.0,
+      "radius": 0.50
+    },
+    "attack": {
+      "offsetY": 0.0,
+      "offsetForward": 0.95,
+      "radius": 0.50,
+      "halfSize": [
+        0.55,
+        0.55,
+        0.70
+      ]
+    }
+  },
+  "slide": {
+    "duration": 0.38,
+    "initialSpeed": 22.0,
+    "invincibilityAfter": 0.15
+  },
+  "hover": {
+    "maxDuration": 2.5,
+    "fallSpeed": -0.5,
+    "initialBoostY": 1.0
+  },
+  "guard": {
+    "maxDuration": 3.0,
+    "bashDuration": 0.28,
+    "bashSpeed": 24.0,
+    "invincibilityAfter": 0.2
+  },
+  "attackAction": {
+    "duration": 0.36,
+    "windupDuration": 0.04,
+    "rushDuration": 0.22,
+    "recoveryDuration": 0.10,
+    "rushSpeedMultiplier": 0.0,
+    "invincibilityAfter": 0.2
+  },
+  "rapidFire": {
+    "fireInterval": 0.09,
+    "bulletSpeed": 0.72,
+    "bulletSpreadY": 0.025
+  },
+  "dropThrough": {
+    "duration": 0.3,
+    "downVelocity": -6.0
+  }
+}

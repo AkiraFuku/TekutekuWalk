@@ -124,12 +124,14 @@ void StageSelectScene::Update()
 
     // 決定前かつフェード中でなければ入力を受け付ける
     if (!isDecided_ && !Fade::GetInstance()->IsFading() && itemCount > 0) {
-        // 左右キー / 上下キー / ゲームパッドで選択切り替え
+        // 左右キー / 上下キー / WASD / ゲームパッドで選択切り替え
         if (input->TriggerKeyDown(DIK_LEFT) || input->TriggerKeyDown(DIK_UP) ||
+            input->TriggerKeyDown(DIK_A) || input->TriggerKeyDown(DIK_W) ||
             input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_LEFT) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_UP)) {
             selectedIndex_ = (selectedIndex_ - 1 + itemCount) % itemCount;
         }
         if (input->TriggerKeyDown(DIK_RIGHT) || input->TriggerKeyDown(DIK_DOWN) ||
+            input->TriggerKeyDown(DIK_D) || input->TriggerKeyDown(DIK_S) ||
             input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_RIGHT) || input->TriggerPadDown(0, XINPUT_GAMEPAD_DPAD_DOWN)) {
             selectedIndex_ = (selectedIndex_ + 1) % itemCount;
         }
