@@ -110,6 +110,8 @@ void DXCommon::PostDraw()
         WaitForSingleObject(fenceEvent_, INFINITE);
         CloseHandle(fenceEvent_);
     }
+    // FPS固定更新
+    UpdateFixFPS();
     //コマンドアロケーターのリセット
     hr_ = commandAllocator_->Reset();
     assert(SUCCEEDED(hr_));
