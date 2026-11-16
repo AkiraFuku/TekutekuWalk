@@ -14,6 +14,7 @@
 #include "Animation.h"
 #include "Enemy.h"
 #include "GaidUI.h"
+#include "CheckpointContainer.h"
 class StageManager;
 class ParticleEmitter;
 class RailPath;
@@ -190,5 +191,11 @@ private:
     float bannerStartX_ = -200.0f;
     float bannerEndX_ = 1480.0f;
     float bannerStartY_ = 100.0f;
+
+    // ステージ内チェックポイント管理（STLコンテナ課題）
+    CheckpointContainer checkpointContainer_;
+    std::vector<std::string> checkpointActionLogs_;
+    int selectedCheckpointIndex_ = 0;
+    void AddCheckpointActionLog(const std::string& log);
 };
 

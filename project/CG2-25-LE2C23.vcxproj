@@ -254,6 +254,7 @@
     <ClInclude Include="application\UI\ScoreUI.h" />
     <ClInclude Include="application\UI\DamagePopupManager.h" />
     <ClInclude Include="application\UI\PauseMenu.h" />
+    <ClInclude Include="application\UI\CheckpointContainer.h" />
     <ClInclude Include="application\UI\NumberTex.h" />
     <ClInclude Include="application\object\player\Behavior\IPlayerFactory.h" />
     <ClInclude Include="Fade.h" />

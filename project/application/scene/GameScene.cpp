@@ -265,6 +265,17 @@ void GameScene::Initialize() {
 
     ChangePhase(std::make_unique<StartPhase>());
 
+    // ステージ内チェックポイント（STLコンテナ課題）の初期登録
+    checkpointContainer_.InitializeDefaultStageCheckpoints();
+    checkpointActionLogs_.clear();
+    AddCheckpointActionLog("Initialized 5 stage checkpoints (all Unreached).");
+}
+
+void GameScene::AddCheckpointActionLog(const std::string& log) {
+    checkpointActionLogs_.push_back(log);
+    if (checkpointActionLogs_.size() > 50) {
+        checkpointActionLogs_.erase(checkpointActionLogs_.begin());
+    }
 }
 void GameScene::Finalize() {
 
@@ -586,8 +597,176 @@ void GameScene::Update() {
 
     }
 
+    // =========================================================
+    // ステージ内チェックポイント管理 (STLコンテナ課題 デバッグUI)
+    // =========================================================
+    ImGui::Begin("Stage Checkpoints (STL Assignment)");
 
+    // --- 1. 最後に通過した有効チェックポイント（リスポーン地点） ---
+    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "[ Last Passed Active Checkpoint (std::stack) ]");
+    CheckpointId lastId = CheckpointId::Entrance;
+    const CheckpointData* lastCp = checkpointContainer_.GetLastCheckpoint();
+    if (lastCp && checkpointContainer_.GetLastCheckpointId(lastId)) {
+        ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.4f, 1.0f),
+            "Active Respawn: [ID: %d] %s", static_cast<int>(lastId), lastCp->name.c_str());
+        ImGui::Text("Respawn Position: (%.1f, %.1f, %.1f) | History Size: %zu",
+            lastCp->position.x, lastCp->position.y, lastCp->position.z,
+            checkpointContainer_.GetHistorySize());
 
+        if (ImGui::Button("Respawn at Last Checkpoint")) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "[Respawn] Warped to [ID: %d] %s at (%.1f, %.1f, %.1f)",
+                static_cast<int>(lastId), lastCp->name.c_str(),
+                lastCp->position.x, lastCp->position.y, lastCp->position.z);
+            AddCheckpointActionLog(buf);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Undo Last Pass (stack::pop)")) {
+            int poppedId = static_cast<int>(lastId);
+            std::string poppedName = lastCp->name;
+            checkpointContainer_.UndoLastCheckpoint();
+            AddCheckpointActionLog("[Stack Pop] Reverted last checkpoint from [ID: " +
+                std::to_string(poppedId) + "] " + poppedName);
+        }
+    } else {
+        ImGui::TextDisabled("Active Respawn: (None - No checkpoint passed yet)");
+    }
+
+    ImGui::Separator();
+
+    // --- 2. ステージ内チェックポイント一覧 & ファストトラベル (std::map) ---
+    ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f), "[ All Checkpoints & Fast Travel (std::map) ]");
+    const auto& allCheckpoints = checkpointContainer_.GetAll();
+    CheckpointId reachRequestId = static_cast<CheckpointId>(-1);
+    CheckpointId fastTravelRequestId = static_cast<CheckpointId>(-1);
+
+    for (const auto& entry : allCheckpoints) {
+        CheckpointId id = entry.first;
+        const CheckpointData& data = entry.second;
+        int idNum = static_cast<int>(id);
+
+        if (data.isReached) {
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "[Reached]  ");
+        } else {
+            ImGui::TextDisabled("[Unreached]");
+        }
+        ImGui::SameLine();
+        ImGui::Text("ID:%d | %-22s | Pos:(%5.1f, %4.1f, %5.1f)",
+            idNum, data.name.c_str(), data.position.x, data.position.y, data.position.z);
+        ImGui::SameLine();
+
+        // 通過（到達フラグ更新）ボタン
+        std::string passBtn = "Pass / Reach##" + std::to_string(idNum);
+        if (ImGui::Button(passBtn.c_str())) {
+            reachRequestId = id;
+        }
+        ImGui::SameLine();
+
+        // ファストトラベルボタン（到達済みのみ有効）
+        std::string ftBtn = "Fast Travel##" + std::to_string(idNum);
+        if (!data.isReached) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button(ftBtn.c_str())) {
+            fastTravelRequestId = id;
+        }
+        if (!data.isReached) {
+            ImGui::EndDisabled();
+        }
+    }
+
+    if (reachRequestId != static_cast<CheckpointId>(-1)) {
+        int res = checkpointContainer_.ReachCheckpoint(reachRequestId);
+        const CheckpointData* cp = checkpointContainer_.GetCheckpointData(reachRequestId);
+        if (res == 1 && cp) {
+            AddCheckpointActionLog("[Flag Updated] Reached NEW checkpoint [ID: " +
+                std::to_string(static_cast<int>(reachRequestId)) + "] " + cp->name + " (isReached: false -> true)");
+        } else if (res == 2 && cp) {
+            AddCheckpointActionLog("[Re-Passed] Passed already unlocked [ID: " +
+                std::to_string(static_cast<int>(reachRequestId)) + "] " + cp->name + " (Updated Last Checkpoint)");
+        }
+    }
+
+    if (fastTravelRequestId != static_cast<CheckpointId>(-1)) {
+        CheckpointPos targetPos{};
+        const CheckpointData* cp = checkpointContainer_.GetCheckpointData(fastTravelRequestId);
+        if (checkpointContainer_.FindCheckpointPosition(fastTravelRequestId, targetPos) && cp) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "[Fast Travel] Teleported to [ID: %d] %s -> Pos(%.1f, %.1f, %.1f)",
+                static_cast<int>(fastTravelRequestId), cp->name.c_str(),
+                targetPos.x, targetPos.y, targetPos.z);
+            AddCheckpointActionLog(buf);
+        }
+    }
+
+    ImGui::Separator();
+
+    // --- 3. 地点 ID を指定した座標情報の検索 (std::map::find) ---
+    ImGui::TextColored(ImVec4(0.9f, 0.6f, 1.0f, 1.0f), "[ Search Coordinate by ID (std::map::find) ]");
+    const char* cpItems[] = {
+        "Entrance (ID: 100)",
+        "Valley Bridge (ID: 200)",
+        "Ancient Ruins (ID: 300)",
+        "Mid-Boss Gate (ID: 400)",
+        "Summit Altar (ID: 500)",
+        "Invalid / Secret Area (ID: 999)"
+    };
+    const int cpIdValues[] = { 100, 200, 300, 400, 500, 999 };
+    ImGui::Combo("Target ID", &selectedCheckpointIndex_, cpItems, IM_ARRAYSIZE(cpItems));
+
+    CheckpointId selectedId = static_cast<CheckpointId>(cpIdValues[selectedCheckpointIndex_]);
+    if (ImGui::Button("Search Position by ID (find)")) {
+        CheckpointPos foundPos{};
+        if (checkpointContainer_.FindCheckpointPosition(selectedId, foundPos)) {
+            const CheckpointData* cp = checkpointContainer_.GetCheckpointData(selectedId);
+            bool reached = checkpointContainer_.IsReached(selectedId);
+            char buf[256];
+            snprintf(buf, sizeof(buf), "[find Result] ID:%d (%s) FOUND -> Pos(%.1f, %.1f, %.1f) [%s]",
+                cpIdValues[selectedCheckpointIndex_],
+                cp ? cp->name.c_str() : "",
+                foundPos.x, foundPos.y, foundPos.z,
+                reached ? "Reached" : "Unreached");
+            AddCheckpointActionLog(buf);
+        } else {
+            AddCheckpointActionLog("[find Result] ID:" + std::to_string(cpIdValues[selectedCheckpointIndex_]) +
+                " NOT FOUND in std::map.");
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reach Selected ID")) {
+        int res = checkpointContainer_.ReachCheckpoint(selectedId);
+        if (res == 1) {
+            AddCheckpointActionLog("[Flag Updated] ID:" + std::to_string(cpIdValues[selectedCheckpointIndex_]) +
+                " isReached updated to true.");
+        } else if (res == 2) {
+            AddCheckpointActionLog("[Re-Passed] ID:" + std::to_string(cpIdValues[selectedCheckpointIndex_]) +
+                " was already reached. Updated last checkpoint.");
+        } else {
+            AddCheckpointActionLog("[Error] Cannot reach ID:" + std::to_string(cpIdValues[selectedCheckpointIndex_]) +
+                " (ID does not exist).");
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset All Checkpoints")) {
+        checkpointContainer_.ResetAll();
+        AddCheckpointActionLog("[Reset] All checkpoints reset to Unreached and history cleared.");
+    }
+
+    ImGui::Separator();
+
+    // --- 4. 操作ログ表示 ---
+    ImGui::TextColored(ImVec4(0.6f, 1.0f, 0.6f, 1.0f), "[ Action Logs ]");
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Logs")) {
+        checkpointActionLogs_.clear();
+    }
+    ImGui::BeginChild("CheckpointLogs", ImVec2(0, 150), true);
+    for (int i = static_cast<int>(checkpointActionLogs_.size()) - 1; i >= 0; --i) {
+        ImGui::TextUnformatted(checkpointActionLogs_[i].c_str());
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
 
 #endif // USE_IMGUI
 
