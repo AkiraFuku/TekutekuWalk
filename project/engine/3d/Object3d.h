@@ -172,6 +172,33 @@ public:
     void SetCurvature(float curvature) { curvature_ = curvature; }
     float GetCurvature() const { return curvature_; }
 
+    // ─── 汎用モデルサブパーツ変形制御ラッパー ───
+    void AutoDetectSubParts() {
+        if (model_) model_->AutoDetectSubParts();
+    }
+    bool BindSubPartByNearestPos(const std::string& name, const Vector3& localPos) {
+        return model_ ? model_->BindSubPartByNearestPos(name, localPos) : false;
+    }
+    void RegisterSubPartBySphere(const std::string& name, const Vector3& localCenter, float radius) {
+        if (model_) model_->RegisterSubPartBySphere(name, localCenter, radius);
+    }
+    void SetSubPartTransform(const std::string& name, const EulerTransform& transform) {
+        if (model_) model_->SetSubPartTransform(name, transform);
+    }
+    void SetSubPartTranslate(const std::string& name, const Vector3& translate) {
+        if (model_) model_->SetSubPartTranslate(name, translate);
+    }
+    void SetSubPartRotate(const std::string& name, const Vector3& rotate) {
+        if (model_) model_->SetSubPartRotate(name, rotate);
+    }
+    void SetSubPartScale(const std::string& name, const Vector3& scale) {
+        if (model_) model_->SetSubPartScale(name, scale);
+    }
+    void ResetSubParts() {
+        if (model_) model_->ResetSubParts();
+    }
+    Vector3 GetSubPartWorldPosition(const std::string& name) const;
+
 private:
 
     //float radius_ = 1.0f;

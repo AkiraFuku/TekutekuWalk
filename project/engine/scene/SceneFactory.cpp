@@ -4,6 +4,7 @@
 #include "ResultScene.h"
 #include "StageSelectScene.h"
 #include "GameOverScene.h"
+#include "ClearScene.h"
 std::unique_ptr<Scene> SceneFactory::CreateScene(const std::string& sceneName)
 {
     std::unique_ptr<Scene> scene = nullptr;
@@ -22,6 +23,9 @@ std::unique_ptr<Scene> SceneFactory::CreateScene(const std::string& sceneName)
     }
     else if (sceneName == "GameOverScene") {
          scene = std::make_unique<GameOverScene>();
+    }
+    else if (sceneName == "ClearScene") {
+         scene = std::make_unique<ClearScene>();
     }
 
     return scene;

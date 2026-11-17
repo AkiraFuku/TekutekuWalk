@@ -50,6 +50,9 @@ public:
     CollisionCategory GetCategory() const override {
         return CollisionCategory::Goal;
     }
+    Object3d* GetObject3d() const {
+        return object_.get();
+    }
 private:
     std::unique_ptr<Object3d> object_;
     std::unique_ptr<RailMover> railMover_;

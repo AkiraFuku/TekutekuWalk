@@ -243,11 +243,64 @@ public: // 外部入出力
 
     void SetTexture(const std::string& textureFilePath);
 
+    // =========================================================================
+    // 汎用サブパーツ（独立メッシュ塊・頂点グループ）変形システム
+    // =========================================================================
+    struct SubPart {
+        std::string name;                        // パーツ名（"RightHand", "LeftHand", "Part_0" 等）
+        std::vector<uint32_t> vertexIndices;     // このパーツに属する頂点インデックス群
+        Vector3 pivot = { 0.0f, 0.0f, 0.0f };    // ローカル空間でのパーツ回転・拡縮基準点（重心）
+        Vector3 minBound = { 0.0f, 0.0f, 0.0f }; // ローカルAABB最小座標
+        Vector3 maxBound = { 0.0f, 0.0f, 0.0f }; // ローカルAABB最大座標
+        EulerTransform transform = { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } };
+    };
+
+    /// <summary>
+    /// 同一座標頂点とインデックス隣接関係から、モデル内の独立したパーツ塊を自動検出・分離する
+    /// </summary>
+    void AutoDetectSubParts();
+
+    /// <summary>
+    /// 指定したローカル座標に最も近いサブパーツに任意の名前（"RightHand" 等）をバインドする
+    /// </summary>
+    bool BindSubPartByNearestPos(const std::string& name, const Vector3& localPos);
+
+    /// <summary>
+    /// 球体範囲に含まれる頂点群をサブパーツとして手動登録する（単一連結メッシュの一部を動かす場合にも使用可能）
+    /// </summary>
+    void RegisterSubPartBySphere(const std::string& name, const Vector3& localCenter, float radius);
+
+    /// <summary>
+    /// サブパーツのローカル変形（Scale / Rotate / Translate）を設定し、頂点バッファへ反映する
+    /// </summary>
+    void SetSubPartTransform(const std::string& name, const EulerTransform& transform);
+    void SetSubPartTranslate(const std::string& name, const Vector3& translate);
+    void SetSubPartRotate(const std::string& name, const Vector3& rotate);
+    void SetSubPartScale(const std::string& name, const Vector3& scale);
+
+    /// <summary>
+    /// 全サブパーツの現在の変形を頂点バッファへ一括適用する
+    /// </summary>
+    void ApplySubPartTransforms();
+
+    /// <summary>
+    /// 全サブパーツの変形をリセットし、初期頂点バッファへ復元する
+    /// </summary>
+    void ResetSubParts();
+
+    /// <summary>
+    /// 変形適用後のサブパーツ中心（ローカル座標）を取得する
+    /// </summary>
+    Vector3 GetSubPartLocalCenter(const std::string& name) const;
+
+    const std::vector<SubPart>& GetSubParts() const { return subParts_; }
+
 private:
 
     void DebugDrawSkeleton(const Matrix4x4& worldMatrix);
 
     ModelData modelData_;
+    std::vector<SubPart> subParts_;
 
     Animation* animation_ = nullptr;
 

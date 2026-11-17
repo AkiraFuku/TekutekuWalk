@@ -859,3 +859,287 @@ std::unique_ptr<Model> Model::CreateTerrainGrid(
 
     return model;
 }
+
+// =============================================================================
+// 汎用サブパーツ（独立メッシュ塊・頂点グループ）変形システムの実装
+// =============================================================================
+#include <queue>
+#include <unordered_map>
+
+void Model::AutoDetectSubParts()
+{
+    subParts_.clear();
+    const size_t vCount = modelData_.vertices.size();
+    if (vCount == 0) return;
+
+    // 1. 同一3D座標を持つ頂点（UVシームや法線分割で複製された頂点）を量子化キーでグループ化
+    struct QuantizedPos {
+        int32_t x, y, z;
+        bool operator==(const QuantizedPos& o) const {
+            return x == o.x && y == o.y && z == o.z;
+        }
+    };
+    struct QuantizedPosHash {
+        size_t operator()(const QuantizedPos& p) const {
+            size_t h1 = std::hash<int32_t>{}(p.x);
+            size_t h2 = std::hash<int32_t>{}(p.y);
+            size_t h3 = std::hash<int32_t>{}(p.z);
+            return h1 ^ (h2 * 0x9e3779b9 + (h1 << 6) + (h1 >> 2)) ^ (h3 * 0x517cc1b7);
+        }
+    };
+
+    std::vector<std::vector<uint32_t>> adj(vCount);
+    std::unordered_map<QuantizedPos, uint32_t, QuantizedPosHash> posRepresentative;
+    posRepresentative.reserve(vCount);
+
+    for (uint32_t i = 0; i < static_cast<uint32_t>(vCount); ++i) {
+        const auto& pos = modelData_.vertices[i].position;
+        QuantizedPos qp{
+            static_cast<int32_t>(std::round(pos.x * 10000.0f)),
+            static_cast<int32_t>(std::round(pos.y * 10000.0f)),
+            static_cast<int32_t>(std::round(pos.z * 10000.0f))
+        };
+        auto it = posRepresentative.find(qp);
+        if (it == posRepresentative.end()) {
+            posRepresentative[qp] = i;
+        } else {
+            uint32_t rep = it->second;
+            adj[rep].push_back(i);
+            adj[i].push_back(rep);
+        }
+    }
+
+    // 2. 三角形インデックスによる隣接辺を追加
+    if (!modelData_.indices.empty()) {
+        for (size_t i = 0; i + 2 < modelData_.indices.size(); i += 3) {
+            uint32_t i0 = modelData_.indices[i];
+            uint32_t i1 = modelData_.indices[i + 1];
+            uint32_t i2 = modelData_.indices[i + 2];
+            if (i0 < vCount && i1 < vCount && i2 < vCount) {
+                adj[i0].push_back(i1); adj[i1].push_back(i0);
+                adj[i1].push_back(i2); adj[i2].push_back(i1);
+                adj[i2].push_back(i0); adj[i0].push_back(i2);
+            }
+        }
+    } else {
+        for (uint32_t i = 0; i + 2 < static_cast<uint32_t>(vCount); i += 3) {
+            adj[i].push_back(i + 1); adj[i + 1].push_back(i);
+            adj[i + 1].push_back(i + 2); adj[i + 2].push_back(i + 1);
+            adj[i + 2].push_back(i); adj[i].push_back(i + 2);
+        }
+    }
+
+    // 3. 幅優先探索（BFS）で連結成分を抽出し、各サブパーツのAABBと重心（pivot）を算出
+    std::vector<bool> visited(vCount, false);
+    int partIndex = 0;
+
+    for (uint32_t i = 0; i < static_cast<uint32_t>(vCount); ++i) {
+        if (visited[i]) continue;
+
+        SubPart part;
+        part.name = "Part_" + std::to_string(partIndex++);
+        part.minBound = {  1e9f,  1e9f,  1e9f };
+        part.maxBound = { -1e9f, -1e9f, -1e9f };
+
+        std::queue<uint32_t> q;
+        q.push(i);
+        visited[i] = true;
+
+        while (!q.empty()) {
+            uint32_t u = q.front();
+            q.pop();
+            part.vertexIndices.push_back(u);
+
+            const auto& p = modelData_.vertices[u].position;
+            part.minBound.x = (std::min)(part.minBound.x, p.x);
+            part.minBound.y = (std::min)(part.minBound.y, p.y);
+            part.minBound.z = (std::min)(part.minBound.z, p.z);
+            part.maxBound.x = (std::max)(part.maxBound.x, p.x);
+            part.maxBound.y = (std::max)(part.maxBound.y, p.y);
+            part.maxBound.z = (std::max)(part.maxBound.z, p.z);
+
+            for (uint32_t w : adj[u]) {
+                if (!visited[w]) {
+                    visited[w] = true;
+                    q.push(w);
+                }
+            }
+        }
+
+        part.pivot = {
+            (part.minBound.x + part.maxBound.x) * 0.5f,
+            (part.minBound.y + part.maxBound.y) * 0.5f,
+            (part.minBound.z + part.maxBound.z) * 0.5f
+        };
+        subParts_.push_back(std::move(part));
+    }
+}
+
+bool Model::BindSubPartByNearestPos(const std::string& name, const Vector3& localPos)
+{
+    if (subParts_.empty()) {
+        AutoDetectSubParts();
+    }
+    if (subParts_.empty()) return false;
+
+    int bestIdx = -1;
+    float bestDistSq = 1e18f;
+    for (int i = 0; i < static_cast<int>(subParts_.size()); ++i) {
+        Vector3 diff = subParts_[i].pivot - localPos;
+        float distSq = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
+        if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestIdx = i;
+        }
+    }
+    if (bestIdx >= 0) {
+        subParts_[bestIdx].name = name;
+        return true;
+    }
+    return false;
+}
+
+void Model::RegisterSubPartBySphere(const std::string& name, const Vector3& localCenter, float radius)
+{
+    const float rSq = radius * radius;
+    SubPart part;
+    part.name = name;
+    part.pivot = localCenter;
+    part.minBound = {  1e9f,  1e9f,  1e9f };
+    part.maxBound = { -1e9f, -1e9f, -1e9f };
+
+    for (uint32_t i = 0; i < static_cast<uint32_t>(modelData_.vertices.size()); ++i) {
+        const auto& p = modelData_.vertices[i].position;
+        float dx = p.x - localCenter.x;
+        float dy = p.y - localCenter.y;
+        float dz = p.z - localCenter.z;
+        if (dx * dx + dy * dy + dz * dz <= rSq) {
+            part.vertexIndices.push_back(i);
+            part.minBound.x = (std::min)(part.minBound.x, p.x);
+            part.minBound.y = (std::min)(part.minBound.y, p.y);
+            part.minBound.z = (std::min)(part.minBound.z, p.z);
+            part.maxBound.x = (std::max)(part.maxBound.x, p.x);
+            part.maxBound.y = (std::max)(part.maxBound.y, p.y);
+            part.maxBound.z = (std::max)(part.maxBound.z, p.z);
+        }
+    }
+
+    for (auto& existing : subParts_) {
+        if (existing.name == name) {
+            existing = std::move(part);
+            return;
+        }
+    }
+    subParts_.push_back(std::move(part));
+}
+
+void Model::SetSubPartTransform(const std::string& name, const EulerTransform& transform)
+{
+    for (auto& part : subParts_) {
+        if (part.name == name) {
+            part.transform = transform;
+            ApplySubPartTransforms();
+            return;
+        }
+    }
+}
+
+void Model::SetSubPartTranslate(const std::string& name, const Vector3& translate)
+{
+    for (auto& part : subParts_) {
+        if (part.name == name) {
+            part.transform.translate = translate;
+            ApplySubPartTransforms();
+            return;
+        }
+    }
+}
+
+void Model::SetSubPartRotate(const std::string& name, const Vector3& rotate)
+{
+    for (auto& part : subParts_) {
+        if (part.name == name) {
+            part.transform.rotate = rotate;
+            ApplySubPartTransforms();
+            return;
+        }
+    }
+}
+
+void Model::SetSubPartScale(const std::string& name, const Vector3& scale)
+{
+    for (auto& part : subParts_) {
+        if (part.name == name) {
+            part.transform.scale = scale;
+            ApplySubPartTransforms();
+            return;
+        }
+    }
+}
+
+void Model::ApplySubPartTransforms()
+{
+    if (!vertexData_ || modelData_.vertices.empty()) return;
+
+    // まず全頂点を初期バインドポーズへ戻す
+    std::memcpy(vertexData_, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
+
+    // 各サブパーツに自身の重心(pivot)基準で Scale -> Rotate -> Translate を適用
+    for (const auto& part : subParts_) {
+        const Vector3& s = part.transform.scale;
+        const Vector3& r = part.transform.rotate;
+        const Vector3& t = part.transform.translate;
+
+        bool isIdentity =
+            std::abs(s.x - 1.0f) < 1e-5f && std::abs(s.y - 1.0f) < 1e-5f && std::abs(s.z - 1.0f) < 1e-5f &&
+            std::abs(r.x) < 1e-5f && std::abs(r.y) < 1e-5f && std::abs(r.z) < 1e-5f &&
+            std::abs(t.x) < 1e-5f && std::abs(t.y) < 1e-5f && std::abs(t.z) < 1e-5f;
+
+        if (isIdentity) continue;
+
+        Matrix4x4 rotMat = Multiply(MakeRotateXMatrix(r.x), Multiply(MakeRotateYMatrix(r.y), MakeRotateZMatrix(r.z)));
+
+        for (uint32_t idx : part.vertexIndices) {
+            if (idx >= modelData_.vertices.size()) continue;
+            const auto& src = modelData_.vertices[idx];
+
+            // Pivot 基準のローカル座標
+            Vector3 local = {
+                (src.position.x - part.pivot.x) * s.x,
+                (src.position.y - part.pivot.y) * s.y,
+                (src.position.z - part.pivot.z) * s.z
+            };
+            Vector3 rotated = TransformNormal(local, rotMat);
+            vertexData_[idx].position = {
+                part.pivot.x + rotated.x + t.x,
+                part.pivot.y + rotated.y + t.y,
+                part.pivot.z + rotated.z + t.z,
+                src.position.w
+            };
+
+            Vector3 normRotated = TransformNormal(src.normal, rotMat);
+            float nLen = Length(normRotated);
+            vertexData_[idx].normal = (nLen > 1e-5f) ? (normRotated / nLen) : src.normal;
+        }
+    }
+}
+
+void Model::ResetSubParts()
+{
+    for (auto& part : subParts_) {
+        part.transform = { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } };
+    }
+    if (vertexData_ && !modelData_.vertices.empty()) {
+        std::memcpy(vertexData_, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
+    }
+}
+
+Vector3 Model::GetSubPartLocalCenter(const std::string& name) const
+{
+    for (const auto& part : subParts_) {
+        if (part.name == name) {
+            return part.pivot + part.transform.translate;
+        }
+    }
+    return { 0.0f, 0.0f, 0.0f };
+}

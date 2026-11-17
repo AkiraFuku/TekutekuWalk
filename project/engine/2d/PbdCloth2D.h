@@ -58,6 +58,8 @@ public:
     void SetPosition(const Vector2& pos) { position_ = pos; }
     void SetSize(const Vector2& size) { size_ = size; }
     void SetRotation(float rot) { rotation_ = rot; }
+    void SetDepthZ(float z) { depthZ_ = z; }
+    float GetDepthZ() const { return depthZ_; }
     void SetAnchorPoint(const Vector2& anchor) { anchorPoint_ = anchor; }
     void SetTexture(const std::string& filePath);
     void SetColor(const Vector4& color);
@@ -110,6 +112,7 @@ private:
     Vector2 size_ = { 600.0f, 250.0f };
     Vector2 anchorPoint_ = { 0.5f, 0.0f }; // 上部中央基準
     float rotation_ = 0.0f;
+    float depthZ_ = 0.0f; // 直交投影でのZ深度 (0.0f: 最前面 ～ 100.0f: 最背面)
 
     // 風・揺れパラメータ
     bool windEnabled_ = true;

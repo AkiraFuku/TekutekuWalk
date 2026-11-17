@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <FxCompile Include="resources\shaders\CopyImage\CopyImage.PS.hlsl" />
@@ -39,6 +39,7 @@
     <ClCompile Include="application\scene\TitleScene.cpp" />
     <ClCompile Include="application\scene\StageSelectScene.cpp" />
     <ClCompile Include="application\scene\GameOverScene.cpp" />
+    <ClCompile Include="application\scene\ClearScene.cpp" />
     <ClCompile Include="application\Behavior\BehaviorState.cpp" />
     <ClCompile Include="application\object\CameraContorol\CameraController.cpp" />
     <ClCompile Include="application\object\Enemy\Enemy.cpp" />
@@ -154,6 +155,7 @@
     <ClInclude Include="application\scene\TitleScene.h" />
     <ClInclude Include="application\scene\StageSelectScene.h" />
     <ClInclude Include="application\scene\GameOverScene.h" />
+    <ClInclude Include="application\scene\ClearScene.h" />
     <ClInclude Include="application\Behavior\BehaviorState.h" />
     <ClInclude Include="application\object\CameraContorol\CameraController.h" />
     <ClInclude Include="application\object\Enemy\Enemy.h" />

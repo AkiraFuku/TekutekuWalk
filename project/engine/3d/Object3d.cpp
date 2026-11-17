@@ -232,3 +232,12 @@ std::vector<Triangle> Object3d::GetWorldTriangles() const {
 
     return worldTriangles;
 }
+
+Vector3 Object3d::GetSubPartWorldPosition(const std::string& name) const {
+    if (!model_) {
+        return worldTransform_.translate;
+    }
+    Vector3 localCenter = model_->GetSubPartLocalCenter(name);
+    Matrix4x4 worldMat = MakeAffineMatrix(worldTransform_.scale, worldTransform_.rotate, worldTransform_.translate);
+    return vector3Transform(localCenter, worldMat);
+}

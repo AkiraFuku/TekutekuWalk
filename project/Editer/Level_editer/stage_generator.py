@@ -1710,10 +1710,11 @@ class StageAIGenerator:
             goal_obj["file_name"] = "goal.obj"
             goal_obj["model_dir"] = "resources"
 
-        # ゴールにも最新終端の rail_pos を設定してスナップ
+        # ゴールにも最後のレール区間の中央の rail_pos を設定してスナップ
         if rail_obj and rail_obj.type == 'CURVE' and rail_obj.data.splines:
-            last_t = max(0.0, float(len(rail_obj.data.splines[0].bezier_points) - 1))
-            goal_obj["rail_pos"] = [round(last_t, 3), 0.5]
+            num_pts = len(rail_obj.data.splines[0].bezier_points)
+            last_seg_center_t = max(0.0, float(num_pts - 1) - 0.5) if num_pts >= 2 else 0.0
+            goal_obj["rail_pos"] = [round(last_seg_center_t, 3), 0.5]
             try:
                 from .rail_snap import apply_rail_position_to_object
                 apply_rail_position_to_object(goal_obj, rail_obj)

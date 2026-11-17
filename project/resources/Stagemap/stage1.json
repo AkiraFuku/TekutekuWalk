@@ -98,7 +98,7 @@
             "name": "Goal",
             "type": "EMPTY",
             "object_type": "GOAL",
-            "rail_pos": [3.0, 2.0],
+            "rail_pos": [2.5, 2.0],
             "transform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0.0, 0.0],

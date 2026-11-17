@@ -104,7 +104,7 @@ void GoalObject::SetRailPosition(const Vector2& position) {
         railMover_->SetProgress(progress); // 進捗をRailMoverにバインド 
         // 初期座標の更新
         Vector3 railPos = railMover_->GetCurrentPosition();
-        object_->SetTranslate({ railPos.x, position.y, railPos.z });
+        object_->SetTranslate({ railPos.x, railPos.y + position.y, railPos.z });
         object_->Update();
     }
 }
@@ -123,9 +123,8 @@ void GoalObject::Update() {
 
     if (railMover_) {
         Vector3 pos = railMover_->GetCurrentPosition();
-        pos.y=worldY;
-        // SetRailPositionで設定した Y座標（高さ）を維持したい場合、
-        // メンバ変数に高さを保持しておく必要があります
+        pos.y += worldY;
+        // SetRailPositionで設定した Yオフセット（レールからの高さ）を反映
         object_->SetTranslate(pos);
 
     }

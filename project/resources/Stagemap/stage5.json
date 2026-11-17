@@ -81521,9 +81521,9 @@
             "name": "Goal",
             "transform": {
                 "translation": [
-                    -166.1945,
+                    -161.212,
                     -1.044,
-                    8.9677
+                    15.164
                 ],
                 "rotation": [
                     -0.0,
@@ -81540,7 +81540,7 @@
             "file_name": "goal.obj",
             "model_dir": "resources",
             "rail_pos": [
-                23.0,
+                22.5,
                 0.288
             ]
         }

@@ -189,7 +189,7 @@ void PbdCloth2D::Draw() {
     // 行列の更新
     Vector3 scaleVec = { 1.0f, 1.0f, 1.0f };
     Vector3 rotateVec = { 0.0f, 0.0f, rotation_ };
-    Vector3 translateVec = { position_.x, position_.y, 0.0f };
+    Vector3 translateVec = { position_.x, position_.y, depthZ_ };
     Matrix4x4 worldMatrix = MakeAffineMatrix(scaleVec, rotateVec, translateVec);
     Matrix4x4 viewMatrix = Makeidentity4x4();
     Matrix4x4 projMatrix = MakeOrthographicMatrix(0.0f, 0.0f, static_cast<float>(WinApp::kClientWidth), static_cast<float>(WinApp::kClientHeight), 0.0f, 100.0f);
