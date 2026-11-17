@@ -267,6 +267,10 @@ void GameScene::Initialize() {
 
 }
 void GameScene::Finalize() {
+    if (currentPhase_) {
+        currentPhase_->Finalize(this);
+        currentPhase_.reset();
+    }
 
     if (Audio::GetInstance()->IsPlaying(BGMHandle_))
     {

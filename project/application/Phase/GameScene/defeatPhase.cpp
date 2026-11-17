@@ -402,6 +402,11 @@ void defeatPhase::Draw(Scene* scene)
 
 void defeatPhase::Finalize(Scene* scene)
 {
+    if (Play_ != 0 && Audio::GetInstance()->IsPlaying(Play_)) {
+        Audio::GetInstance()->StopAudio(Play_);
+    }
+    Play_ = 0;
+
     GameScene* gameScene = static_cast<GameScene*>(scene);
     Player* player = gameScene ? gameScene->GetPlayer() : nullptr;
     if (player && player->GetObject3d()) {

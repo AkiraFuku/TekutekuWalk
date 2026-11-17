@@ -84,6 +84,7 @@ private:
     float irisProgress_ = 0.0f;
 
     Audio::SoundHandle goalSE_ = 0;
+    Audio::VoiceHandle goalSEVoice_ = 0;
     Audio::SoundHandle clearBGM_ = 0;
     Audio::VoiceHandle clearBGMVoice_ = 0;
 };

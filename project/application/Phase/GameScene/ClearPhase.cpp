@@ -115,7 +115,7 @@ void ClearPhase::Initialize(Scene* scene)
     // ゴール到達SE・クリアBGMの再生
     goalSE_ = Audio::GetInstance()->LoadAudio("resources/Audio/SE/Hit.mp3");
     if (goalSE_ != 0) {
-        Audio::GetInstance()->PlayAudio(goalSE_, false, 0.7f, "SE");
+        goalSEVoice_ = Audio::GetInstance()->PlayAudio(goalSE_, false, 0.7f, "SE");
     }
 
     clearBGM_ = Audio::GetInstance()->LoadAudio("resources/Audio/BGM/Stageclear.mp3");
@@ -699,6 +699,11 @@ void ClearPhase::Draw(Scene* scene)
 
 void ClearPhase::Finalize(Scene* scene)
 {
+    if (goalSEVoice_ != 0 && Audio::GetInstance()->IsPlaying(goalSEVoice_)) {
+        Audio::GetInstance()->StopAudio(goalSEVoice_);
+    }
+    goalSEVoice_ = 0;
+
     if (clearBGMVoice_ != 0 && Audio::GetInstance()->IsPlaying(clearBGMVoice_)) {
         Audio::GetInstance()->StopAudio(clearBGMVoice_);
     }
