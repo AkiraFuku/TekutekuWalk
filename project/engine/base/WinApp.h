@@ -42,6 +42,8 @@ public:
         return wc.hInstance;
     }
     bool ProcessMessage();
+    static bool ShouldHideCursor();
+    void RefreshCursor();
 private: // プライベートメソッド
     // コンストラクタとデストラクタを隠蔽
     WinApp() = default;

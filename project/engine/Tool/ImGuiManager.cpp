@@ -67,6 +67,14 @@ void ImGuiManager::Finalize() {
 void ImGuiManager::Begin() {
     #ifdef USE_IMGUI
 
+#if defined(NDEBUG)
+    if (!isShow_) {
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+    } else {
+        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+    }
+#endif
+
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -95,4 +103,14 @@ void ImGuiManager::Draw() {
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 #endif // USE_IMGUI
 
+}
+
+void ImGuiManager::SetShow(bool show) {
+    isShow_ = show;
+    WinApp::GetInstance()->RefreshCursor();
+}
+
+void ImGuiManager::ToggleShow() {
+    isShow_ = !isShow_;
+    WinApp::GetInstance()->RefreshCursor();
 }

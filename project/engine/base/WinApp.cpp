@@ -1,6 +1,7 @@
 #include "WinApp.h"
 #include "assert.h"
 #ifdef USE_IMGUI
+#include "ImGuiManager.h"
 #include"imgui_impl_win32.h"
 #include"imgui.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -21,8 +22,45 @@ WinApp* WinApp::GetInstance() {
     return instance.get();
 }
 
+bool WinApp::ShouldHideCursor()
+{
+#if defined(NDEBUG)
+#ifdef USE_IMGUI
+    return !ImGuiManager::GetInstance()->IsShow();
+#else
+    return true;
+#endif
+#else
+    return false;
+#endif
+}
+
+void WinApp::RefreshCursor()
+{
+    if (!hwnd) {
+        return;
+    }
+    POINT pt{};
+    if (!GetCursorPos(&pt)) {
+        return;
+    }
+    if (WindowFromPoint(pt) != hwnd) {
+        return;
+    }
+    ScreenToClient(hwnd, &pt);
+    RECT rect{};
+    GetClientRect(hwnd, &rect);
+    if (PtInRect(&rect, pt)) {
+        SetCursor(ShouldHideCursor() ? nullptr : LoadCursor(nullptr, IDC_ARROW));
+    }
+}
+
 LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+    if (msg == WM_SETCURSOR && LOWORD(lparam) == HTCLIENT && ShouldHideCursor()) {
+        SetCursor(nullptr);
+        return TRUE;
+    }
 #ifdef USE_IMGUI
 
 

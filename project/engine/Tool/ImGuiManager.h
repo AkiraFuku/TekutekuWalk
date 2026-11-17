@@ -18,8 +18,8 @@ public:
 
     // 表示・非表示の切り替え
     bool IsShow() const { return isShow_; }
-    void SetShow(bool show) { isShow_ = show; }
-    void ToggleShow() { isShow_ = !isShow_; }
+    void SetShow(bool show);
+    void ToggleShow();
 private:
     // シングルトン化のためコンストラクタ類をprivateにする
     ImGuiManager() = default;

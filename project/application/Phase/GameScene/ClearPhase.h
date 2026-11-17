@@ -3,6 +3,7 @@
 #include "Audio.h"
 #include "Vector2.h"
 #include "Vector3.h"
+#include "Vector4.h"
 #include <memory>
 #include <vector>
 
@@ -24,7 +25,25 @@ public:
     void Finalize(Scene* scene) override;
 
 private:
+    struct ConfettiPiece {
+        std::unique_ptr<Sprite> sprite;
+        Vector2 basePos = { 0.0f, 0.0f };
+        Vector2 baseSize = { 20.0f, 14.0f };
+        float fallSpeed = 120.0f;
+        float swayAmp = 30.0f;
+        float swayFreq = 2.5f;
+        float swayPhase = 0.0f;
+        float rotation = 0.0f;
+        float rotSpeed = 2.0f;
+        float flipPhase = 0.0f;
+        float flipSpeed = 4.5f;
+        Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    };
+
     void UpdateCameraAndPlayer(Scene* scene, float dt);
+    void InitializeClearEffects();
+    void InitializeConfetti();
+    void UpdateConfetti(float dt);
     void InitializeIrisSprites();
     void UpdateIrisSprites(float progress);
 
@@ -52,6 +71,11 @@ private:
     float goalYaw_ = 0.0f;
     float goalHoistOffsetY_ = 1.25f; // プレイヤー中心から頭上ゴールまでの高さオフセット
     bool hasEmittedHoistEffect_ = false;
+    float auraEmitTimer_ = 0.0f;
+
+    // ゴール演出用2D紙吹雪
+    static constexpr int kConfettiCount_ = 48;
+    std::vector<ConfettiPiece> confettiList_;
 
     // 放射状トランジション（先輩のゲームの00:09風の集中線・扇形ワイプ）
     static constexpr int kIrisBladeCount_ = 16;
@@ -60,6 +84,8 @@ private:
     float irisProgress_ = 0.0f;
 
     Audio::SoundHandle goalSE_ = 0;
+    Audio::SoundHandle clearBGM_ = 0;
+    Audio::VoiceHandle clearBGMVoice_ = 0;
 };
 
 
