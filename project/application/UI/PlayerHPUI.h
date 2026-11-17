@@ -110,5 +110,13 @@ private:
     Vector2 counterSize_ = { 40.0f, 54.0f };    // カウンタースプライトのサイズ
     float hpSpriteWidth_ = 1280.0f;             // HP UIの幅
 
+    // マシンガンクールダウンゲージ用スプライト
+    std::unique_ptr<Sprite> shootGaugeFrameSprite_ = nullptr;
+    std::unique_ptr<Sprite> shootGaugeBgSprite_ = nullptr;
+    std::unique_ptr<Sprite> shootGaugeFillSprite_ = nullptr;
+    Vector2 shootGaugePos_ = { 520.0f, 34.0f };
+    Vector2 shootGaugeSize_ = { 280.0f, 20.0f };
+    float shootGaugeBlinkTimer_ = 0.0f;
+
 };
 

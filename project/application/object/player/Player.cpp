@@ -195,6 +195,14 @@ void Player::LoadConfig(const std::string &filePath) {
         jrf.value("bulletSpeed", config_.rapidFire.bulletSpeed);
     config_.rapidFire.bulletSpreadY =
         jrf.value("bulletSpreadY", config_.rapidFire.bulletSpreadY);
+    config_.rapidFire.maxHeat =
+        jrf.value("maxHeat", config_.rapidFire.maxHeat);
+    config_.rapidFire.heatPerShot =
+        jrf.value("heatPerShot", config_.rapidFire.heatPerShot);
+    config_.rapidFire.heatCoolRate =
+        jrf.value("heatCoolRate", config_.rapidFire.heatCoolRate);
+    config_.rapidFire.overheatCoolRate =
+        jrf.value("overheatCoolRate", config_.rapidFire.overheatCoolRate);
   }
 
   // DropThrough
@@ -285,7 +293,11 @@ void Player::SaveConfig(const std::string &filePath) {
 
   j["rapidFire"] = {{"fireInterval", config_.rapidFire.fireInterval},
                     {"bulletSpeed", config_.rapidFire.bulletSpeed},
-                    {"bulletSpreadY", config_.rapidFire.bulletSpreadY}};
+                    {"bulletSpreadY", config_.rapidFire.bulletSpreadY},
+                    {"maxHeat", config_.rapidFire.maxHeat},
+                    {"heatPerShot", config_.rapidFire.heatPerShot},
+                    {"heatCoolRate", config_.rapidFire.heatCoolRate},
+                    {"overheatCoolRate", config_.rapidFire.overheatCoolRate}};
 
   j["dropThrough"] = {{"duration", config_.dropThrough.duration},
                       {"downVelocity", config_.dropThrough.downVelocity}};
@@ -324,6 +336,23 @@ void Player::Initialize() {
   object_->Initialize();
   object_->SetModel(config_.paths.modelFile);
   object_->SetTexture(config_.paths.texture);
+
+  // 汎用サブパーツシステムで手足を自動検出＆バインド
+  object_->AutoDetectSubParts();
+  object_->BindSubPartByNearestPos("RightHand", {  0.505f, -0.162f, -0.024f });
+  object_->BindSubPartByNearestPos("LeftHand",  { -0.505f, -0.162f, -0.024f });
+  object_->BindSubPartByNearestPos("RightFoot", {  0.175f, -0.351f,  0.0f   });
+  object_->BindSubPartByNearestPos("LeftFoot",  { -0.175f, -0.351f,  0.0f   });
+  object_->ResetSubParts();
+
+  // 右手武器モデル（仮の立方体モデル）の生成・初期化
+  ModelManager::GetInstance()->CreateBoxModel("PlayerMachineGunBox");
+  weaponObject_ = std::make_unique<Object3d>();
+  weaponObject_->Initialize();
+  weaponObject_->SetModel("PlayerMachineGunBox");
+  weaponObject_->SetTexture("resources/white.png");
+  weaponObject_->SetModelColor({0.25f, 0.28f, 0.32f, 1.0f});
+  weaponObject_->SetScale({0.18f, 0.20f, 0.55f});
   /*   animation = std::make_unique<Animation>();
 
      animation->Initialize(config_.paths.modelDir, config_.paths.modelFile);
@@ -407,6 +436,28 @@ void Player::Update() {
       shootSlowdownTimer_ = 0.0f;
     }
   }
+  if (shootRecoilTimer_ > 0.0f) {
+    shootRecoilTimer_ -= deltaTime_;
+    if (shootRecoilTimer_ < 0.0f) {
+      shootRecoilTimer_ = 0.0f;
+    }
+  }
+
+  // マシンガン熱量冷却・オーバーヒート解除
+  if (shootHeat_ > 0.0f) {
+    if (isShootOverheated_) {
+      shootHeat_ -= config_.rapidFire.overheatCoolRate * deltaTime_;
+      if (shootHeat_ <= 0.0f) {
+        shootHeat_ = 0.0f;
+        isShootOverheated_ = false;
+      }
+    } else if (shootSlowdownTimer_ <= 0.0f) {
+      shootHeat_ -= config_.rapidFire.heatCoolRate * deltaTime_;
+      if (shootHeat_ < 0.0f) {
+        shootHeat_ = 0.0f;
+      }
+    }
+  }
 
   // 1.
   // 毎フレームの移動状態リセット＆入力・ノックバック・ビヘイビア更新（レール進行確定）
@@ -437,8 +488,9 @@ void Player::Update() {
     moveState_ = MoveState::Walk;
   }
 
-  // 5. スクワッシュ演出＆レール座標・3Dモデル・コライダーの最終同期
+  // 5. スクワッシュ演出＆サブパーツアニメーション＆レール座標・3Dモデル・コライダーの最終同期
   UpdateSquashStretch();
+  UpdateSubPartAnimation();
   UpdateRailPath();
   ImGuiDrawDebugInfo();
 }
@@ -474,6 +526,9 @@ void Player::Draw() {
   }
 
   object_->Draw();
+  if (weaponObject_) {
+    weaponObject_->Draw();
+  }
   drawDebugColliders();
 }
 
@@ -650,6 +705,20 @@ void Player::UpdateRailPath() {
 
   object_->SetRotate({0.0f, currentAngle_, 0.0f});
   object_->Update();
+
+  // 右手武器モデルの追従更新
+  if (weaponObject_) {
+    Vector3 rightHandPos = object_->GetSubPartWorldPosition("RightHand");
+    Vector3 forward = {std::sin(currentAngle_), 0.0f, std::cos(currentAngle_)};
+    // 右手の向きに合わせて銃身を前方へオフセット
+    float forwardOffset = IsShootingStance() ? 0.26f : 0.16f;
+    float verticalOffset = IsShootingStance() ? 0.02f : -0.05f;
+    weaponObject_->SetTranslate(rightHandPos + forward * forwardOffset +
+                                Vector3{0.0f, verticalOffset, 0.0f});
+    weaponObject_->SetRotate(
+        {rightHandAnim_.rotate.x, currentAngle_, rightHandAnim_.rotate.z});
+    weaponObject_->Update();
+  }
 
   // コライダーの回転（Quaternion）とワールド座標の同期（オフセットや半径の初期設定はApplyColliderConfigで1回のみ実施）
   if (auto *col = GetCollider()) {
@@ -1587,4 +1656,209 @@ void Player::UpdateSquashStretch() {
   } else {
     squashGroundedOffsetY_ = 0.0f;
   }
+}
+
+namespace {
+Vector3 LerpVec3(const Vector3 &a, const Vector3 &b, float t) {
+  return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t,
+          a.z + (b.z - a.z) * t};
+}
+
+EulerTransform LerpSubPartTransform(const EulerTransform &current,
+                                    const EulerTransform &target, float t) {
+  return {LerpVec3(current.scale, target.scale, t),
+          LerpVec3(current.rotate, target.rotate, t),
+          LerpVec3(current.translate, target.translate, t)};
+}
+} // namespace
+
+void Player::ResetShootCooldown() {
+  shootCooldownTimer_ = config_.rapidFire.fireInterval;
+  shootSlowdownTimer_ = 0.14f;
+  shootRecoilTimer_ = 0.08f;
+
+  shootHeat_ += config_.rapidFire.heatPerShot;
+  if (shootHeat_ >= config_.rapidFire.maxHeat) {
+    shootHeat_ = config_.rapidFire.maxHeat;
+    isShootOverheated_ = true;
+  }
+}
+
+void Player::StartAttackAnimation() {
+  isAttackAnimActive_ = true;
+  attackAnimTimer_ = 0.0f;
+}
+
+void Player::StopAttackAnimation() { isAttackAnimActive_ = false; }
+
+void Player::UpdateSubPartAnimation() {
+  if (!object_) {
+    return;
+  }
+
+  const EulerTransform kNeutral = {
+      {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
+  EulerTransform targetRightHand = kNeutral;
+  EulerTransform targetLeftHand = kNeutral;
+  EulerTransform targetRightFoot = kNeutral;
+  EulerTransform targetLeftFoot = kNeutral;
+
+  // 1. 高速ダッシュ・歩行・ダッシュ・空中モーション
+  if (isDashStepActive_) {
+    // 高速ダッシュ（旧ダッシュアタックの攻撃判定なし）ポーズ：腕を後ろへ引き足を大きく前後に開く
+    targetRightHand.translate = {0.04f, 0.05f, -0.22f};
+    targetRightHand.rotate = {0.85f, 0.0f, -0.15f};
+    targetLeftHand.translate = {-0.04f, 0.05f, -0.22f};
+    targetLeftHand.rotate = {0.85f, 0.0f, 0.15f};
+    targetRightFoot.translate = {0.0f, 0.04f, -0.18f};
+    targetRightFoot.rotate = {0.65f, 0.0f, 0.0f};
+    targetLeftFoot.translate = {0.0f, 0.06f, 0.18f};
+    targetLeftFoot.rotate = {-0.65f, 0.0f, 0.0f};
+  } else if (isGrounded_ &&
+             (moveState_ == MoveState::Walk || moveState_ == MoveState::Dash)) {
+    const bool dashing = (moveState_ == MoveState::Dash);
+    const float freq = dashing ? 16.0f : 10.5f;
+    const float handSwingZ = dashing ? 0.22f : 0.14f;
+    const float handSwingRotX = dashing ? 0.70f : 0.45f;
+    const float footSwingZ = dashing ? 0.20f : 0.13f;
+    const float footSwingRotX = dashing ? 0.65f : 0.45f;
+    const float footLiftY = dashing ? 0.07f : 0.04f;
+
+    walkAnimTimer_ += deltaTime_ * freq;
+    const float s = std::sin(walkAnimTimer_);
+    const float absS = std::abs(s);
+
+    // 右手・左足が同位相、左手・右足が逆位相
+    targetRightHand.translate = {0.0f, absS * 0.02f, s * handSwingZ};
+    targetRightHand.rotate = {-s * handSwingRotX, 0.0f, 0.0f};
+
+    targetLeftHand.translate = {0.0f, absS * 0.02f, -s * handSwingZ};
+    targetLeftHand.rotate = {s * handSwingRotX, 0.0f, 0.0f};
+
+    targetRightFoot.translate = {0.0f, (std::max)(0.0f, -s) * footLiftY,
+                                 -s * footSwingZ};
+    targetRightFoot.rotate = {s * footSwingRotX, 0.0f, 0.0f};
+
+    targetLeftFoot.translate = {0.0f, (std::max)(0.0f, s) * footLiftY,
+                                s * footSwingZ};
+    targetLeftFoot.rotate = {-s * footSwingRotX, 0.0f, 0.0f};
+  } else if (!isGrounded_) {
+    // 空中時は軽いジャンプ・落下ポーズ
+    targetRightHand.translate = {0.04f, 0.08f, -0.05f};
+    targetRightHand.rotate = {0.25f, 0.0f, -0.20f};
+    targetLeftHand.translate = {-0.04f, 0.08f, 0.05f};
+    targetLeftHand.rotate = {-0.25f, 0.0f, 0.20f};
+    targetRightFoot.translate = {0.0f, 0.03f, -0.08f};
+    targetRightFoot.rotate = {0.25f, 0.0f, 0.0f};
+    targetLeftFoot.translate = {0.0f, 0.05f, 0.08f};
+    targetLeftFoot.rotate = {-0.25f, 0.0f, 0.0f};
+  } else {
+    // 待機時はサイクルをリセットしニュートラルへ戻す
+    walkAnimTimer_ = 0.0f;
+  }
+
+  // 2. 近接攻撃モーション（左手でパンチ／パイルバンカー）
+  float leftArmBlendSpeed = 16.0f;
+  float rightArmBlendSpeed = 16.0f;
+  const bool shooting = IsShootingStance();
+
+  if (isAttackAnimActive_) {
+    leftArmBlendSpeed = 35.0f;
+    if (!shooting) {
+      rightArmBlendSpeed = 30.0f;
+    }
+    attackAnimTimer_ += deltaTime_;
+
+    const auto &atk = config_.attackAction;
+    const float windupEnd = atk.windupDuration;
+    const float strikeEnd = windupEnd + atk.rushDuration;
+
+    const Vector3 kWindupLeftTrans = {-0.05f, 0.04f, -0.22f};
+    const Vector3 kWindupLeftRot = {0.65f, 0.0f, 0.15f};
+    const Vector3 kWindupRightTrans = {0.0f, 0.02f, 0.12f};
+    const Vector3 kWindupRightRot = {-0.35f, 0.0f, 0.0f};
+
+    const Vector3 kStrikeLeftTrans = {0.06f, 0.04f, 0.48f};
+    const Vector3 kStrikeLeftRot = {-1.35f, 0.0f, -0.10f};
+    const Vector3 kStrikeLeftScale = {1.12f, 1.12f, 1.25f};
+    const Vector3 kStrikeRightTrans = {0.04f, -0.02f, -0.18f};
+    const Vector3 kStrikeRightRot = {0.55f, 0.0f, 0.0f};
+
+    if (attackAnimTimer_ < windupEnd) {
+      // Phase 1: 予備動作（左腕を引いてタメを作る）
+      float p = std::clamp(attackAnimTimer_ / (std::max)(windupEnd, 0.001f),
+                           0.0f, 1.0f);
+      targetLeftHand.translate =
+          LerpVec3(kNeutral.translate, kWindupLeftTrans, p);
+      targetLeftHand.rotate = LerpVec3(kNeutral.rotate, kWindupLeftRot, p);
+      if (!shooting) {
+        targetRightHand.translate =
+            LerpVec3(kNeutral.translate, kWindupRightTrans, p);
+        targetRightHand.rotate = LerpVec3(kNeutral.rotate, kWindupRightRot, p);
+      }
+    } else if (attackAnimTimer_ < strikeEnd) {
+      // Phase 2: 踏み込み打撃（左腕を前方へ鋭く突き出す）
+      float p = std::clamp(
+          (attackAnimTimer_ - windupEnd) / (std::max)(atk.rushDuration, 0.001f),
+          0.0f, 1.0f);
+      float punch =
+          1.0f - std::pow(1.0f - std::clamp(p * 2.2f, 0.0f, 1.0f), 3.0f);
+      targetLeftHand.translate =
+          LerpVec3(kWindupLeftTrans, kStrikeLeftTrans, punch);
+      targetLeftHand.rotate = LerpVec3(kWindupLeftRot, kStrikeLeftRot, punch);
+      targetLeftHand.scale = LerpVec3(kNeutral.scale, kStrikeLeftScale, punch);
+      if (!shooting) {
+        targetRightHand.translate =
+            LerpVec3(kWindupRightTrans, kStrikeRightTrans, punch);
+        targetRightHand.rotate =
+            LerpVec3(kWindupRightRot, kStrikeRightRot, punch);
+      }
+    } else {
+      // Phase 3: フォロースルー（構えを戻す）
+      float p = std::clamp((attackAnimTimer_ - strikeEnd) /
+                               (std::max)(atk.recoveryDuration, 0.001f),
+                           0.0f, 1.0f);
+      targetLeftHand.translate =
+          LerpVec3(kStrikeLeftTrans, kNeutral.translate, p);
+      targetLeftHand.rotate = LerpVec3(kStrikeLeftRot, kNeutral.rotate, p);
+      targetLeftHand.scale = LerpVec3(kStrikeLeftScale, kNeutral.scale, p);
+      if (!shooting) {
+        targetRightHand.translate =
+            LerpVec3(kStrikeRightTrans, kNeutral.translate, p);
+        targetRightHand.rotate = LerpVec3(kStrikeRightRot, kNeutral.rotate, p);
+      }
+    }
+
+    // 立ち止まって攻撃しているときは足も踏ん張りスタンスにする
+    if (isGrounded_ && moveState_ == MoveState::Idle) {
+      targetRightFoot.translate = {0.04f, 0.0f, 0.12f};
+      targetRightFoot.rotate = {-0.25f, 0.0f, 0.0f};
+      targetLeftFoot.translate = {-0.04f, 0.0f, -0.10f};
+      targetLeftFoot.rotate = {0.25f, 0.0f, 0.0f};
+    }
+  }
+
+  // 3. マシンガン攻撃モーション（右手で銃を構えてリコイル振動）
+  if (shooting) {
+    rightArmBlendSpeed = 35.0f;
+    float recoil = std::clamp(shootRecoilTimer_ / 0.08f, 0.0f, 1.0f);
+    targetRightHand.translate = {-0.04f, 0.06f + 0.02f * recoil,
+                                 0.24f - 0.08f * recoil};
+    targetRightHand.rotate = {-1.35f - 0.25f * recoil, 0.0f, 0.0f};
+  }
+
+  // 4. 指数減衰補間で滑らかに各サブパーツへ反映
+  const float rightArmT = 1.0f - std::exp(-rightArmBlendSpeed * deltaTime_);
+  const float leftArmT = 1.0f - std::exp(-leftArmBlendSpeed * deltaTime_);
+  const float footT = 1.0f - std::exp(-16.0f * deltaTime_);
+
+  rightHandAnim_ = LerpSubPartTransform(rightHandAnim_, targetRightHand, rightArmT);
+  leftHandAnim_ = LerpSubPartTransform(leftHandAnim_, targetLeftHand, leftArmT);
+  rightFootAnim_ = LerpSubPartTransform(rightFootAnim_, targetRightFoot, footT);
+  leftFootAnim_ = LerpSubPartTransform(leftFootAnim_, targetLeftFoot, footT);
+
+  object_->SetSubPartTransform("RightHand", rightHandAnim_);
+  object_->SetSubPartTransform("LeftHand", leftHandAnim_);
+  object_->SetSubPartTransform("RightFoot", rightFootAnim_);
+  object_->SetSubPartTransform("LeftFoot", leftFootAnim_);
 }

@@ -85,6 +85,7 @@ void BehaviorAttack::Initialize(Player *player) {
   isStrikePhase_ = false;
   attackDir_ = player->GetMoveDirection();
   player->SetAttackHitboxActive(false);
+  player->StartAttackAnimation();
 
   auto state = player->GetState();
   if (state) {
@@ -144,6 +145,7 @@ void BehaviorAttack::Update(Player *player) {
 void BehaviorAttack::Finalize(Player *player) {
   isStrikePhase_ = false;
   player->SetAttackHitboxActive(false);
+  player->StopAttackAnimation();
   player->TriggerInvincibility(
       player->GetConfig().attackAction.invincibilityAfter);
 }
@@ -215,6 +217,14 @@ void BehaviorJump::HandleInput(Player *player, ICommand *command) {
   if (!factory)
     return;
 
+  if (type == CommandType::Slide) {
+    if (!player->IsLandingStaggered()) {
+      state->ChangeBehavior(player,
+                            factory->CreateBehavior(BehaviorType::Slide));
+      return;
+    }
+  }
+
   // 空中滞空中でもジャンプボタンの先行入力を受け付ける
   if (type == CommandType::Jump) {
     player->Jump();
@@ -233,6 +243,7 @@ void BehaviorSlide::Initialize(Player *player) {
   timer_ = 0.0f;
   slideDir_ = player->GetMoveDirection();
   player->SetInvincible(true); // スライディング中は無敵判定
+  player->SetDashStepActive(true);
 }
 
 void BehaviorSlide::Update(Player *player) {
@@ -255,6 +266,7 @@ void BehaviorSlide::Update(Player *player) {
 
 void BehaviorSlide::Finalize(Player *player) {
   player->SetInvincible(false);
+  player->SetDashStepActive(false);
   player->TriggerInvincibility(
       player->GetConfig().slide.invincibilityAfter); // 終了後わずかな無敵余韻
 }

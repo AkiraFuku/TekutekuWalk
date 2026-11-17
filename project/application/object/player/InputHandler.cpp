@@ -6,7 +6,8 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
     std::vector<std::unique_ptr<ICommand>> commands;
     Input* input = Input::GetInstance();
     // 0. ダッシュ入力の処理 (Shiftキー、RB/LBボタン、Lスティック押し込み)
-    if (input->PushedKeyDown(DIK_LSHIFT) || input->PushedKeyDown(DIK_RSHIFT) ||
+    if (input->PushedKeyDown(DIK_LSHIFT) || input->TriggerKeyDown(DIK_LSHIFT) ||
+        input->PushedKeyDown(DIK_RSHIFT) || input->TriggerKeyDown(DIK_RSHIFT) ||
         input->PushPadDown(0, XINPUT_GAMEPAD_RIGHT_SHOULDER) ||
         input->PushPadDown(0, XINPUT_GAMEPAD_LEFT_SHOULDER) ||
         input->PushPadDown(0, XINPUT_GAMEPAD_LEFT_THUMB))
@@ -14,19 +15,11 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
         commands.push_back(std::make_unique<DashCommand>());
     }
 
-    // スライディング入力の処理 (下入力 + ダッシュボタン)
-    bool isDownPressed = input->PushedKeyDown(DIK_S);
-    XINPUT_STATE padState;
-    if (input->GetJoyStick(0, padState)) {
-        float stickY = (float)padState.Gamepad.sThumbLY / 32767.0f;
-        if (stickY < -0.4f) {
-            isDownPressed = true;
-        }
-    }
-    if (isDownPressed && (input->TriggerKeyDown(DIK_LSHIFT) || input->TriggerKeyDown(DIK_RSHIFT) ||
+    // 高速ダッシュ（旧ダッシュアタックの攻撃判定なし版）入力の処理 (方向キー不要、Shift/RB/LB/Lスティック押し込みトリガー)
+    if (input->TriggerKeyDown(DIK_LSHIFT) || input->TriggerKeyDown(DIK_RSHIFT) ||
         input->TriggerPadDown(0, XINPUT_GAMEPAD_RIGHT_SHOULDER) ||
         input->TriggerPadDown(0, XINPUT_GAMEPAD_LEFT_SHOULDER) ||
-        input->TriggerPadDown(0, XINPUT_GAMEPAD_LEFT_THUMB)))
+        input->TriggerPadDown(0, XINPUT_GAMEPAD_LEFT_THUMB))
     {
         commands.push_back(std::make_unique<SlideCommand>());
     }

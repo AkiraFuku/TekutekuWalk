@@ -101,9 +101,13 @@ struct PlayerConfig {
   } attackAction;
 
   struct RapidFire {
-    float fireInterval = 0.09f;   // 連射間隔 (秒: 0.09 ≒ 秒間11発)
-    float bulletSpeed = 0.72f;    // 実弾機関砲の高初速
-    float bulletSpreadY = 0.025f; // 連射時の上下ブレ幅
+    float fireInterval = 0.09f;     // 連射間隔 (秒: 0.09 ≒ 秒間11発)
+    float bulletSpeed = 0.72f;      // 実弾機関砲の高初速
+    float bulletSpreadY = 0.025f;   // 連射時の上下ブレ幅
+    float maxHeat = 1.0f;           // オーバーヒート最大熱量
+    float heatPerShot = 0.08f;      // 1発あたりの発熱量
+    float heatCoolRate = 0.35f;     // 通常時の冷却速度 (/秒)
+    float overheatCoolRate = 0.45f; // オーバーヒート時のクールダウン速度 (/秒)
   } rapidFire;
 
   struct DropThrough {
@@ -153,6 +157,9 @@ public:
     camera_ = camera;
     if (object_) {
       object_->SetCamera(camera);
+    }
+    if (weaponObject_) {
+      weaponObject_->SetCamera(camera);
     }
   }
   void SetRailPosition(const Vector2 &position);
@@ -205,13 +212,26 @@ public:
   void TriggerSquashStretch(float intensityY, float duration);
   void UpdateSquashStretch();
 
+  // サブパーツ（手足）アニメーション制御
+  void StartAttackAnimation();
+  void StopAttackAnimation();
+  void SetDashStepActive(bool active) { isDashStepActive_ = active; }
+  bool IsDashStepActive() const { return isDashStepActive_; }
+  void UpdateSubPartAnimation();
+
   void Attack();
 
-  bool CanShoot() const { return shootCooldownTimer_ <= 0.0f; }
-  void ResetShootCooldown() {
-    shootCooldownTimer_ = config_.rapidFire.fireInterval;
-    shootSlowdownTimer_ = 0.14f;
+  bool CanShoot() const {
+    return shootCooldownTimer_ <= 0.0f && !isShootOverheated_;
   }
+  void ResetShootCooldown();
+  float GetShootEnergyRatio() const {
+    if (config_.rapidFire.maxHeat <= 0.0f) {
+      return 1.0f;
+    }
+    return std::clamp(1.0f - (shootHeat_ / config_.rapidFire.maxHeat), 0.0f, 1.0f);
+  }
+  bool IsShootOverheated() const { return isShootOverheated_; }
   bool IsLandingStaggered() const { return landingRecoveryTimer_ > 0.0f; }
   float GetLandingRecoveryTimer() const { return landingRecoveryTimer_; }
   bool IsShootingStance() const { return shootSlowdownTimer_ > 0.0f; }
@@ -320,6 +340,7 @@ private:
   Scene *scene_ = nullptr;
   std::unique_ptr<InputHandler> inputHandler_;
   std::unique_ptr<Object3d> object_;
+  std::unique_ptr<Object3d> weaponObject_;
   std::unique_ptr<Animation> animation;
 
   PlayerConfig config_;
@@ -349,6 +370,9 @@ private:
   float jumpBufferTimer_ = 0.0f;
   float shootCooldownTimer_ = 0.0f;   // 連射クールダウンタイマー
   float shootSlowdownTimer_ = 0.0f;   // 連射反動中の腰だめ歩行タイマー
+  float shootRecoilTimer_ = 0.0f;     // 発砲1発ごとのリコイル振動タイマー
+  float shootHeat_ = 0.0f;            // マシンガン熱量 (0.0～maxHeat)
+  bool isShootOverheated_ = false;    // オーバーヒート中フラグ
   float landingRecoveryTimer_ = 0.0f; // 着地時の怯み（硬直）タイマー
   float squashGroundedOffsetY_ =
       0.0f; // 1m立方体の底面を地面に固定するスクワッシュY補正
@@ -414,4 +438,14 @@ private:
   Audio::SoundHandle HitSE_ = 0;
   Audio::SoundHandle DamageSE_ = 0;
   Audio::VoiceHandle playHundle_ = 0;
+
+  // サブパーツ（手足）アニメーション状態
+  float walkAnimTimer_ = 0.0f;
+  bool isAttackAnimActive_ = false;
+  bool isDashStepActive_ = false;
+  float attackAnimTimer_ = 0.0f;
+  EulerTransform rightHandAnim_ = {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
+  EulerTransform leftHandAnim_ = {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
+  EulerTransform rightFootAnim_ = {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
+  EulerTransform leftFootAnim_ = {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
 };

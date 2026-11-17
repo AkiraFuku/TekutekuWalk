@@ -63,6 +63,31 @@ void PlayerHPUI::Initialize(Player *player) {
   stateSprite_->SetAnchorPoint({Anchor::TopLeft});
   stateSprite_->SetPosition({1162.0f, position_.y + 15.0f});
   stateSprite_->SetSize({markSize_, markSize_});
+
+  // 4. マシンガンクールダウン（熱量／残量）ゲージ
+  const float gaugeX = position_.x + shootGaugePos_.x;
+  const float gaugeY = position_.y + shootGaugePos_.y;
+
+  shootGaugeFrameSprite_ = std::make_unique<Sprite>();
+  shootGaugeFrameSprite_->Initialize("resources/white.png");
+  shootGaugeFrameSprite_->SetColor({0.32f, 0.20f, 0.10f, 1.0f});
+  shootGaugeFrameSprite_->SetAnchorPoint({Anchor::TopLeft});
+  shootGaugeFrameSprite_->SetPosition({gaugeX - 3.0f, gaugeY - 3.0f});
+  shootGaugeFrameSprite_->SetSize({shootGaugeSize_.x + 6.0f, shootGaugeSize_.y + 6.0f});
+
+  shootGaugeBgSprite_ = std::make_unique<Sprite>();
+  shootGaugeBgSprite_->Initialize("resources/white.png");
+  shootGaugeBgSprite_->SetColor({0.14f, 0.14f, 0.16f, 0.95f});
+  shootGaugeBgSprite_->SetAnchorPoint({Anchor::TopLeft});
+  shootGaugeBgSprite_->SetPosition({gaugeX, gaugeY});
+  shootGaugeBgSprite_->SetSize(shootGaugeSize_);
+
+  shootGaugeFillSprite_ = std::make_unique<Sprite>();
+  shootGaugeFillSprite_->Initialize("resources/white.png");
+  shootGaugeFillSprite_->SetColor({0.20f, 0.85f, 1.0f, 1.0f});
+  shootGaugeFillSprite_->SetAnchorPoint({Anchor::TopLeft});
+  shootGaugeFillSprite_->SetPosition({gaugeX, gaugeY});
+  shootGaugeFillSprite_->SetSize(shootGaugeSize_);
 }
 
 void PlayerHPUI::Update() {
@@ -123,6 +148,36 @@ void PlayerHPUI::Update() {
 
     stateSprite_->Update();
   }
+
+  // --- マシンガンクールダウンゲージ更新 ---
+  if (shootGaugeFrameSprite_) {
+    shootGaugeFrameSprite_->Update();
+  }
+  if (shootGaugeBgSprite_) {
+    shootGaugeBgSprite_->Update();
+  }
+  if (shootGaugeFillSprite_) {
+    float ratio = player_->GetShootEnergyRatio();
+    bool overheated = player_->IsShootOverheated();
+
+    shootGaugeFillSprite_->SetSize({shootGaugeSize_.x * ratio, shootGaugeSize_.y});
+
+    if (overheated) {
+      shootGaugeBlinkTimer_ += player_->GetDeltaTime();
+      bool blink = (std::fmod(shootGaugeBlinkTimer_, 0.24f) < 0.12f);
+      shootGaugeFillSprite_->SetColor(
+          blink ? Vector4{1.0f, 0.22f, 0.18f, 1.0f}
+                : Vector4{1.0f, 0.55f, 0.15f, 1.0f});
+    } else {
+      shootGaugeBlinkTimer_ = 0.0f;
+      if (ratio <= 0.30f) {
+        shootGaugeFillSprite_->SetColor({1.0f, 0.78f, 0.15f, 1.0f});
+      } else {
+        shootGaugeFillSprite_->SetColor({0.20f, 0.85f, 1.0f, 1.0f});
+      }
+    }
+    shootGaugeFillSprite_->Update();
+  }
 }
 
 void PlayerHPUI::Draw() {
@@ -144,5 +199,15 @@ void PlayerHPUI::Draw() {
 
   if (stateSprite_) {
     stateSprite_->Draw();
+  }
+
+  if (shootGaugeFrameSprite_) {
+    shootGaugeFrameSprite_->Draw();
+  }
+  if (shootGaugeBgSprite_) {
+    shootGaugeBgSprite_->Draw();
+  }
+  if (shootGaugeFillSprite_) {
+    shootGaugeFillSprite_->Draw();
   }
 }
