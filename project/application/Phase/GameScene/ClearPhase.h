@@ -6,6 +6,7 @@
 #include "Vector4.h"
 #include <memory>
 #include <vector>
+#include <functional>
 
 class Sprite;
 
@@ -23,6 +24,24 @@ public:
     void Update(Scene* scene) override;
     void Draw(Scene* scene) override;
     void Finalize(Scene* scene) override;
+
+    // ─── デモプログラム向け制御API ───
+    void SetDemoMode(bool isDemoMode, std::function<void()> onDemoFinished = nullptr) {
+        isDemoMode_ = isDemoMode;
+        onDemoFinished_ = std::move(onDemoFinished);
+    }
+    void SetTransitionToClearSceneInDemo(bool enable) { transitionToClearSceneInDemo_ = enable; }
+    void SetTimeScale(float scale) { timeScale_ = scale; }
+    float GetTimeScale() const { return timeScale_; }
+    void SetPaused(bool paused) { isPaused_ = paused; }
+    bool IsPaused() const { return isPaused_; }
+    void StepFrame() { stepFrameRequested_ = true; }
+
+    Step GetCurrentStep() const { return step_; }
+    float GetTimer() const { return timer_; }
+    float GetIrisProgress() const { return irisProgress_; }
+    static constexpr float GetZoomDuration() { return kZoomDuration_; }
+    static constexpr float GetIrisDuration() { return kIrisDuration_; }
 
 private:
     struct ConfettiPiece {
@@ -87,6 +106,14 @@ private:
     Audio::VoiceHandle goalSEVoice_ = 0;
     Audio::SoundHandle clearBGM_ = 0;
     Audio::VoiceHandle clearBGMVoice_ = 0;
+
+    // デモ再生制御用
+    bool isDemoMode_ = false;
+    bool transitionToClearSceneInDemo_ = false;
+    float timeScale_ = 1.0f;
+    bool isPaused_ = false;
+    bool stepFrameRequested_ = false;
+    std::function<void()> onDemoFinished_;
 };
 
 

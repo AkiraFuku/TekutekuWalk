@@ -25,6 +25,7 @@ public:
 private:
     enum class ItemType {
         Stage,
+        GoalDemo,
         BackToTitle
     };
 

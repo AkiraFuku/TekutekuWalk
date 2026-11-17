@@ -145,6 +145,7 @@ void ClearScene::Initialize()
     isTransitioning_ = false;
     selectedMenu_ = MenuItem::StageSelect;
     timer_ = 0.0f;
+    autoReturnTimer_ = 0.0f;
     prevStickLeft_ = false;
     prevStickRight_ = false;
 
@@ -438,8 +439,9 @@ void ClearScene::Update()
 
     bool triggerStageSelect = false;
     bool triggerTitle = false;
+    bool triggerGoalDemo = false;
 
-    const char* menuNames[] = { "Stage Select Scene", "Title Scene" };
+    const char* menuNames[] = { "Stage Select Scene", "Title Scene", "Goal Demo Scene" };
     int currentItem = static_cast<int>(selectedMenu_);
     if (ImGui::Combo("Next Destination", &currentItem, menuNames, IM_ARRAYSIZE(menuNames))) {
         selectedMenu_ = static_cast<MenuItem>(currentItem);
@@ -494,10 +496,22 @@ void ClearScene::Update()
         selectedMenu_ = MenuItem::Title;
         triggerTitle = true;
     }
+    if (ImGui::Button("Go to Goal Demo (R)", ImVec2(368, 36))) {
+        selectedMenu_ = MenuItem::GoalDemo;
+        triggerGoalDemo = true;
+    }
+    ImGui::Checkbox("Auto Return to Goal Demo", &s_autoReturnToGoalDemo_);
+    if (s_autoReturnToGoalDemo_) {
+        ImGui::SliderFloat("Auto Return Delay (s)", &s_autoReturnDelay_, 0.5f, 10.0f, "%.1fs");
+        ImGui::Text("Auto Return: %.1f / %.1f s", autoReturnTimer_, s_autoReturnDelay_);
+    }
     ImGui::End();
 #endif
 
     if (!isTransitioning_ && isIrisOpenFinished_) {
+        if (s_autoReturnToGoalDemo_) {
+            autoReturnTimer_ += 1.0f / 60.0f;
+        }
         bool stickLeft = false;
         bool stickRight = false;
         XINPUT_STATE padState{};
@@ -537,13 +551,23 @@ void ClearScene::Update()
             selectedMenu_ = MenuItem::Title;
         }
 
+        bool isGoalDemoShortcut = (input && (
+            input->TriggerKeyDown(DIK_R) ||
+            input->TriggerPadDown(0, XINPUT_GAMEPAD_Y)));
+        bool isAutoReturn = s_autoReturnToGoalDemo_ && (autoReturnTimer_ >= s_autoReturnDelay_);
+        if (isGoalDemoShortcut || isAutoReturn) {
+            selectedMenu_ = MenuItem::GoalDemo;
+        }
+
         bool isPressed = (input && (
             input->TriggerKeyDown(DIK_SPACE) ||
             input->TriggerKeyDown(DIK_RETURN) ||
             input->TriggerPadDown(0, XINPUT_GAMEPAD_A) ||
             input->TriggerPadDown(0, XINPUT_GAMEPAD_START)))
+            || isGoalDemoShortcut
+            || isAutoReturn
 #ifdef USE_IMGUI
-            || triggerStageSelect || triggerTitle
+            || triggerStageSelect || triggerTitle || triggerGoalDemo
 #endif
             ;
 
@@ -557,8 +581,11 @@ void ClearScene::Update()
     }
     else if (isTransitioning_) {
         if (!Fade::GetInstance()->IsFading()) {
+            s_autoReturnToGoalDemo_ = false;
             if (selectedMenu_ == MenuItem::StageSelect) {
                 SceneManager::GetInstance()->ChangeScene("StageSelectScene");
+            } else if (selectedMenu_ == MenuItem::GoalDemo) {
+                SceneManager::GetInstance()->ChangeScene("GoalDemoScene");
             } else {
                 SceneManager::GetInstance()->ChangeScene("TitleScene");
             }

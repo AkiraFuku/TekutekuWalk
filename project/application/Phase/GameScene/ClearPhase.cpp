@@ -30,14 +30,13 @@ void ClearPhase::Initialize(Scene* scene)
     InitializeClearEffects();
     InitializeConfetti();
 
-    GameScene* gameScene = static_cast<GameScene*>(scene);
-    Player* player = gameScene ? gameScene->GetPlayer() : nullptr;
-    GoalObject* goal = gameScene ? gameScene->GetGoal() : nullptr;
-    CameraController* camCtrl = gameScene ? gameScene->GetCamera() : nullptr;
+    Player* player = scene ? scene->GetPlayer() : nullptr;
+    GoalObject* goal = scene ? scene->GetGoal() : nullptr;
+    CameraController* camCtrl = scene ? scene->GetCamera() : nullptr;
 
     // ステージBGMを停止
-    if (gameScene) {
-        Audio::VoiceHandle bgmHandle = gameScene->getBGMPlayHundle();
+    if (scene) {
+        Audio::VoiceHandle bgmHandle = scene->getBGMPlayHundle();
         if (bgmHandle != 0 && Audio::GetInstance()->IsPlaying(bgmHandle)) {
             Audio::GetInstance()->StopAudio(bgmHandle);
         }
@@ -479,12 +478,11 @@ void ClearPhase::UpdateIrisSprites(float progress)
 
 void ClearPhase::UpdateCameraAndPlayer(Scene* scene, float dt)
 {
-    GameScene* gameScene = static_cast<GameScene*>(scene);
-    if (!gameScene) return;
+    if (!scene) return;
 
-    Player* player = gameScene->GetPlayer();
-    GoalObject* goal = gameScene->GetGoal();
-    CameraController* camCtrl = gameScene->GetCamera();
+    Player* player = scene->GetPlayer();
+    GoalObject* goal = scene->GetGoal();
+    CameraController* camCtrl = scene->GetCamera();
 
     float t = std::clamp(timer_ / kZoomDuration_, 0.0f, 1.0f);
     // EaseOutCubic で滑らかにカメラが寄る
@@ -638,21 +636,29 @@ void ClearPhase::UpdateCameraAndPlayer(Scene* scene, float dt)
     }
 
     // カメラ移動に伴うステージ内エネミーのWVP行列同期
-    for (const auto& enemy : gameScene->GetEnemies()) {
-        if (enemy) {
-            enemy->UpdateMatrix();
+    if (auto* gameScene = dynamic_cast<GameScene*>(scene)) {
+        for (const auto& enemy : gameScene->GetEnemies()) {
+            if (enemy) {
+                enemy->UpdateMatrix();
+            }
         }
     }
 }
 
 void ClearPhase::Update(Scene* scene)
 {
-    const float dt = 1.0f / 60.0f;
+    if (isPaused_ && !stepFrameRequested_) {
+        return;
+    }
+    const bool isStep = stepFrameRequested_;
+    stepFrameRequested_ = false;
+
+    const float dt = (1.0f / 60.0f) * (isStep ? 1.0f : timeScale_);
     timer_ += dt;
     UpdateConfetti(dt);
 
     Input* input = Input::GetInstance();
-    bool isSkip = input && (
+    bool isSkip = !isDemoMode_ && input && (
         input->TriggerKeyDown(DIK_SPACE) ||
         input->TriggerKeyDown(DIK_RETURN) ||
         input->TriggerPadDown(0, XINPUT_GAMEPAD_A));
@@ -671,6 +677,12 @@ void ClearPhase::Update(Scene* scene)
 
         if (irisProgress_ >= 1.0f) {
             step_ = Step::ChangeScene;
+            if (isDemoMode_ && !transitionToClearSceneInDemo_) {
+                if (onDemoFinished_) {
+                    onDemoFinished_();
+                }
+                return;
+            }
             SceneManager::GetInstance()->ChangeScene("ClearScene");
             return;
         }
@@ -711,8 +723,7 @@ void ClearPhase::Finalize(Scene* scene)
 
     ParticleManager::GetInstance()->ReleaseParticleGroupSet("ClearEffects");
 
-    GameScene* gameScene = static_cast<GameScene*>(scene);
-    Player* player = gameScene ? gameScene->GetPlayer() : nullptr;
+    Player* player = scene ? scene->GetPlayer() : nullptr;
     if (player && player->GetObject3d()) {
         player->GetObject3d()->ResetSubParts();
         player->GetObject3d()->SetScale(playerBaseScale_);

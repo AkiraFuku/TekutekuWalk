@@ -15,7 +15,8 @@ void GameEngine::Initialize() {
 
     Fade::GetInstance()->Initialize();
     //   SceneManager::GetInstance()->ChangeScene("GameScene");
-    SceneManager::GetInstance()->ChangeScene("TitleScene");
+    //   SceneManager::GetInstance()->ChangeScene("TitleScene");
+    SceneManager::GetInstance()->ChangeScene("GoalDemoScene");
     PrimitiveDrawer::GetInstance()->Initialize();
     OffScreen::GetInstance()->SetEffectFlags(
         PostEffectFlag::DepthOutline

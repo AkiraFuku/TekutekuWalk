@@ -47,7 +47,7 @@ public:
     Player* GetPlayer() override {
         return player.get();
     }
-    CameraController* GetCamera() {
+    CameraController* GetCamera() override {
         return cameraController.get();
     }
     void RequestCameraShake(float duration = 0.1f, float power = 1.0f) override;
@@ -59,7 +59,7 @@ public:
         return projectiles_;
     }
     const std::vector<Triangle>& GetTriangle() const override;
-    GoalObject* GetGoal() {
+    GoalObject* GetGoal() override {
         return goal_.get();
     }
     ScoreUI* GetScore() {

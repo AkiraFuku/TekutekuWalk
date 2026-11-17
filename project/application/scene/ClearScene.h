@@ -22,6 +22,7 @@ public:
     enum class MenuItem {
         StageSelect = 0,
         Title,
+        GoalDemo,
         Count
     };
 
@@ -32,6 +33,11 @@ public:
     void Finalize() override;
     void Update() override;
     void Draw() override;
+
+    static void SetAutoReturnToGoalDemo(bool enable, float delaySeconds = 4.0f) {
+        s_autoReturnToGoalDemo_ = enable;
+        s_autoReturnDelay_ = delaySeconds;
+    }
 
 private:
     struct ConfettiPiece {
@@ -116,4 +122,8 @@ private:
     Audio::VoiceHandle clearBGMVoice_ = 0;
     Audio::SoundHandle decisionSE_ = 0;
     bool isTransitioning_ = false;
+
+    static inline bool s_autoReturnToGoalDemo_ = false;
+    static inline float s_autoReturnDelay_ = 4.0f;
+    float autoReturnTimer_ = 0.0f;
 };

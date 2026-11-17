@@ -1,0 +1,82 @@
+{
+    "name": "GoalDemoStage",
+    "coordinate_system": "GAME",
+    "objects": [
+        {
+            "name": "StageRail",
+            "type": "CURVE",
+            "object_type": "STAGE_RAIL",
+            "loop": false,
+            "rail_points": [
+                {
+                    "co": [0.0, 0.0, 0.0],
+                    "handle_left": [0.0, 0.0, -2.0],
+                    "handle_right": [0.0, 0.0, 2.0],
+                    "type": "LINEAR"
+                },
+                {
+                    "co": [0.0, 0.0, 20.0],
+                    "handle_left": [0.0, 0.0, 18.0],
+                    "handle_right": [0.0, 0.0, 22.0],
+                    "type": "LINEAR"
+                }
+            ]
+        },
+        {
+            "name": "CameraRail",
+            "type": "CURVE",
+            "object_type": "CAMERA_RAIL",
+            "loop": false,
+            "rail_points": [
+                {
+                    "co": [12.0, 3.0, 0.0],
+                    "handle_left": [12.0, 3.0, -2.0],
+                    "handle_right": [12.0, 3.0, 2.0],
+                    "type": "LINEAR"
+                },
+                {
+                    "co": [12.0, 3.0, 20.0],
+                    "handle_left": [12.0, 3.0, 18.0],
+                    "handle_right": [12.0, 3.0, 22.0],
+                    "type": "LINEAR"
+                }
+            ]
+        },
+        {
+            "name": "PlayerSpawn",
+            "type": "EMPTY",
+            "object_type": "PLAYER_SPAWN",
+            "rail_pos": [0.05, 0.5],
+            "transform": {
+                "translation": [0.0, 0.5, 1.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            }
+        },
+        {
+            "name": "DemoGround",
+            "type": "MESH",
+            "object_type": "BLOCK",
+            "file_name": "box",
+            "texture": "resources/grass.png",
+            "transform": {
+                "translation": [0.0, -0.5, 10.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scaling": [6.0, 1.0, 24.0]
+            }
+        },
+        {
+            "name": "Goal",
+            "type": "EMPTY",
+            "object_type": "GOAL",
+            "file_name": "goal.obj",
+            "model_dir": "resources/Goal/",
+            "rail_pos": [0.35, 0.5],
+            "transform": {
+                "translation": [0.0, 0.5, 7.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            }
+        }
+    ]
+}

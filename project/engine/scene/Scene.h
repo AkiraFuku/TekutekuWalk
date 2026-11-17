@@ -11,6 +11,8 @@ class SceneManager;
 class Camera;
 class Phase;
 class Player;
+class GoalObject;
+class CameraController;
 
 class Scene
 {
@@ -50,6 +52,8 @@ public:
        return empty;
    }
    virtual Player* GetPlayer() { return nullptr; }
+   virtual GoalObject* GetGoal() { return nullptr; }
+   virtual CameraController* GetCamera() { return nullptr; }
    virtual bool IsGameTimeStopped() const { return false; }
 
 private:

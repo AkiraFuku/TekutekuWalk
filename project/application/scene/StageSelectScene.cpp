@@ -48,6 +48,7 @@ void StageSelectScene::Initialize()
         { ItemType::Stage, "Stage 4", "resources/Stagemap/stage4.json", "高難易度ステージ 4", "Stage4.png", false },
         { ItemType::Stage, "Stage 5", "resources/Stagemap/stage5.json", "巨大ステージ 5", "Stage5.png", false },
         { ItemType::Stage, "Test Stage", "resources/Stagemap/test_stage.json", "開発・テスト用ステージ", "Test.png", false },
+        { ItemType::GoalDemo, "Goal Demo", "resources/Stagemap/goal_demo_stage.json", "ゴール演出専用デモ", "Test.png", true },
         { ItemType::BackToTitle, "Title に戻る", "", "タイトル画面に戻ります", "Back.png", true },
     };
 
@@ -165,6 +166,9 @@ void StageSelectScene::Update()
             if (itemList_[selectedIndex_].type == ItemType::Stage) {
                 nextSceneName_ = "GameScene";
                 GameScene::SetSelectedStagePath(itemList_[selectedIndex_].filePath);
+                exitDirection_ = ExitDirection::Right; // 右へ退場
+            } else if (itemList_[selectedIndex_].type == ItemType::GoalDemo) {
+                nextSceneName_ = "GoalDemoScene";
                 exitDirection_ = ExitDirection::Right; // 右へ退場
             } else {
                 nextSceneName_ = "TitleScene";
@@ -325,6 +329,9 @@ void StageSelectScene::Update()
             if (itemList_[selectedIndex_].type == ItemType::Stage) {
                 nextSceneName_ = "GameScene";
                 GameScene::SetSelectedStagePath(itemList_[selectedIndex_].filePath);
+                exitDirection_ = ExitDirection::Right;
+            } else if (itemList_[selectedIndex_].type == ItemType::GoalDemo) {
+                nextSceneName_ = "GoalDemoScene";
                 exitDirection_ = ExitDirection::Right;
             } else {
                 nextSceneName_ = "TitleScene";

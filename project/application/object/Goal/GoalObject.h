@@ -40,6 +40,9 @@ public:
     bool IsCleared() const {
         return isCleared_;
     }
+    void ResetCleared() {
+        isCleared_ = false;
+    }
 
     Vector3 GetWorldPosition() const override {
         return object_->GetTranslate();
