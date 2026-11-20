@@ -33,6 +33,7 @@ enum class LevelObjectType {
     kRailStage,    ///< ステージ進行用レール（ベジェ曲線）
     kRailCamera,   ///< カメラ用レール（ベジェ曲線）
     kCamera,       ///< カメラ設定オブジェクト
+    kStageBackground, ///< レール沿い背景ポリゴンメッシュ設定
     kUnknown,      ///< 未知のタイプ（スキップ）
 };
 

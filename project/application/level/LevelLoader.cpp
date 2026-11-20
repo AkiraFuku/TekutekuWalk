@@ -51,6 +51,7 @@ LevelObjectType ParseObjectType(const std::string& blenderType, const std::strin
     if (objectTypeTag == "PBD_CLOTH")     return LevelObjectType::kPbdCloth;
     if (objectTypeTag == "STAGE_RAIL")    return LevelObjectType::kRailStage;
     if (objectTypeTag == "CAMERA_RAIL")   return LevelObjectType::kRailCamera;
+    if (objectTypeTag == "STAGE_BACKGROUND") return LevelObjectType::kStageBackground;
     if (objectTypeTag == "PROP")          return LevelObjectType::kProp;
 
     if (blenderType == "MESH")   return LevelObjectType::kProp;

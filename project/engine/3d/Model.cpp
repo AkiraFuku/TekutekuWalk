@@ -860,6 +860,31 @@ std::unique_ptr<Model> Model::CreateTerrainGrid(
     return model;
 }
 
+std::unique_ptr<Model> Model::CreateFromMeshData(
+    const std::vector<VertexData>& vertices,
+    const std::vector<uint32_t>& indices,
+    const std::string& textureFilePath)
+{
+    std::unique_ptr<Model> model = std::make_unique<Model>();
+
+    const std::string& texPath = textureFilePath.empty()
+        ? std::string("resources/white.png")
+        : textureFilePath;
+    model->modelData_.material.textureFilePath = texPath;
+    TextureManager::GetInstance()->LoadTexture(texPath);
+    model->modelData_.material.textureIndex =
+        TextureManager::GetInstance()->GetTextureIndexByFilePath(texPath);
+
+    model->modelData_.vertices = vertices;
+    model->modelData_.indices = indices;
+
+    model->CreateVertexBuffer();
+    model->CreateIndexBuffer();
+    model->CreateMaterialResource();
+
+    return model;
+}
+
 // =============================================================================
 // 汎用サブパーツ（独立メッシュ塊・頂点グループ）変形システムの実装
 // =============================================================================

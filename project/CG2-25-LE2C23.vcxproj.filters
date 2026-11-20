@@ -125,6 +125,7 @@
     <ClCompile Include="application\level\EventTrigger.cpp" />
     <ClCompile Include="application\level\LevelLoader.cpp" />
     <ClCompile Include="application\level\StageBlock.cpp" />
+    <ClCompile Include="application\level\StageBackground.cpp" />
     <ClCompile Include="application\level\StageManager.cpp" />
     <ClCompile Include="application\level\Terrain.cpp" />
     <ClCompile Include="application\level\PrefabManager.cpp" />
@@ -246,6 +247,7 @@
     <ClInclude Include="application\level\LevelData.h" />
     <ClInclude Include="application\level\LevelLoader.h" />
     <ClInclude Include="application\level\StageBlock.h" />
+    <ClInclude Include="application\level\StageBackground.h" />
     <ClInclude Include="application\level\StageManager.h" />
     <ClInclude Include="application\level\Terrain.h" />
     <ClInclude Include="application\level\PrefabManager.h" />

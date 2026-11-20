@@ -105,3 +105,10 @@ void ModelManager::CreateTerrainModel(
 
     models.insert(std::make_pair(modelName, std::move(model)));
 }
+
+void ModelManager::RegisterModel(const std::string& modelName, std::shared_ptr<Model> model)
+{
+    if (!model) return;
+    model->SetName(modelName);
+    models[modelName] = std::move(model);
+}

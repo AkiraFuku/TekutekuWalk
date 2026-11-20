@@ -21,10 +21,10 @@ class RailPath;
 struct CameraConfig {
 	int mode = 0; ///< 0: AutoOffset, 1: RailCamera
 	struct AutoOffset {
-		float distance = 8.5f;      ///< レールからの水平外側オフセット距離
-		float height = 2.8f;        ///< レールからの高さオフセット
-		float lookAtHeight = 1.2f;  ///< 注視点の高さオフセット
-		float smoothSpeed = 0.15f;  ///< カメラ位置の追従補間率
+		float distance = 11.5f;     ///< レールからの水平外側オフセット距離
+		float height = 4.6f;        ///< レールからの高さオフセット
+		float lookAtHeight = 0.9f;  ///< 注視点の高さオフセット
+		float smoothSpeed = 0.12f;  ///< カメラ位置の追従補間率
 		bool flipSide = false;      ///< オフセット向き反転
 	} autoOffset;
 
@@ -122,6 +122,8 @@ private:
 	bool isClearPhase_ = false;
 	Vector3 currentFocusPos_ = {0.0f, 0.0f, 0.0f};
 	bool isFocusInitialized_ = false;
+	float smoothedFocusY_ = 0.0f;
+	bool isYInitialized_ = false;
 	Vector3 desetination_;
 	static inline const float kInterpolationRate = 0.1f;                 //
 	static inline const float kVelocityBias = 30.0f;                     //

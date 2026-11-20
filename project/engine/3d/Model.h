@@ -241,6 +241,14 @@ public: // 外部入出力
         const std::string& textureFilePath,
         float uvTile = 1.0f);
 
+    /// <summary>
+    /// 任意の頂点配列・インデックス配列から動的モデルを生成する
+    /// </summary>
+    static std::unique_ptr<Model> CreateFromMeshData(
+        const std::vector<VertexData>& vertices,
+        const std::vector<uint32_t>& indices,
+        const std::string& textureFilePath = "resources/white.png");
+
     void SetTexture(const std::string& textureFilePath);
 
     // =========================================================================

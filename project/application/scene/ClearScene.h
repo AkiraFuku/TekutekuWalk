@@ -22,6 +22,7 @@ public:
     enum class MenuItem {
         StageSelect = 0,
         Title,
+        GoalDemo,
         Count
     };
 
@@ -108,6 +109,9 @@ private:
     bool isIrisOpenFinished_ = false;
 
     float timer_ = 0.0f;
+    float autoReturnTimer_ = 0.0f;
+    static inline bool s_autoReturnToGoalDemo_ = false;
+    static inline float s_autoReturnDelay_ = 3.0f;
     MenuItem selectedMenu_ = MenuItem::StageSelect;
     bool prevStickLeft_ = false;
     bool prevStickRight_ = false;

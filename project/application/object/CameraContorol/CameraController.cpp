@@ -198,6 +198,7 @@ void CameraController::Reset() {
     const EulerTransform& targetWorldTransform = target_->GetTransform();
     camera_->SetTranslate(targetWorldTransform.translate + targetOffset_);
     isFocusInitialized_ = false;
+    isYInitialized_ = false;
 }
 
 void CameraController::RotateCamera() {
@@ -232,7 +233,16 @@ void CameraController::AutoOffsetCamera()
     if (!target_ || !camera_) return;
 
     Vector3 playerPos = target_->GetTransform().translate;
-    Vector3 focusBasePos = playerPos;
+    if (!isYInitialized_) {
+        smoothedFocusY_ = playerPos.y;
+        isYInitialized_ = true;
+    } else {
+        float dy = playerPos.y - smoothedFocusY_;
+        float yRate = (std::abs(dy) > 1.5f) ? 0.10f : 0.04f;
+        smoothedFocusY_ += dy * yRate;
+    }
+
+    Vector3 focusBasePos = { playerPos.x, smoothedFocusY_, playerPos.z };
     Vector3 railFwd = { 0.0f, 0.0f, 1.0f };
 
     const RailMover* pMover = target_->GetRailMover();
@@ -264,7 +274,7 @@ void CameraController::AutoOffsetCamera()
 
             float clampedT = rail->GetTFromDistance(clampedDist);
             Vector3 clampedRailPos = rail->GetPosition(clampedT);
-            focusBasePos = { clampedRailPos.x, playerPos.y, clampedRailPos.z };
+            focusBasePos = { clampedRailPos.x, smoothedFocusY_, clampedRailPos.z };
             railFwd = rail->GetDirection(clampedT);
         } else {
             railFwd = (pMover && pMover->isRailSet()) ? pMover->GetCurrentDirection() : rail->GetDirection(0.0f);

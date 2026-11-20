@@ -6,6 +6,7 @@
 #include "MathFunction.h"
 #include <sstream>
 #include <algorithm>
+#include <unordered_map>
 
 void Terrain::Initialize(const LevelObjectData& data, Camera* camera)
 {
@@ -308,6 +309,102 @@ void Terrain::BuildMesh(const LevelObjectData& data)
                     addTriangle(rb, lt, rt);
                 }
             }
+        }
+    }
+
+    // ─── 段差・穴境界・外周の開放辺に崖スカート壁を追加（見た目専用） ────
+    {
+        struct EdgeInfo {
+            uint32_t a = 0;
+            uint32_t b = 0;
+            int count = 0;
+        };
+        std::unordered_map<uint64_t, EdgeInfo> edgeMap;
+        edgeMap.reserve(indices_.size());
+
+        auto recordEdge = [&](uint32_t a, uint32_t b) {
+            uint32_t lo = (std::min)(a, b);
+            uint32_t hi = (std::max)(a, b);
+            uint64_t key = (static_cast<uint64_t>(lo) << 32) | static_cast<uint64_t>(hi);
+            auto& info = edgeMap[key];
+            if (info.count == 0) {
+                info.a = a;
+                info.b = b;
+            }
+            info.count++;
+        };
+
+        const size_t baseTriCount = indices_.size() / 3;
+        for (size_t t = 0; t < baseTriCount; ++t) {
+            uint32_t i0 = indices_[t * 3 + 0];
+            uint32_t i1 = indices_[t * 3 + 1];
+            uint32_t i2 = indices_[t * 3 + 2];
+            recordEdge(i0, i1);
+            recordEdge(i1, i2);
+            recordEdge(i2, i0);
+        }
+
+        constexpr float kSkirtBottomY = -10.0f;
+        for (const auto& [key, info] : edgeMap) {
+            if (info.count != 1) {
+                continue;
+            }
+            const auto& vA = vertices_[info.a];
+            const auto& vB = vertices_[info.b];
+            if (vA.position.y <= kSkirtBottomY + 0.05f && vB.position.y <= kSkirtBottomY + 0.05f) {
+                continue;
+            }
+
+            Vector3 edgeVec = {
+                vB.position.x - vA.position.x,
+                vB.position.y - vA.position.y,
+                vB.position.z - vA.position.z
+            };
+            Vector3 outN = { -edgeVec.z, 0.0f, edgeVec.x };
+            float nLenSq = outN.x * outN.x + outN.z * outN.z;
+            if (nLenSq > 1e-6f) {
+                float inv = 1.0f / std::sqrt(nLenSq);
+                outN.x *= inv;
+                outN.z *= inv;
+            } else {
+                outN = { 0.0f, 1.0f, 0.0f };
+            }
+
+            float vSpanA = (std::max)(0.2f, (vA.position.y - kSkirtBottomY) * 0.15f);
+            float vSpanB = (std::max)(0.2f, (vB.position.y - kSkirtBottomY) * 0.15f);
+            float uEdge = std::sqrt(edgeVec.x * edgeVec.x + edgeVec.z * edgeVec.z) * 0.15f;
+
+            uint32_t baseV = static_cast<uint32_t>(vertices_.size());
+            VertexData topA = vA;
+            topA.normal = outN;
+            topA.texCoord = { 0.0f, 0.0f };
+            topA.roadAttr = 0.0f;
+
+            VertexData topB = vB;
+            topB.normal = outN;
+            topB.texCoord = { uEdge, 0.0f };
+            topB.roadAttr = 0.0f;
+
+            VertexData botA = topA;
+            botA.position.y = kSkirtBottomY;
+            botA.texCoord = { 0.0f, vSpanA };
+
+            VertexData botB = topB;
+            botB.position.y = kSkirtBottomY;
+            botB.texCoord = { uEdge, vSpanB };
+
+            vertices_.push_back(topA);
+            vertices_.push_back(topB);
+            vertices_.push_back(botA);
+            vertices_.push_back(botB);
+
+            indices_.push_back(baseV + 0);
+            indices_.push_back(baseV + 2);
+            indices_.push_back(baseV + 1);
+
+            indices_.push_back(baseV + 1);
+            indices_.push_back(baseV + 2);
+            indices_.push_back(baseV + 3);
         }
     }
 

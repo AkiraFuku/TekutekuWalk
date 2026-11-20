@@ -19,6 +19,9 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     // 既存リストをクリア（Hot Reload）
     blocks_.clear();
     terrain_.reset();
+    stageBackground_.reset();
+    backgroundConfig_ = StageBackground::CreateDefaultConfig();
+    hasCustomBackgroundConfig_ = false;
     props_.clear();
     triggers_.clear();
     ropes_.clear();
@@ -31,8 +34,8 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     playerSpawnRailPos_ = { 0.0f, 0.0f };
     goalPos_            = { 0.0f, 0.0f, 0.0f };
     goalRailPos_        = { 0.0f, 0.0f };
-    stageCameraDistance_ = 8.5f;
-    stageCameraHeight_   = 2.8f;
+    stageCameraDistance_ = 11.5f;
+    stageCameraHeight_   = 4.6f;
 
     camera_     = camera;
     loadedPath_ = jsonPath;
@@ -43,6 +46,12 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     // 全オブジェクトを再帰的に処理
     for (const auto& obj : levelData.objects) {
         ProcessObject(obj, camera, spawnEnemy);
+    }
+
+    // ステージレールがあれば奥側背景ポリゴンメッシュを生成
+    if (stageRail_) {
+        stageBackground_ = std::make_unique<StageBackground>();
+        stageBackground_->Initialize(stageRail_.get(), camera, backgroundConfig_);
     }
 
     // 三角形リストの初期構築
@@ -241,8 +250,8 @@ void StageManager::ProcessObject(const LevelObjectData& data, Camera* camera, Sp
             return def;
         };
         stageCameraDrawDistance_ = getFloat("draw_distance", 80.0f);
-        stageCameraDistance_     = getFloat("camera_distance", 8.5f);
-        stageCameraHeight_       = getFloat("camera_height", 2.8f);
+        stageCameraDistance_     = getFloat("camera_distance", 11.5f);
+        stageCameraHeight_       = getFloat("camera_height", 4.6f);
         auto itMode = data.properties.find("camera_mode");
         if (itMode != data.properties.end()) {
             stageCameraMode_ = itMode->second;
@@ -250,6 +259,14 @@ void StageManager::ProcessObject(const LevelObjectData& data, Camera* camera, Sp
         if (camera) {
             camera->SetDrawDistance(stageCameraDrawDistance_);
         }
+        break;
+    }
+
+    // ─── ステージ奥側背景設定 ─────────────────────────────────────
+    case LevelObjectType::kStageBackground:
+    {
+        backgroundConfig_ = StageBackground::ParseConfigFromProperties(data.properties);
+        hasCustomBackgroundConfig_ = true;
         break;
     }
 
@@ -288,6 +305,9 @@ void StageManager::Update(const Vector3& playerPos)
     if (terrain_) {
         terrain_->Update();
     }
+    if (stageBackground_) {
+        stageBackground_->Update();
+    }
 
     // ブロック更新
     for (auto& block : blocks_)   block->Update();
@@ -325,6 +345,10 @@ void StageManager::Draw()
     // 地形描画（専用PSOによる道/地面テクスチャ割り振り＆穴抜き）
     if (terrain_) {
         terrain_->Draw();
+    }
+    // レール沿い奥側背景ポリゴン描画（遠景のため距離カリングなし）
+    if (stageBackground_) {
+        stageBackground_->Draw();
     }
 
     // カメラの描画距離範囲による距離カリング

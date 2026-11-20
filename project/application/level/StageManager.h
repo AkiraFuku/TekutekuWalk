@@ -2,6 +2,7 @@
 #include "LevelData.h"
 #include "LevelLoader.h"
 #include "StageBlock.h"
+#include "StageBackground.h"
 #include "Terrain.h"
 #include "EventTrigger.h"
 #include "RailPath.h"
@@ -92,6 +93,9 @@ public:
     /// 地形（Terrain）を取得（存在しなければ nullptr）
     Terrain* GetTerrain() const { return terrain_.get(); }
 
+    /// ステージ奥側背景（StageBackground）を取得（存在しなければ nullptr）
+    StageBackground* GetStageBackground() const { return stageBackground_.get(); }
+
     /// ステージ定義のカメラ設定
     float GetStageCameraDrawDistance() const { return stageCameraDrawDistance_; }
     const std::string& GetStageCameraMode() const { return stageCameraMode_; }
@@ -114,6 +118,9 @@ private:
 
     // ─── 管理リスト ──────────────────────────────────────────────────
     std::unique_ptr<Terrain>                  terrain_;  ///< kTerrain
+    std::unique_ptr<StageBackground>          stageBackground_; ///< レール沿い奥側背景メッシュ
+    StageBackground::Config                   backgroundConfig_;
+    bool                                      hasCustomBackgroundConfig_ = false;
     std::vector<std::unique_ptr<StageBlock>>   blocks_;   ///< kBlock
     std::vector<std::unique_ptr<StageBlock>>   props_;    ///< kProp（当たり判定なし装飾）
     std::vector<std::unique_ptr<EventTrigger>> triggers_; ///< kTrigger
@@ -143,8 +150,8 @@ private:
     // ─── ステージ定義カメラ設定 ───────────────────────────────────────
     float stageCameraDrawDistance_ = 80.0f;
     std::string stageCameraMode_   = "AUTO_OFFSET";
-    float stageCameraDistance_     = 8.5f;
-    float stageCameraHeight_       = 2.8f;
+    float stageCameraDistance_     = 11.5f;
+    float stageCameraHeight_       = 4.6f;
 
     // ─── デバッグ描画フラグ ───────────────────────────────────────────
     bool isDebugDrawEnabled_ = false;

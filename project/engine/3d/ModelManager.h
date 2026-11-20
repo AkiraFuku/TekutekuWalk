@@ -34,6 +34,11 @@ public:
         const std::string& textureFilePath,
         float uvTile = 1.0f);
 
+    /// <summary>
+    /// 動的生成したモデルを名前付きで登録・上書きする
+    /// </summary>
+    void RegisterModel(const std::string& modelName, std::shared_ptr<Model> model);
+
 
 private:
   
