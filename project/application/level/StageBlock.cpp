@@ -2,10 +2,32 @@
 #include "ModelManager.h"
 #include "TextureManager.h"
 #include "PrefabManager.h"
+#include "EditorManager.h"
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
 #include <numbers>
+
+StageBlock::~StageBlock()
+{
+    EditorManager::SafeUnregister(this);
+}
+
+void StageBlock::OnInspectorGUI()
+{
+#ifdef USE_IMGUI
+    if (ImGui::CollapsingHeader("StageBlock", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Prefab ID: %s", prefabId_.c_str());
+        ImGui::Checkbox("Disabled", &disabled_);
+        ImGui::Checkbox("Collision Enabled", &isCollisionEnabled_);
+        ImGui::Checkbox("One-way Platform", &isOneway_);
+    }
+#endif
+}
 
 void StageBlock::Initialize(const LevelObjectData& data, Camera* camera)
 {
+    EditorManager::GetInstance()->RegisterObject(this);
     name_     = data.name;
     type_     = data.type;
     disabled_ = data.disabled;
@@ -124,6 +146,7 @@ void StageBlock::Initialize(const LevelObjectData& data, Camera* camera)
     }
 
     object_ = std::make_unique<Object3d>();
+    object_->SetShowInHierarchy(false);
     object_->Initialize();
 
     if (!modelName.empty()) {
@@ -155,7 +178,10 @@ void StageBlock::Initialize(const LevelObjectData& data, Camera* camera)
 
 void StageBlock::Update()
 {
-    if (disabled_) return;
+    if (!isVisible_ || disabled_) {
+        triangles_.clear();
+        return;
+    }
 
     object_->Update();
 
@@ -174,6 +200,6 @@ void StageBlock::Update()
 
 void StageBlock::Draw()
 {
-    if (disabled_) return;
+    if (!isVisible_ || disabled_) return;
     object_->Draw();
 }

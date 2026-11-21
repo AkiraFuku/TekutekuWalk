@@ -67,6 +67,7 @@ public:
     void Finalize();
     void Update();
     void Draw();
+    void DrawImGuiContents();
 
     void SetCamera(Camera* camera) {
         camera_ = camera;

@@ -32,6 +32,16 @@ public:
     // 描画終了後処理
     void PostDraw();
     void SwapChainDraw();
+    // エディタビューポート用：レンダーテクスチャ間描画・スワップチェーン単独セット
+    void BeginRenderToTexture(size_t index, bool clear = true);
+    void EndRenderToTexture(size_t index);
+    void PrepareSceneViewPass();
+    void EndSceneViewPass();
+    void RequestSceneResize(uint32_t width, uint32_t height);
+    void ApplyPendingSceneResize();
+    void ResizeSceneRenderTarget(uint32_t width, uint32_t height);
+    void WaitForGPU();
+    void BeginSwapChainOnly();
 
     // getter
     Microsoft::WRL::ComPtr<ID3D12Device> GetDevice() const {
@@ -126,8 +136,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_;
     // レンダーテクスチャ
 public:
-    // レンダーテクスチャの枚数（ピンポンバッファなら2枚）
-    static constexpr size_t kRenderTextureCount = 2;
+    // レンダーテクスチャの枚数（0: Game生描画, 1: Gameポストエフェクト後, 2: Sceneビュー）
+    static constexpr size_t kRenderTextureCount = 3;
 
 
 
@@ -147,6 +157,16 @@ private:
         D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
     };
     DepthTexture depthTexture_;
+    DepthTexture sceneDepthTexture_;
+    uint32_t sceneTargetWidth_ = WinApp::kClientWidth;
+    uint32_t sceneTargetHeight_ = WinApp::kClientHeight;
+    uint32_t pendingSceneWidth_ = WinApp::kClientWidth;
+    uint32_t pendingSceneHeight_ = WinApp::kClientHeight;
+    bool hasPendingSceneResize_ = false;
+    Microsoft::WRL::ComPtr<ID3D12Resource>
+        CreateRenderTextureResourceWithSize(DXGI_FORMAT format, const Vector4& ClearColor, uint32_t width, uint32_t height);
+    Microsoft::WRL::ComPtr<ID3D12Resource>
+        CreateDepthTextureResourceWithSize(DXGI_FORMAT format, uint32_t width, uint32_t height);
     Microsoft::WRL::ComPtr<ID3D12Resource>
         CreateDepthTextureResource(DXGI_FORMAT format);
     void CreateDepthTextureDSV();

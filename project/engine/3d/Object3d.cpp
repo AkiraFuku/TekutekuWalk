@@ -8,6 +8,141 @@
 #include "ModelManager.h"
 #include <imgui.h>
 #include "LightManager.h"
+#include "EditorManager.h"
+
+#include <filesystem>
+
+Object3d::~Object3d()
+{
+    SetParent(nullptr);
+    for (auto* child : children_) {
+        if (child) child->parent_ = nullptr;
+    }
+    children_.clear();
+    EditorManager::SafeUnregister(this);
+}
+
+void RotatorComponent::OnUpdate(Object3d* owner) {
+    if (!owner) return;
+    Vector3 rot = owner->GetRotate();
+    rot = rot + speed * DXCommon::kDeltaTime;
+    owner->SetRotate(rot);
+}
+
+void OscillatorComponent::OnUpdate(Object3d* owner) {
+    if (!owner) return;
+    if (!initialized_) {
+        basePos_ = owner->GetTranslate();
+        initialized_ = true;
+    }
+    time_ += DXCommon::kDeltaTime;
+    float s = std::sin(time_ * frequency);
+    owner->SetTranslate(basePos_ + amplitude * s);
+}
+
+void BoxColliderDebugComponent::OnDraw(Object3d* owner) {
+    if (!owner) return;
+    Vector3 center = owner->GetTranslate();
+    AABB box{ center - halfSize, center + halfSize };
+    PrimitiveDrawer::GetInstance()->DrawAABB(box, color);
+}
+
+bool Object3d::IsDescendantOf(const Object3d* potentialAncestor) const
+{
+    const Object3d* cur = parent_;
+    while (cur) {
+        if (cur == potentialAncestor) return true;
+        cur = cur->parent_;
+    }
+    return false;
+}
+
+void Object3d::SetParent(Object3d* newParent)
+{
+    if (newParent == this) return;
+    if (newParent && newParent->IsDescendantOf(this)) return; // 循環参照防止
+
+    if (parent_) {
+        auto& siblings = parent_->children_;
+        siblings.erase(std::remove(siblings.begin(), siblings.end(), this), siblings.end());
+    }
+    parent_ = newParent;
+    if (parent_) {
+        parent_->children_.push_back(this);
+    }
+}
+
+bool Object3d::IsVisibleEffective() const
+{
+    if (!isVisible_) return false;
+    if (parent_) return parent_->IsVisibleEffective();
+    return true;
+}
+
+void Object3d::SetShowInHierarchy(bool show)
+{
+    showInHierarchy_ = show;
+    if (!showInHierarchy_) {
+        EditorManager::GetInstance()->UnregisterObject(this);
+    }
+}
+
+void Object3d::OnInspectorGUI()
+{
+#ifdef USE_IMGUI
+    if (ImGui::CollapsingHeader("Object3d", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (parent_) {
+            ImGui::Text("Parent: %s", parent_->GetInspectorName().c_str());
+            ImGui::SameLine();
+            if (ImGui::Button("Detach")) {
+                SetParent(nullptr);
+            }
+        }
+        ImGui::Text("Model: %s", editorName_.c_str());
+        Vector4 col = GetModelInstanceColor();
+        if (ImGui::ColorEdit4("Instance Color", &col.x)) {
+            SetModelColor(col);
+        }
+        ImGui::DragFloat("Curvature Override", &curvature_, 0.0001f, -1.0f, 0.01f, "%.5f");
+        ImGui::Checkbox("Depth Test", &isDepthTestEnable_);
+    }
+
+    // 登録済みコンポーネントの Inspector 描画
+    for (size_t i = 0; i < components_.size(); ++i) {
+        auto* comp = components_[i].get();
+        ImGui::PushID(static_cast<int>(i));
+        bool open = ImGui::CollapsingHeader(comp->GetComponentName().c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+        if (open) {
+            ImGui::Checkbox("Enabled", &comp->enabled);
+            ImGui::SameLine();
+            if (ImGui::Button("Remove")) {
+                components_.erase(components_.begin() + i);
+                ImGui::PopID();
+                break;
+            }
+            comp->OnInspectorGUI();
+        }
+        ImGui::PopID();
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button("Add Component", ImVec2(-1.0f, 0.0f))) {
+        ImGui::OpenPopup("AddComponentPopup");
+    }
+    if (ImGui::BeginPopup("AddComponentPopup")) {
+        if (ImGui::MenuItem("Auto Rotator")) {
+            AddComponent(std::make_unique<RotatorComponent>());
+        }
+        if (ImGui::MenuItem("Oscillator")) {
+            AddComponent(std::make_unique<OscillatorComponent>());
+        }
+        if (ImGui::MenuItem("Debug Box Collider")) {
+            AddComponent(std::make_unique<BoxColliderDebugComponent>());
+        }
+        ImGui::EndPopup();
+    }
+#endif
+}
 
 void Object3d::Initialize()
 {
@@ -20,6 +155,9 @@ void Object3d::Initialize()
     camera_ = Object3dCommon::GetInstance()->GetDefaultCamera();
     box_ = Object3dCommon::GetInstance()->GetDefaultSkyBox();
     CreateCameraResource();
+    if (showInHierarchy_) {
+        EditorManager::GetInstance()->RegisterObject(this);
+    }
 }
 void Object3d::Update()
 {
@@ -35,49 +173,63 @@ void Object3d::Update()
     {
         model_->Update();
     }
-    //  WVP行列の作成
-    Matrix4x4 worldMatrix = MakeAffineMatrix(worldTransform_.scale, worldTransform_.rotate, worldTransform_.translate);
-    //ワールド行列とビュー行列とプロジェクション行列を掛け算
-    Matrix4x4 worldViewProjectionMatrix = {};
-    Matrix4x4 viewMatrix = Makeidentity4x4();
-    Matrix4x4 projectionMatrix = Makeidentity4x4();
-    if (camera_)
-    {
-        cameraData_->worldPosition = camera_->GetTranslate();
-        viewMatrix = camera_->GetViewMatrix();
-        projectionMatrix = camera_->GetProjectionMatrix();
-        worldViewProjectionMatrix = Multiply(worldMatrix, camera_->GetViewProtectionMatrix());
-    } else {
-        Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
-        worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+    for (auto& comp : components_) {
+        if (comp && comp->enabled) {
+            comp->OnUpdate(this);
+        }
     }
-    //行列をGPUに転送
-    wvpResource_->WVP = worldViewProjectionMatrix;
-    wvpResource_->World = worldMatrix;
-    wvpResource_->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
-    wvpResource_->View = viewMatrix;
-    wvpResource_->Projection = projectionMatrix;
 
+    //  WVP行列の作成（親子階層を考慮）
+    Matrix4x4 localMatrix = MakeAffineMatrix(worldTransform_.scale, worldTransform_.rotate, worldTransform_.translate);
+    Matrix4x4 worldMatrix = parent_ ? Multiply(localMatrix, parent_->GetWorldMatrix()) : localMatrix;
+    currentWorldMatrix_ = worldMatrix;
     // 湾曲率の決定: 個別設定が負ならグローバル設定を使用
     float activeCurvature = (curvature_ >= 0.0f) ? curvature_ : Object3dCommon::GetInstance()->GetGlobalCurvature();
-    wvpResource_->curvature = activeCurvature;
 
-    if (camera_ && cameraData_)
-    {
-        cameraData_->worldPosition = camera_->GetTranslate();
-        cameraData_->farClip = camera_->GetFarCrip(); // ★ここを追加
-        // ★追加: カメラのワールド行列から前方ベクトル(Z軸)を抽出
-        // 一般的な行優先(Row-Major)の4x4行列の場合、3行目(m[2])がZ軸(Forward)です
-        const Matrix4x4& mat = camera_->GetWorldMatrix();
-        // 正規化されているはずですが、念のため正規化して送ると安全です
-        Vector3 forward = { mat.m[2][0], mat.m[2][1], mat.m[2][2] };
-        cameraData_->cameraForward = Normalize(forward);
-    }
+    auto writePass = [&](int idx, Camera* cam) {
+        if (!wvpResources_[idx] || !cameraDatas_[idx]) return;
+        Matrix4x4 viewMat = Makeidentity4x4();
+        Matrix4x4 projMat = Makeidentity4x4();
+        Matrix4x4 wvpMat = Makeidentity4x4();
+        if (cam) {
+            cameraDatas_[idx]->worldPosition = cam->GetTranslate();
+            cameraDatas_[idx]->farClip = cam->GetFarCrip();
+            const Matrix4x4& mat = cam->GetWorldMatrix();
+            Vector3 forward = { mat.m[2][0], mat.m[2][1], mat.m[2][2] };
+            cameraDatas_[idx]->cameraForward = Normalize(forward);
+            viewMat = cam->GetViewMatrix();
+            projMat = cam->GetProjectionMatrix();
+            wvpMat = Multiply(worldMatrix, cam->GetViewProtectionMatrix());
+        } else {
+            wvpMat = worldMatrix;
+        }
+        wvpResources_[idx]->WVP = wvpMat;
+        wvpResources_[idx]->World = worldMatrix;
+        wvpResources_[idx]->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+        wvpResources_[idx]->View = viewMat;
+        wvpResources_[idx]->Projection = projMat;
+        wvpResources_[idx]->curvature = activeCurvature;
+    };
+
+    // パス0: ゲームカメラ
+    writePass(0, camera_);
+
+    // パス1: デバッグ（エディタ）カメラ
+    Camera* editorCam = EditorManager::GetInstance()->GetEditorCamera();
+    writePass(1, editorCam ? editorCam : camera_);
 }
 
 void Object3d::Draw()
 {
+    if (!IsVisibleEffective()) {
+        return;
+    }
 
+    for (auto& comp : components_) {
+        if (comp && comp->enabled) {
+            comp->OnDraw(this);
+        }
+    }
 
     if (!model_ && !box_) {
         return;
@@ -100,10 +252,11 @@ void Object3d::Draw()
 
 
     //WVP行列リソースの設定
-    DXCommon::GetInstance()->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_.Get()->GetGPUVirtualAddress());
+    int pass = Object3dCommon::GetInstance()->GetRenderPassIndex();
+    DXCommon::GetInstance()->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResources_[pass].Get()->GetGPUVirtualAddress());
     LightManager::GetInstance()->Draw(3);
 
-    DXCommon::GetInstance()->GetCommandList()->SetGraphicsRootConstantBufferView(7, cameraResource_->GetGPUVirtualAddress());
+    DXCommon::GetInstance()->GetCommandList()->SetGraphicsRootConstantBufferView(7, cameraResources_[pass].Get()->GetGPUVirtualAddress());
 
     if (box_) {
 
@@ -126,8 +279,12 @@ void Object3d::Draw()
 
 void Object3d::SetModel(const std::string& filePath)
 {
+    modelFilePath_ = filePath;
     model_ = ModelManager::GetInstance()->findModel(filePath);
     customTextureIndex_ = std::nullopt; // モデル変更時は個別テクスチャをリセット
+    if (!filePath.empty()) {
+        editorName_ = std::filesystem::path(filePath).filename().string();
+    }
 }
 
 void Object3d::SetTexture(const std::string& textureFilePath)
@@ -162,50 +319,43 @@ void Object3d::SetModelColor(const Vector4& color)
 
 void Object3d::CreateWVPResource()
 {
-    //座標変換
     size_t size = (sizeof(TransformationMatrix) + 0xff) & ~0xff;
-    transformationMatrixResource_ =
-        DXCommon::GetInstance()->
-        CreateBufferResource(size);
-    transformationMatrixResource_.Get()->
-        Map(0, nullptr, reinterpret_cast<void**>(&wvpResource_));
-    wvpResource_->WVP = Makeidentity4x4();
-    wvpResource_->World = Makeidentity4x4();
-    wvpResource_->WorldInverseTranspose = Inverse(wvpResource_->World);
-    wvpResource_->View = Makeidentity4x4();
-    wvpResource_->Projection = Makeidentity4x4();
-    wvpResource_->curvature = 0.0f;
+    for (int i = 0; i < 2; ++i) {
+        transformationMatrixResources_[i] = DXCommon::GetInstance()->CreateBufferResource(size);
+        transformationMatrixResources_[i].Get()->Map(0, nullptr, reinterpret_cast<void**>(&wvpResources_[i]));
+        wvpResources_[i]->WVP = Makeidentity4x4();
+        wvpResources_[i]->World = Makeidentity4x4();
+        wvpResources_[i]->WorldInverseTranspose = Inverse(wvpResources_[i]->World);
+        wvpResources_[i]->View = Makeidentity4x4();
+        wvpResources_[i]->Projection = Makeidentity4x4();
+        wvpResources_[i]->curvature = 0.0f;
+    }
 }
 
 
 
 void Object3d::CreateCameraResource()
 {
-    cameraResource_ =
-        DXCommon::GetInstance()->
-        CreateBufferResource((sizeof(CameraForGPU) + 0xff) & ~0xff);
-    cameraResource_.Get()->
-        Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
-    if (camera_ != nullptr)
-    {
-        cameraData_->worldPosition = camera_->GetTranslate();
-        cameraData_->farClip = camera_->GetFarCrip(); // ★ここを追加
-
-        // ★追加: カメラのワールド行列から前方ベクトル(Z軸)を抽出
-        // 一般的な行優先(Row-Major)の4x4行列の場合、3行目(m[2])がZ軸(Forward)です
-        const Matrix4x4& mat = camera_->GetWorldMatrix();
-        // 正規化されているはずですが、念のため正規化して送ると安全です
-        Vector3 forward = { mat.m[2][0], mat.m[2][1], mat.m[2][2] };
-        cameraData_->cameraForward = Normalize(forward);
-
-    } else
-    {
-        cameraData_->worldPosition = Vector3{ 1.0f,1.0f,1.0f };
-        cameraData_->farClip = 1000.0f;
-        cameraData_->cameraForward = Vector3{ 0.0f,0.0f,1.0f };
-
+    for (int i = 0; i < 2; ++i) {
+        cameraResources_[i] =
+            DXCommon::GetInstance()->
+            CreateBufferResource((sizeof(CameraForGPU) + 0xff) & ~0xff);
+        cameraResources_[i].Get()->
+            Map(0, nullptr, reinterpret_cast<void**>(&cameraDatas_[i]));
+        if (camera_ != nullptr)
+        {
+            cameraDatas_[i]->worldPosition = camera_->GetTranslate();
+            cameraDatas_[i]->farClip = camera_->GetFarCrip();
+            const Matrix4x4& mat = camera_->GetWorldMatrix();
+            Vector3 forward = { mat.m[2][0], mat.m[2][1], mat.m[2][2] };
+            cameraDatas_[i]->cameraForward = Normalize(forward);
+        } else
+        {
+            cameraDatas_[i]->worldPosition = Vector3{ 1.0f,1.0f,1.0f };
+            cameraDatas_[i]->farClip = 1000.0f;
+            cameraDatas_[i]->cameraForward = Vector3{ 0.0f,0.0f,1.0f };
+        }
     }
-
 }
 
 std::vector<Triangle> Object3d::GetWorldTriangles() const {

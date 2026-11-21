@@ -4,6 +4,37 @@
 #include "TextureManager.h"
 #include "DXCommon.h"
 #include "Transform.h"
+#include "EditorManager.h"
+#include <filesystem>
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
+
+Sprite::~Sprite() {
+    EditorManager::SafeUnregister(this);
+}
+
+std::string Sprite::GetInspectorName() const {
+    if (textureFilePath_.empty()) return "Sprite";
+    return std::filesystem::path(textureFilePath_).filename().string();
+}
+
+void Sprite::OnInspectorGUI() {
+#ifdef USE_IMGUI
+    if (ImGui::CollapsingHeader("Sprite (2D)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::DragFloat2("Position", &position_.x, 1.0f);
+        ImGui::DragFloat2("Size", &size_.x, 1.0f, 0.0f, 4096.0f);
+        ImGui::DragFloat("Rotation", &rotation_, 0.01f);
+        ImGui::DragFloat2("Anchor", &anchorPoint_.x, 0.05f, 0.0f, 1.0f);
+        if (materialData_) {
+            ImGui::ColorEdit4("Color", &materialData_->color.x);
+        }
+        ImGui::Checkbox("Flip X", &isFlipX_);
+        ImGui::Checkbox("Flip Y", &isFlipY_);
+        ImGui::TextDisabled("Texture: %s", textureFilePath_.c_str());
+    }
+#endif
+}
 
 void Sprite::Initialize(std::string textureFilePath) {
     // UVトランスフォームの初期化（等倍、回転なし、ズレなし）
@@ -45,6 +76,7 @@ void Sprite::Initialize(std::string textureFilePath) {
 
 
     RegisterTexture(textureFilePath);
+    EditorManager::GetInstance()->RegisterObject(this);
 }
 
 void Sprite::Update() {
@@ -111,6 +143,9 @@ void Sprite::Update() {
 }
 
 void Sprite::Draw() {
+    if (!isVisible_) {
+        return;
+    }
     // 共通の描画前準備処理を呼び出し
     SpriteCommon::GetInstance()->SpriteCommonDraw();
 

@@ -57,8 +57,12 @@
     <ClCompile Include="engine\base\D3DResourceLeakChecker.cpp" />
     <ClCompile Include="engine\base\DXCommon.cpp" />
     <ClCompile Include="engine\audio\Audio.cpp" />
+    <ClCompile Include="engine\Tool\EditorManager.cpp" />
     <ClCompile Include="engine\Tool\ImGuiManager.cpp" />
     <ClCompile Include="engine\Tool\JsonManager.cpp" />
+    <ClCompile Include="externals\imgui\ImGuizmo.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -202,7 +206,11 @@
     <ClInclude Include="engine\base\D3DResourceLeakChecker.h" />
     <ClInclude Include="engine\base\DXCommon.h" />
     <ClInclude Include="engine\audio\Audio.h" />
+    <ClInclude Include="engine\Tool\EditorComponent.h" />
+    <ClInclude Include="engine\Tool\EditorManager.h" />
+    <ClInclude Include="engine\Tool\IInspectable.h" />
     <ClInclude Include="engine\Tool\ImGuiManager.h" />
+    <ClInclude Include="externals\imgui\ImGuizmo.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />

@@ -10,6 +10,8 @@
 #include "PrimitiveDrawer.h"
 #include "SceneManager.h"
 #include "TitlePhase.h"
+#include "EditorManager.h"
+#include "Object3dCommon.h"
 #include "imgui.h"
 #include <cmath>
 
@@ -135,83 +137,130 @@ void TitleScene::Update() {
   }
 
   // 道（地面）の更新
+  Camera* renderCam = Object3dCommon::GetInstance()->GetDefaultCamera();
+  if (!renderCam) renderCam = activeCamera_;
   if (roadObject_) {
-    roadObject_->SetCamera(activeCamera_);
+    roadObject_->SetCamera(renderCam);
     roadObject_->SetScale(roadScale_);
     roadObject_->SetTranslate(
         {characterPos_.x, characterPos_.y - 0.532f, characterPos_.z});
     roadObject_->Update();
   }
 
-  object3d->SetCamera(activeCamera_);
+  object3d->SetCamera(renderCam);
   object3d->SetTranslate(characterPos_);
   object3d->Update();
   currentPhase_->Update(this);
 
 #ifdef USE_IMGUI
-  ImGui::Begin("Title Scene Camera & Road");
-  if (ImGui::Button("Go to Stage Select Scene", ImVec2(200, 30))) {
-    SceneManager::GetInstance()->ChangeScene("StageSelectScene");
-  }
-  ImGui::Separator();
-  ImGui::DragFloat("Orbit Speed", &cameraOrbitSpeed_, 0.01f, -2.0f, 2.0f);
-  ImGui::DragFloat("Orbit Radius", &cameraOrbitRadius_, 0.1f, 1.0f, 30.0f);
-  ImGui::DragFloat("Camera Height", &cameraHeight_, 0.1f, -5.0f, 15.0f);
-  ImGui::DragFloat("Target Height", &cameraTargetHeight_, 0.1f, 0.0f, 5.0f);
-  ImGui::Separator();
-  ImGui::DragFloat3("Character Pos", &characterPos_.x, 0.1f);
-  ImGui::DragFloat3("Road Scale", &roadScale_.x, 0.1f);
-  ImGui::End();
-
-  ImGui::Begin("Title 2D Cloth Debug");
-  ImGui::DragFloat2("Position", &cloth2DPos_.x, 1.0f, 0.0f, 1280.0f);
-  ImGui::DragFloat2("Size", &cloth2DSize_.x, 1.0f, 50.0f, 1280.0f);
-  ImGui::DragFloat("Rotation", &cloth2DRotation_, 0.02f, -3.14f, 3.14f);
-
-  const char *pinModes[] = {"Top Corners Only (2 Points)", "Top Edge All",
-                            "Four Corners (4 Points)"};
-  if (ImGui::Combo("Pin Mode", &cloth2DPinMode_, pinModes,
-                   IM_ARRAYSIZE(pinModes))) {
-    if (cloth2D_) {
-      cloth2D_->SetPinMode(cloth2DPinMode_);
+  if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+    ImGui::Begin("Title Scene Camera & Road");
+    if (ImGui::Button("Go to Stage Select Scene", ImVec2(200, 30))) {
+      SceneManager::GetInstance()->ChangeScene("StageSelectScene");
     }
-  }
+    ImGui::Separator();
+    ImGui::DragFloat("Orbit Speed", &cameraOrbitSpeed_, 0.01f, -2.0f, 2.0f);
+    ImGui::DragFloat("Orbit Radius", &cameraOrbitRadius_, 0.1f, 1.0f, 30.0f);
+    ImGui::DragFloat("Camera Height", &cameraHeight_, 0.1f, -5.0f, 15.0f);
+    ImGui::DragFloat("Target Height", &cameraTargetHeight_, 0.1f, 0.0f, 5.0f);
+    ImGui::Separator();
+    ImGui::DragFloat3("Character Pos", &characterPos_.x, 0.1f);
+    ImGui::DragFloat3("Road Scale", &roadScale_.x, 0.1f);
+    ImGui::End();
 
-  if (ImGui::SliderFloat("Stiffness (k)", &cloth2DK_, 0.05f, 1.0f)) {
-    if (cloth2D_) {
-      cloth2D_->SetK(cloth2DK_);
-    }
+    ImGui::Begin("Title 2D Cloth Debug");
+    OnEditorDebugGUI();
+    ImGui::End();
   }
-
-  ImGui::DragFloat2("Base Gravity", &cloth2DGravity_.x, 5.0f, -1000.0f,
-                    1000.0f);
-  ImGui::Checkbox("Enable Wind", &cloth2DWindEnabled_);
-  ImGui::SliderFloat("Wind Strength", &cloth2DWindStrength_, 0.0f, 800.0f);
-
-  if (ImGui::Button("Reset Cloth")) {
-    if (cloth2D_) {
-      cloth2D_->SetAnchorPoint(cloth2DAnchor_);
-      cloth2D_->Initialize(cloth2DPos_, cloth2DSize_, 20, 16, cloth2DK_,
-                           cloth2DPinMode_);
-      cloth2D_->SetGravity(cloth2DGravity_);
-      cloth2D_->SetTexture("resources/Title/tekutekuTitle.png");
-    }
-  }
-  ImGui::SameLine();
-  if (ImGui::Button("Gust Left (-X)")) {
-    if (cloth2D_) {
-      cloth2D_->ApplyGust(-400.0f);
-    }
-  }
-  ImGui::SameLine();
-  if (ImGui::Button("Gust Right (+X)")) {
-    if (cloth2D_) {
-      cloth2D_->ApplyGust(400.0f);
-    }
-  }
-  ImGui::End();
 #endif
 }
+
+void TitleScene::OnEditorDebugGUI() {
+#ifdef USE_IMGUI
+  if (ImGui::CollapsingHeader("Title Scene Camera & Road", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::Button("Go to Stage Select Scene", ImVec2(200, 30))) {
+      SceneManager::GetInstance()->ChangeScene("StageSelectScene");
+    }
+    ImGui::Separator();
+    ImGui::DragFloat("Orbit Speed", &cameraOrbitSpeed_, 0.01f, -2.0f, 2.0f);
+    ImGui::DragFloat("Orbit Radius", &cameraOrbitRadius_, 0.1f, 1.0f, 30.0f);
+    ImGui::DragFloat("Camera Height", &cameraHeight_, 0.1f, -5.0f, 15.0f);
+    ImGui::DragFloat("Target Height", &cameraTargetHeight_, 0.1f, 0.0f, 5.0f);
+    ImGui::Separator();
+    ImGui::DragFloat3("Character Pos", &characterPos_.x, 0.1f);
+    ImGui::DragFloat3("Road Scale", &roadScale_.x, 0.1f);
+  }
+
+  if (ImGui::CollapsingHeader("Title 2D Cloth Debug", ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::DragFloat2("Position", &cloth2DPos_.x, 1.0f, 0.0f, 1280.0f);
+    ImGui::DragFloat2("Size", &cloth2DSize_.x, 1.0f, 50.0f, 1280.0f);
+    ImGui::DragFloat("Rotation", &cloth2DRotation_, 0.02f, -3.14f, 3.14f);
+
+    const char *pinModes[] = {"Top Corners Only (2 Points)", "Top Edge All",
+                              "Four Corners (4 Points)"};
+    if (ImGui::Combo("Pin Mode", &cloth2DPinMode_, pinModes,
+                     IM_ARRAYSIZE(pinModes))) {
+      if (cloth2D_) {
+        cloth2D_->SetPinMode(cloth2DPinMode_);
+      }
+    }
+
+    if (ImGui::SliderFloat("Stiffness (k)", &cloth2DK_, 0.05f, 1.0f)) {
+      if (cloth2D_) {
+        cloth2D_->SetK(cloth2DK_);
+      }
+    }
+
+    ImGui::DragFloat2("Base Gravity", &cloth2DGravity_.x, 5.0f, -1000.0f,
+                      1000.0f);
+    ImGui::Checkbox("Enable Wind", &cloth2DWindEnabled_);
+    ImGui::SliderFloat("Wind Strength", &cloth2DWindStrength_, 0.0f, 800.0f);
+
+    if (ImGui::Button("Reset Cloth")) {
+      if (cloth2D_) {
+        cloth2D_->SetAnchorPoint(cloth2DAnchor_);
+        cloth2D_->Initialize(cloth2DPos_, cloth2DSize_, 20, 16, cloth2DK_,
+                             cloth2DPinMode_);
+        cloth2D_->SetGravity(cloth2DGravity_);
+        cloth2D_->SetTexture("resources/Title/tekutekuTitle.png");
+      }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Gust Left (-X)")) {
+      if (cloth2D_) {
+        cloth2D_->ApplyGust(-400.0f);
+      }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Gust Right (+X)")) {
+      if (cloth2D_) {
+        cloth2D_->ApplyGust(400.0f);
+      }
+    }
+  }
+#endif
+}
+void TitleScene::UpdateInEditor() {
+  Camera* renderCam = Object3dCommon::GetInstance()->GetDefaultCamera();
+  if (!renderCam) renderCam = activeCamera_;
+  if (skyBox) {
+    skyBox->SetCamera(renderCam);
+    skyBox->Update();
+  }
+  if (roadObject_) {
+    roadObject_->SetCamera(renderCam);
+    roadObject_->SetScale(roadScale_);
+    roadObject_->SetTranslate(
+        {characterPos_.x, characterPos_.y - 0.532f, characterPos_.z});
+    roadObject_->Update();
+  }
+  if (object3d) {
+    object3d->SetCamera(renderCam);
+    object3d->SetTranslate(characterPos_);
+    object3d->Update();
+  }
+}
+
 void TitleScene::Draw() {
   skyBox->Draw();
   if (roadObject_) {
@@ -223,5 +272,17 @@ void TitleScene::Draw() {
   }
   if (currentPhase_) {
     currentPhase_->Draw(this);
+  }
+}
+
+void TitleScene::DrawSceneView() {
+  if (skyBox) {
+    skyBox->Draw();
+  }
+  if (roadObject_) {
+    roadObject_->Draw();
+  }
+  if (object3d) {
+    object3d->Draw();
   }
 }

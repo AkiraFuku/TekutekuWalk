@@ -6,6 +6,7 @@
 #include "MathFunction.h"
 #include "PSOManager.h"
 #include "RotateFunction.h"
+#include "EditorManager.h"
 #include <cassert>
 #include <numbers>
 
@@ -68,9 +69,11 @@ void PrimitiveDrawer::AddPSO() {
 
 void PrimitiveDrawer::WVPResourceCreate() {
 #ifdef USE_LINE
-    WVPResource_ = DXCommon::GetInstance()->CreateBufferResource(sizeof(WVPMatrix));
-    WVPResource_->Map(0, nullptr, reinterpret_cast<void**>(&wvpData_));
-    wvpData_->WVP = Makeidentity4x4();
+    for (int i = 0; i < 2; ++i) {
+        WVPResources_[i] = DXCommon::GetInstance()->CreateBufferResource(sizeof(WVPMatrix));
+        WVPResources_[i]->Map(0, nullptr, reinterpret_cast<void**>(&wvpDatas_[i]));
+        wvpDatas_[i]->WVP = Makeidentity4x4();
+    }
 #endif // USE_LINE
 }
 
@@ -109,20 +112,22 @@ void PrimitiveDrawer::Draw() {
 
     // 非表示設定時はGPU描画を発行せずクリア
     if (!isEnabled_) {
-        vertices_.clear();
-        indices_.clear();
-        commands_.clear();
+        if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+            vertices_.clear();
+            indices_.clear();
+            commands_.clear();
+        }
         return;
     }
 
     auto commandList = DXCommon::GetInstance()->GetCommandList();
     auto psoManager = PSOManager::GetInstance();
 
-    // 1. WVP更新
+    // 1. WVP更新 (Gameパス: 0)
     if (camera_) {
-        wvpData_->WVP = camera_->GetViewProtectionMatrix();
+        wvpDatas_[0]->WVP = camera_->GetViewProtectionMatrix();
     } else {
-        wvpData_->WVP = Makeidentity4x4();
+        wvpDatas_[0]->WVP = Makeidentity4x4();
     }
 
     // 2. 頂点データをGPUバッファへコピー
@@ -137,7 +142,7 @@ void PrimitiveDrawer::Draw() {
             commands_[0].fillMode, commands_[0].psoTopology);
     commandList->SetGraphicsRootSignature(firstPso.rootSignature.Get());
     commandList->SetGraphicsRootConstantBufferView(
-        0, WVPResource_->GetGPUVirtualAddress());
+        0, WVPResources_[0]->GetGPUVirtualAddress());
 
     commandList->IASetVertexBuffers(0, 1, &vbv_);
     commandList->IASetIndexBuffer(&ibv_);
@@ -153,7 +158,63 @@ void PrimitiveDrawer::Draw() {
             cmd.baseVertex, 0);
     }
 
-    // 5. フレーム終わりのクリア
+    // 5. エディタ無効時はここでクリア（有効時はDrawSceneView後にクリア）
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+        vertices_.clear();
+        indices_.clear();
+        commands_.clear();
+    }
+#endif // USE_LINE
+}
+
+void PrimitiveDrawer::DrawSceneView() {
+#ifdef USE_LINE
+    if (commands_.empty())
+        return;
+
+    if (!isEnabled_) {
+        vertices_.clear();
+        indices_.clear();
+        commands_.clear();
+        return;
+    }
+
+    auto commandList = DXCommon::GetInstance()->GetCommandList();
+    auto psoManager = PSOManager::GetInstance();
+
+    // 1. WVP更新 (Sceneパス: 1, EditorCamera)
+    Camera* editorCam = EditorManager::GetInstance()->GetEditorCamera();
+    if (editorCam) {
+        wvpDatas_[1]->WVP = editorCam->GetViewProtectionMatrix();
+    } else if (camera_) {
+        wvpDatas_[1]->WVP = camera_->GetViewProtectionMatrix();
+    } else {
+        wvpDatas_[1]->WVP = Makeidentity4x4();
+    }
+
+    // 2. ルートシグネチャ・バッファのセット
+    PsoSet firstPso =
+        psoManager->GetPso("Primitive", commands_[0].blendMode,
+            commands_[0].fillMode, commands_[0].psoTopology);
+    commandList->SetGraphicsRootSignature(firstPso.rootSignature.Get());
+    commandList->SetGraphicsRootConstantBufferView(
+        0, WVPResources_[1]->GetGPUVirtualAddress());
+
+    commandList->IASetVertexBuffers(0, 1, &vbv_);
+    commandList->IASetIndexBuffer(&ibv_);
+
+    // 3. コマンド実行
+    for (const auto& cmd : commands_) {
+        PsoSet psoSet = psoManager->GetPso("Primitive", cmd.blendMode, cmd.fillMode,
+            cmd.psoTopology);
+        commandList->SetPipelineState(psoSet.pipelineState.Get());
+        commandList->IASetPrimitiveTopology(cmd.topology);
+
+        commandList->DrawIndexedInstanced(cmd.indexCount, 1, cmd.indexStart,
+            cmd.baseVertex, 0);
+    }
+
+    // 4. フレーム終わりのクリア
     vertices_.clear();
     indices_.clear();
     commands_.clear();

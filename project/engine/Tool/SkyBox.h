@@ -6,10 +6,19 @@
 #include "Transform.h"
 #include "Camera.h"
 #include "../base/RenderTypes.h"
-class SkyBox
+#include "IInspectable.h"
+class SkyBox : public IEditorInspectable
 {
 
 public:
+    virtual ~SkyBox() override;
+
+    std::string GetInspectorName() const override { return "SkyBox"; }
+    std::string GetInspectorCategory() const override { return "Environment"; }
+    Vector3* GetInspectorRotationPtr() override { return &worldTransform_.rotate; }
+    Vector3* GetInspectorScalePtr() override { return &worldTransform_.scale; }
+    bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+    void OnInspectorGUI() override;
 
 
 
@@ -83,12 +92,13 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;
 
-    //WVP行列リソース
-    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
-    TransformationMatrix* wvpResource_ = nullptr;
+    //WVP行列リソース（0: Gameビュー, 1: Sceneビュー）
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResources_[2];
+    TransformationMatrix* wvpResources_[2] = { nullptr, nullptr };
     EulerTransform worldTransform_ = {};
     uint32_t textureIndex_ = 0;
     std::string textureFilePath_;
+    bool isVisible_ = true;
 
 };
 

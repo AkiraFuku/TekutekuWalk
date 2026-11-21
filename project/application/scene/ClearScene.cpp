@@ -1,4 +1,5 @@
 #include "ClearScene.h"
+#include "EditorManager.h"
 #include "Phase.h"
 #include "Sprite.h"
 #include "WinApp.h"
@@ -434,12 +435,12 @@ void ClearScene::Update()
     Input* input = Input::GetInstance();
 
 #ifdef USE_IMGUI
-    ImGui::Begin("Clear Scene Settings");
-    ImGui::Text("=== STAGE CLEAR SCENE ===");
-
     bool triggerStageSelect = false;
     bool triggerTitle = false;
     bool triggerGoalDemo = false;
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+    ImGui::Begin("Clear Scene Settings");
+    ImGui::Text("=== STAGE CLEAR SCENE ===");
 
     const char* menuNames[] = { "Stage Select Scene", "Title Scene", "Goal Demo Scene" };
     int currentItem = static_cast<int>(selectedMenu_);
@@ -506,6 +507,7 @@ void ClearScene::Update()
         ImGui::Text("Auto Return: %.1f / %.1f s", autoReturnTimer_, s_autoReturnDelay_);
     }
     ImGui::End();
+    }
 #endif
 
     if (!isTransitioning_ && isIrisOpenFinished_) {

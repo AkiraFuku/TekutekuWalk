@@ -34,6 +34,8 @@
 #include "Fade.h"
 #include "PauseMenu.h"
 #include "DamagePopupManager.h"
+#include "Object3dCommon.h"
+#include "EditorManager.h"
 
 void GameScene::Initialize() {
 
@@ -47,7 +49,7 @@ void GameScene::Initialize() {
     //// 2. デバッグ・エディタ用カメラの生成
     auto debugCamera = std::make_unique<Camera>();
     debugCamera->SetTranslate({ 0.0f, 10.0f, -20.0f });
-    debugCamera->SetEditorMode(true);
+    debugCamera->SetEditorMode(!EditorManager::GetInstance()->IsEditorEnabled());
     cameraMap_["Debug"] = std::move(debugCamera);
 #endif
 
@@ -236,9 +238,11 @@ void GameScene::Initialize() {
     }
 
 
+#ifdef USE_IMGUI
     debugCameraC = std::make_unique<CameraController>();
     debugCameraC->Initialize(cameraMap_["Debug"].get());
     debugCameraC->SetTarget(player.get());
+#endif
 
     RailPath* currentStageRail = GetStageRaill();
     if (currentStageRail) {
@@ -290,30 +294,36 @@ void GameScene::Update() {
         }
     }
 
-    // 2. デバッグ用：時間停止・コマ送り機能
+    // 2. デバッグ用：時間停止・コマ送り機能（エディタOFF時のみ単独ウィンドウ表示）
 #ifdef USE_IMGUI
-    Input* input = Input::GetInstance();
-    if (input->TriggerKeyDown(DIK_F1)) {
-        isDebugFrozen_ = !isDebugFrozen_;
-    }
-    if (input->TriggerKeyDown(DIK_F2)) {
-        isStepFrame_ = true;
-    }
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+        Input* input = Input::GetInstance();
+        if (input->TriggerKeyDown(DIK_F1)) {
+            isDebugFrozen_ = !isDebugFrozen_;
+        }
+        if (input->TriggerKeyDown(DIK_F2)) {
+            isStepFrame_ = true;
+        }
 
-    ImGui::Begin("Debug Time Control");
-    if (ImGui::Button(isDebugFrozen_ ? "Resume Time (F1)" : "Freeze Time (F1)")) {
-        isDebugFrozen_ = !isDebugFrozen_;
+        ImGui::Begin("Debug Time Control");
+        if (ImGui::Button(isDebugFrozen_ ? "Resume Time (F1)" : "Freeze Time (F1)")) {
+            isDebugFrozen_ = !isDebugFrozen_;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Step 1 Frame (F2)")) {
+            isStepFrame_ = true;
+        }
+        ImGui::Text(isDebugFrozen_ ? "Status: [TIME FROZEN]" : "Status: [RUNNING]");
+        ImGui::End();
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Step 1 Frame (F2)")) {
-        isStepFrame_ = true;
-    }
-    ImGui::Text(isDebugFrozen_ ? "Status: [TIME FROZEN]" : "Status: [RUNNING]");
-    ImGui::End();
 #endif
 
-    // デバッグカメラ・メインカメラの更新（時止め中もデバッグカメラで周囲を観察可能）
-    debugCameraC->Update();
+    // デバッグカメラ・メインカメラの更新
+#ifdef USE_IMGUI
+    if (!EditorManager::GetInstance()->IsEditorEnabled() && debugCameraC) {
+        debugCameraC->Update();
+    }
+#endif
     activeCamera_->Update();
 
     // デバッグ時間停止中で、かつ1コマ送りトリガーもない場合はゲーム世界更新をスキップ
@@ -365,9 +375,48 @@ void GameScene::Update() {
     UpdateBannerSprite();
 
 #ifdef USE_IMGUI
-    ImGui::Begin("Debug");
-    PrimitiveDrawer::GetInstance()->DrawImGui();
-    ImGui::Separator();
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+        ImGui::Begin("Debug");
+        OnEditorDebugGUI();
+        ImGui::End();
+    }
+#endif
+
+    if (stageManager_) {
+        stageManager_->Update(player ? player->GetWorldPosition() : Vector3{ 0.0f, 0.0f, 0.0f });
+    }
+
+    triangles_.clear();
+    if (stageManager_) {
+        const auto& stageTris = stageManager_->GetAllTriangles();
+        triangles_.insert(triangles_.end(), stageTris.begin(), stageTris.end());
+    }
+
+    // 四角いオブジェクトの更新
+    if (boxObject_) {
+        boxObject_->SetCamera(Object3dCommon::GetInstance()->GetDefaultCamera());
+        boxObject_->Update();
+        auto boxTris = boxObject_->GetWorldTriangles();
+        triangles_.insert(triangles_.end(), boxTris.begin(), boxTris.end());
+    }
+    if (TestGround_)
+    {
+        TestGround_->Update();
+        auto testGroundTris = TestGround_->GetWorldTriangles();
+        triangles_.insert(triangles_.end(), testGroundTris.begin(), testGroundTris.end());
+    }
+    playerHPUI_->Update();
+    scoreUI_->Update();
+    DamagePopupManager::GetInstance()->Update();
+    DamagePopupManager::GetInstance()->DrawImGui();
+}
+
+void GameScene::OnEditorDebugGUI() {
+#ifdef USE_IMGUI
+    RailPath* currentStageRail = GetStageRaill();
+    if (ImGui::CollapsingHeader("Stage & General Debug", ImGuiTreeNodeFlags_DefaultOpen)) {
+        PrimitiveDrawer::GetInstance()->DrawImGui();
+        ImGui::Separator();
 
     ImGui::Text("Sprite");
 
@@ -379,7 +428,6 @@ void GameScene::Update() {
     // camera->SetRotate(Rotate);
 
 
-    RailPath* currentStageRail = GetStageRaill();
     if (currentStageRail) {
         Vector3 point1_ = currentStageRail->GetPointPos(1);
         Vector3 point2_ = currentStageRail->GetPointPos(2);
@@ -532,11 +580,9 @@ void GameScene::Update() {
             }
         }
     }
+    } // CollapsingHeader Stage & General Debug
 
-    ImGui::End();
-
-    if (currentStageRail) {
-        ImGui::Begin("Rail Debug");
+    if (currentStageRail && ImGui::CollapsingHeader("Rail Debug")) {
         static float r = 20.0f;
         static float hScale = 0.5522f;
 
@@ -570,61 +616,48 @@ void GameScene::Update() {
             currentStageRail->AddBezierPoint({ -r, 0, 0 }, { 0, 0, -h }, { 0, 0,  h });
             currentStageRail->Update();
         }
-        ImGui::End();
     }
 
-
-    if (IsHitStopActive())
+    if (IsHitStopActive() && ImGui::CollapsingHeader("Hit Stop Debug", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Begin("Hit Stop Debug");
-
         // HitStopの残り時間を表示
         ImGui::Text("Hit Stop Remaining Time: %.2f seconds", stopTimer_);
         // HitStopの残り時間をゲージで表示
         ImGui::ProgressBar(stopTimer_ / 0.1f, ImVec2(0, 0), "Hit Stop Progress");
-
-        ImGui::End();
-
-
-
-
     }
-
-
-
-
-#endif // USE_IMGUI
-
-    if (stageManager_) {
-        stageManager_->Update(player ? player->GetWorldPosition() : Vector3{ 0.0f, 0.0f, 0.0f });
-    }
-
-    triangles_.clear();
-    if (stageManager_) {
-        const auto& stageTris = stageManager_->GetAllTriangles();
-        triangles_.insert(triangles_.end(), stageTris.begin(), stageTris.end());
-    }
-
-    // 四角いオブジェクトの更新
-    if (boxObject_) {
-        //プレハブクラスを作るとき更新はここを参考にする
-        boxObject_->SetCamera(activeCamera_);
-        boxObject_->Update();
-        auto boxTris = boxObject_->GetWorldTriangles(); // ワールド変換済み三角形を取得する想定
-        triangles_.insert(triangles_.end(), boxTris.begin(), boxTris.end());
-    }
-    if (TestGround_)
-    {
-        TestGround_->Update();
-        auto testGroundTris = TestGround_->GetWorldTriangles(); // ワールド変換済み三角形を取得する想定
-        triangles_.insert(triangles_.end(), testGroundTris.begin(), testGroundTris.end());
-    }
-    playerHPUI_->Update();
-    scoreUI_->Update();
-    DamagePopupManager::GetInstance()->Update();
-    DamagePopupManager::GetInstance()->DrawImGui();
-
+#endif
 }
+
+void GameScene::UpdateInEditor() {
+    Camera* cam = Object3dCommon::GetInstance()->GetDefaultCamera();
+    if (skyBox) {
+        skyBox->SetCamera(cam);
+        skyBox->Update();
+    }
+    if (stageManager_) {
+        for (auto& block : stageManager_->GetBlocks()) {
+            if (block && block->GetObject()) {
+                block->GetObject()->SetCamera(cam);
+                block->GetObject()->Update();
+            }
+        }
+    }
+    if (player) {
+        player->SetCamera(cam);
+        player->UpdateTransform();
+    }
+    if (goal_ && goal_->GetObject3d()) {
+        goal_->GetObject3d()->SetCamera(cam);
+        goal_->GetObject3d()->Update();
+    }
+    for (auto& enemy : enemies_) {
+        if (enemy) {
+            enemy->SetCamera(cam);
+            enemy->UpdateMatrix();
+        }
+    }
+}
+
 void GameScene::Draw() {
 
     skyBox->Draw();
@@ -709,6 +742,40 @@ void GameScene::Draw() {
     if (pauseMenu_) {
         pauseMenu_->Draw();
     }
+}
+
+void GameScene::DrawSceneView() {
+    if (skyBox) {
+        skyBox->Draw();
+    }
+    if (stageManager_) {
+        stageManager_->Draw();
+        stageManager_->DebugDraw();
+    }
+    if (stageRail) stageRail->DebugDraw();
+    if (!isDefeated_ && player) {
+        player->Draw();
+    }
+    if (goal_) {
+        goal_->Draw();
+    }
+    for (auto& projectile : projectiles_) {
+        if (projectile) {
+            projectile->Draw();
+        }
+    }
+    for (auto& enemy : enemies_) {
+        if (enemy) {
+            enemy->Draw();
+        }
+    }
+    if (boxObject_) {
+        boxObject_->Draw();
+    }
+    if (TestGround_) {
+        TestGround_->Draw();
+    }
+    ParticleManager::GetInstance()->Draw();
 }
 void GameScene::CheckPhaseTransition()
 {

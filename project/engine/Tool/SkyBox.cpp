@@ -4,6 +4,28 @@
 #include "TextureManager.h"
 #include "DXCommon.h"
 #include "MathFunction.h"
+#include "Object3dCommon.h"
+#include "EditorManager.h"
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
+
+SkyBox::~SkyBox()
+{
+    EditorManager::SafeUnregister(this);
+}
+
+void SkyBox::OnInspectorGUI()
+{
+#ifdef USE_IMGUI
+    if (ImGui::CollapsingHeader("SkyBox", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (materialData_) {
+            ImGui::ColorEdit4("Color", &materialData_->color.x);
+        }
+        ImGui::TextDisabled("Texture: %s", textureFilePath_.c_str());
+    }
+#endif
+}
 
 void SkyBox::Initialize()
 {
@@ -119,15 +141,17 @@ void SkyBox::Initialize()
 
     materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
-    //座標変換
-    transformationMatrixResource_ =
-        DXCommon::GetInstance()->
-        CreateBufferResource(sizeof(TransformationMatrix));
-    transformationMatrixResource_.Get()->
-        Map(0, nullptr, reinterpret_cast<void**>(&wvpResource_));
-    wvpResource_->WVP = Makeidentity4x4();
-    wvpResource_->World = Makeidentity4x4();
-    wvpResource_->WorldInverseTranspose = Inverse(wvpResource_->World);
+    //座標変換（0: Game, 1: Scene）
+    for (int i = 0; i < 2; ++i) {
+        transformationMatrixResources_[i] =
+            DXCommon::GetInstance()->
+            CreateBufferResource(sizeof(TransformationMatrix));
+        transformationMatrixResources_[i].Get()->
+            Map(0, nullptr, reinterpret_cast<void**>(&wvpResources_[i]));
+        wvpResources_[i]->WVP = Makeidentity4x4();
+        wvpResources_[i]->World = Makeidentity4x4();
+        wvpResources_[i]->WorldInverseTranspose = Inverse(wvpResources_[i]->World);
+    }
 
 
     worldTransform_.scale = Vector3(1.0f, 1.0f, 1.0f);
@@ -138,6 +162,7 @@ void SkyBox::Initialize()
     for (int i = 0; i < 24; ++i) {
         vertexData_[i].texcord = { vertexData_[i].position.x, vertexData_[i].position.y, vertexData_[i].position.z };
     }
+    EditorManager::GetInstance()->RegisterObject(this);
 }
 
 void SkyBox::Finalize()
@@ -146,32 +171,28 @@ void SkyBox::Finalize()
 
 void SkyBox::Update()
 {
+    auto writePass = [&](int idx, Camera* cam) {
+        if (!wvpResources_[idx]) return;
+        Vector3 pos = cam ? cam->GetTranslate() : worldTransform_.translate;
+        Matrix4x4 worldMatrix = MakeAffineMatrix(worldTransform_.scale, worldTransform_.rotate, pos);
+        Matrix4x4 worldViewProjectionMatrix = cam
+            ? Multiply(worldMatrix, cam->GetViewProtectionMatrix())
+            : worldMatrix;
+        wvpResources_[idx]->WVP = worldViewProjectionMatrix;
+        wvpResources_[idx]->World = worldMatrix;
+        wvpResources_[idx]->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+    };
 
-    if (camera_)
-    {
-        worldTransform_.translate=camera_->GetTranslate();
-
-    }
-
-    Matrix4x4 worldMatrix = MakeAffineMatrix(worldTransform_.scale, worldTransform_.rotate, worldTransform_.translate);
-    Matrix4x4 worldViewProjectionMatrix = {};
-    //ワールド行列とビュー行列とプロジェクション行列を掛け算
-    if (camera_)
-    {
-        // cameraData_->worldPosition = camera_->GetTranslate();
-        worldViewProjectionMatrix = Multiply(worldMatrix, camera_->GetViewProtectionMatrix());
-        //   worldViewProjectionMatrix = Multiply( worldMatrix, camera_->GetViewProtectionMatrix());
-    } else {
-        worldViewProjectionMatrix = Multiply(worldMatrix, Makeidentity4x4());
-    }
-    //行列をGPUに転送
-    wvpResource_->WVP = worldViewProjectionMatrix;
-    wvpResource_->World = worldMatrix;
-    wvpResource_->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+    writePass(0, camera_);
+    Camera* editorCam = EditorManager::GetInstance()->GetEditorCamera();
+    writePass(1, editorCam ? editorCam : camera_);
 }
 
 void SkyBox::Draw()
 {
+    if (!isVisible_) {
+        return;
+    }
     auto psoSet = PSOManager::GetInstance()->GetPso("SkyBox", BlendMode::Normal, FillMode::kSolid);
     // PSOをセット
     DXCommon::GetInstance()->GetCommandList()->SetPipelineState(psoSet.pipelineState.Get());
@@ -194,9 +215,10 @@ void SkyBox::Draw()
         SetGraphicsRootDescriptorTable(2,
             TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_));
     //座標変換行列の設定
+    int pass = Object3dCommon::GetInstance()->GetRenderPassIndex();
     DXCommon::GetInstance()->
         GetCommandList()->
-        SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
+        SetGraphicsRootConstantBufferView(1, transformationMatrixResources_[pass]->GetGPUVirtualAddress());
 
 
     //  DXCommon::GetInstance()->GetCommandList()->DrawInstanced(24, 1, 0, 0);

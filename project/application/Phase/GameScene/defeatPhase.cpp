@@ -1,4 +1,5 @@
 #include "defeatPhase.h"
+#include "EditorManager.h"
 #include "Sprite.h"
 #include "WinApp.h"
 #include "SceneManager.h"
@@ -289,11 +290,11 @@ void defeatPhase::Update(Scene* scene)
         }
 
 #ifdef USE_IMGUI
-        ImGui::Begin("Game Over Menu (Defeat Phase)");
-        ImGui::Text("=== YOU DIED ===");
-
         bool triggerRetry = false;
         bool triggerQuit = false;
+        if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+        ImGui::Begin("Game Over Menu (Defeat Phase)");
+        ImGui::Text("=== YOU DIED ===");
 
         const char* menuNames[] = { "Retry Stage (GameScene)", "Quit (GameOverScene)" };
         int currentItem = static_cast<int>(selectedMenu_);
@@ -313,6 +314,7 @@ void defeatPhase::Update(Scene* scene)
         }
         ImGui::Text("Key/Pad: Left/Right to Select, Space/Enter/A to Confirm");
         ImGui::End();
+        }
 #endif
 
         if (!isTransitioning_) {

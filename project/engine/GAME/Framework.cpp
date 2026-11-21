@@ -20,6 +20,7 @@
 #include "OffScreen.h"
 #include "JsonManager.h"
 #include "PrimitiveDrawer.h"
+#include "EditorManager.h"
 static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
     //ダンプファイルの作成
     SYSTEMTIME time;
@@ -104,8 +105,7 @@ void Framework::Initialize()
     Object3dCommon::GetInstance()->Initialize();
     PbdCommon::GetInstance()->Initialize();
     Audio::GetInstance()->Initialize();
-
-
+    EditorManager::GetInstance()->Initialize();
 }
 
 void Framework::Finalize()
@@ -126,6 +126,7 @@ void Framework::Finalize()
     Object3dCommon::GetInstance()->Finalize();
 
     ImGuiManager::GetInstance()->Finalize();
+    EditorManager::GetInstance()->Finalize();
 
     SpriteCommon::GetInstance()->Finalize();
     TextureManager::GetInstance()->Finalize();
@@ -148,11 +149,12 @@ void Framework::Update()
     Input::GetInstance()->Update();
 #ifdef USE_IMGUI
     if (Input::GetInstance()->TriggerKeyDown(DIK_F3)) {
-        ImGuiManager::GetInstance()->ToggleShow();
+        EditorManager::GetInstance()->ToggleEditorEnabled();
     }
     if (Input::GetInstance()->TriggerKeyDown(DIK_F4)) {
         PrimitiveDrawer::GetInstance()->ToggleEnable();
     }
+    EditorManager::GetInstance()->Update();
 #endif
     Audio::GetInstance()->Update();
     LightManager::GetInstance()->Update();
@@ -168,14 +170,38 @@ void Framework::PreDraw()
 
 void Framework::Draw()
 {
-    DXCommon::GetInstance()->SwapChainDraw();
-    OffScreen::GetInstance()->Draw();
+    if (EditorManager::GetInstance()->IsEditorEnabled()) {
+        // 1. Gameビュー用: RT[0] -> ポストエフェクト適用 -> RT[1]
+        DXCommon::GetInstance()->BeginRenderToTexture(1, true);
+        if (Scene* cur = SceneManager::GetInstance()->GetCurrentScene()) {
+            OffScreen::GetInstance()->SetCamera(cur->GetActiveCamera());
+        }
+        OffScreen::GetInstance()->Draw();
+        DXCommon::GetInstance()->EndRenderToTexture(1);
+
+        // 2. Sceneビュー用: デバッグカメラで RT[2] に描画
+        Object3dCommon::GetInstance()->SetRenderPassIndex(1);
+        DXCommon::GetInstance()->PrepareSceneViewPass();
+        SceneManager::GetInstance()->DrawSceneView();
+        DXCommon::GetInstance()->EndSceneViewPass();
+        Object3dCommon::GetInstance()->SetRenderPassIndex(0);
+
+        // 3. SwapChain にエディタUIを描画
+        DXCommon::GetInstance()->BeginSwapChainOnly();
+#ifdef USE_IMGUI
+        EditorManager::GetInstance()->DrawEditorUI();
+        ImGuiManager::GetInstance()->End();
+        ImGuiManager::GetInstance()->Draw();
+#endif
+    } else {
+        DXCommon::GetInstance()->SwapChainDraw();
+        OffScreen::GetInstance()->Draw();
 
 #ifdef USE_IMGUI
-    ImGuiManager::GetInstance()->End();
-
-    ImGuiManager::GetInstance()->Draw();
+        ImGuiManager::GetInstance()->End();
+        ImGuiManager::GetInstance()->Draw();
 #endif
+    }
     DXCommon::GetInstance()->PostDraw();
     TextureManager::GetInstance()->ReleaseIntermediateResources();
 

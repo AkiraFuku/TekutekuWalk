@@ -38,6 +38,7 @@ public:
 
     // 衝突時に呼ばれる通知関数
     virtual void OnCollision(GameObject* other) {};
+    virtual bool IsActive() const { return true; }
 
     // 判定に必要な情報のゲッター
     virtual Vector3 GetWorldPosition() const = 0;

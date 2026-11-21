@@ -4,10 +4,15 @@
 #include "PrimitiveDrawer.h"
 #include "OffScreen.h"
 #include "Phase.h"
+#include "EditorManager.h"
 
 // Sceneクラスに共通関数として作ると便利です
 void Scene::ChangeActiveCamera(Camera* targetCamera) {
     activeCamera_ = targetCamera;
+    if (activeCamera_) {
+        activeCamera_->SetEditorName("Main Camera");
+        EditorManager::GetInstance()->RegisterObject(activeCamera_);
+    }
 
     // 各マネージャーに新しいカメラを通知
     Object3dCommon::GetInstance()->SetDefaultCamera(activeCamera_);

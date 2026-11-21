@@ -1,4 +1,5 @@
 #include "Coin.h"
+#include "EditorManager.h"
 #include "RailMover.h"
 #include "ModelManager.h"
 #include "PrimitiveDrawer.h"
@@ -50,6 +51,7 @@ void Coin::SaveGlobalConfig(const std::string& filePath) {
 
 void Coin::ImGuiDrawDebugInfo() {
 #ifdef USE_IMGUI
+    if (EditorManager::GetInstance()->IsEditorEnabled()) return;
     ImGui::Begin("Debug/Coin");
     ImGui::Text("--- Coin Global Config ---");
 

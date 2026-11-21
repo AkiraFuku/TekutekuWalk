@@ -1,5 +1,6 @@
 #include "Model.h"
 #include "TextureManager.h"
+#include "EditorManager.h"
 #include "DXCommon.h"
 #include "MathFunction.h"
 #include <cassert>
@@ -70,6 +71,7 @@ void Model::Update()
 
     materialData_->uvTransform = uvMatrix;
 #ifdef USE_IMGUI
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
     ImGui::Begin((std::string("Settings: ") + name_).c_str());
     int* pEnableLighting = reinterpret_cast<int*>(&materialData_->enableLighting);
     int* pEnvironment = reinterpret_cast<int*>(&materialData_->environment);
@@ -94,7 +96,7 @@ void Model::Update()
 
 
     ImGui::End();
-
+    }
 #endif // USE_IMGUI
 
 }

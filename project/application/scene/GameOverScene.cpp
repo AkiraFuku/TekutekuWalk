@@ -1,4 +1,5 @@
 #include "GameOverScene.h"
+#include "EditorManager.h"
 #include "Phase.h"
 #include "Sprite.h"
 #include "WinApp.h"
@@ -93,11 +94,11 @@ void GameOverScene::Update()
 
     // ── ImGui デバッグウィンドウ ──
 #ifdef USE_IMGUI
-    ImGui::Begin("Game Over Scene (Debug Window)");
-    ImGui::Text("=== GAME OVER SCENE ===");
-
     bool triggerStageSelect = false;
     bool triggerTitle = false;
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
+    ImGui::Begin("Game Over Scene (Debug Window)");
+    ImGui::Text("=== GAME OVER SCENE ===");
 
     const char* menuNames[] = { "Stage Select Scene", "Title Scene" };
     int currentItem = static_cast<int>(selectedMenu_);
@@ -116,6 +117,7 @@ void GameOverScene::Update()
         triggerTitle = true;
     }
     ImGui::End();
+    }
 #endif
 
     if (!isTransitioning_) {

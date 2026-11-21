@@ -4,7 +4,30 @@
 #include "TextureManager.h"
 #include "DXCommon.h"
 #include "MathFunction.h"
+#include "Object3dCommon.h"
+#include "EditorManager.h"
+#ifdef USE_IMGUI
+#include "imgui.h"
+#endif
 #include <sstream>
+
+Terrain::~Terrain()
+{
+    EditorManager::SafeUnregister(this);
+}
+
+void Terrain::OnInspectorGUI()
+{
+#ifdef USE_IMGUI
+    if (ImGui::CollapsingHeader("Terrain", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (materialData_) {
+            ImGui::ColorEdit4("Color", &materialData_->color.x);
+            ImGui::DragFloat("UV Tile", &materialData_->uvTile, 0.5f, 1.0f, 100.0f);
+        }
+        ImGui::Text("Grid: %d x %d (Size: %.1f x %.1f)", divX_, divY_, sizeX_, sizeY_);
+    }
+#endif
+}
 #include <algorithm>
 #include <unordered_map>
 
@@ -20,6 +43,7 @@ void Terrain::Initialize(const LevelObjectData& data, Camera* camera)
     SetupPSO();
     BuildMesh(data);
     Update();
+    EditorManager::GetInstance()->RegisterObject(this);
 }
 
 void Terrain::SetupPSO()
@@ -443,32 +467,33 @@ void Terrain::BuildMesh(const LevelObjectData& data)
     materialData_->color  = { 1.0f, 1.0f, 1.0f, 1.0f };
     materialData_->uvTile = uvTile_;
 
-    // WVP 定数バッファ
-    wvpResource_ = DXCommon::GetInstance()->CreateBufferResource(sizeof(TransformationMatrix));
-    wvpResource_->Map(0, nullptr, reinterpret_cast<void**>(&wvpData_));
+    // WVP 定数バッファ（0: Game, 1: Scene）
+    for (int i = 0; i < 2; ++i) {
+        wvpResources_[i] = DXCommon::GetInstance()->CreateBufferResource(sizeof(TransformationMatrix));
+        wvpResources_[i]->Map(0, nullptr, reinterpret_cast<void**>(&wvpDatas_[i]));
+    }
 }
 
 void Terrain::Update()
 {
     Matrix4x4 world = MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
-    Matrix4x4 wvp   = {};
 
-    if (camera_) {
-        wvp = Multiply(world, camera_->GetViewProtectionMatrix());
-    } else {
-        wvp = Multiply(world, Makeidentity4x4());
-    }
+    auto writePass = [&](int idx, Camera* cam) {
+        if (!wvpDatas_[idx]) return;
+        Matrix4x4 wvp = cam ? Multiply(world, cam->GetViewProtectionMatrix()) : world;
+        wvpDatas_[idx]->WVP   = wvp;
+        wvpDatas_[idx]->World = world;
+        wvpDatas_[idx]->WorldInverseTranspose = Transpose(Inverse(world));
+    };
 
-    if (wvpData_) {
-        wvpData_->WVP   = wvp;
-        wvpData_->World = world;
-        wvpData_->WorldInverseTranspose = Transpose(Inverse(world));
-    }
+    writePass(0, camera_);
+    Camera* editorCam = EditorManager::GetInstance()->GetEditorCamera();
+    writePass(1, editorCam ? editorCam : camera_);
 }
 
 void Terrain::Draw()
 {
-    if (indices_.empty()) return;
+    if (!isVisible_ || indices_.empty()) return;
 
     auto cmdList = DXCommon::GetInstance()->GetCommandList();
     auto psoSet  = PSOManager::GetInstance()->GetPso("Terrain", BlendMode::Normal, FillMode::kSolid);
@@ -484,7 +509,8 @@ void Terrain::Draw()
     cmdList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     // [Param 1] Transform (CBV b1)
-    cmdList->SetGraphicsRootConstantBufferView(1, wvpResource_->GetGPUVirtualAddress());
+    int pass = Object3dCommon::GetInstance()->GetRenderPassIndex();
+    cmdList->SetGraphicsRootConstantBufferView(1, wvpResources_[pass]->GetGPUVirtualAddress());
 
     // [Param 2] Grass Texture (DescriptorTable t0)
     cmdList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(grassTexIndex_));

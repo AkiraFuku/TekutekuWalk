@@ -26,6 +26,7 @@ public:
 
     void Update();
     void Draw();
+    void DrawSceneView();
 
     void SetSceneFactory(AbstractSceneFactory* sceneFactory) {
         sceneFactory_ = sceneFactory;

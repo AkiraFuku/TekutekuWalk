@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "LevelData.h"
 #include "DrawFunction.h"
+#include "IInspectable.h"
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <string>
@@ -17,9 +18,18 @@
 /// 専用PSO（シェーダー）を持ち、落とし穴のマス目抜き・縁の三角ポリゴン化、
 /// および道・地面テクスチャのマルチマッピング描画を行う。
 /// </summary>
-class Terrain
+class Terrain : public IEditorInspectable
 {
 public:
+    virtual ~Terrain() override;
+
+    std::string GetInspectorName() const override { return name_.empty() ? "Terrain" : name_; }
+    std::string GetInspectorCategory() const override { return "Stage"; }
+    Vector3* GetInspectorPositionPtr() override { return &transform_.translate; }
+    Vector3* GetInspectorRotationPtr() override { return &transform_.rotate; }
+    Vector3* GetInspectorScalePtr() override { return &transform_.scale; }
+    bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+    void OnInspectorGUI() override;
     /// セル属性
     enum class CellType : uint8_t {
         kGround   = 0, // 通常の地面（草）
@@ -49,7 +59,6 @@ public:
     };
 
     Terrain() = default;
-    ~Terrain() = default;
 
     void Initialize(const LevelObjectData& data, Camera* camera);
     void Update();
@@ -107,6 +116,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     MaterialData* materialData_ = nullptr;
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource_;
-    TransformationMatrix* wvpData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> wvpResources_[2];
+    TransformationMatrix* wvpDatas_[2] = { nullptr, nullptr };
+    bool isVisible_ = true;
 };

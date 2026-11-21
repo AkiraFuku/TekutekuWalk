@@ -1,4 +1,5 @@
 #include "Projectile.h"
+#include "EditorManager.h"
 #include "Enemy.h"
 #include "RailMover.h"
 #include "RailPath.h"
@@ -58,6 +59,7 @@ void Projectile::SaveGlobalConfig(const std::string& filePath) {
 
 void Projectile::ImGuiDrawDebugInfo() {
 #ifdef USE_IMGUI
+    if (EditorManager::GetInstance()->IsEditorEnabled()) return;
     ImGui::Begin("Debug/Projectile");
     ImGui::Text("--- Projectile Global Config ---");
 

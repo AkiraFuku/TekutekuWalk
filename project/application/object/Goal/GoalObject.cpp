@@ -7,6 +7,7 @@
 #include "DXCommon.h"
 #include "JsonManager.h"
 #include "Logger.h"
+#include "EditorManager.h"
 
 #ifdef USE_IMGUI
 #include "imgui.h"
@@ -46,6 +47,7 @@ void GoalObject::SaveGlobalConfig(const std::string& filePath) {
 
 void GoalObject::ImGuiDrawDebugInfo() {
 #ifdef USE_IMGUI
+    if (EditorManager::GetInstance()->IsEditorEnabled()) return;
     ImGui::Begin("Debug/Goal");
     ImGui::Text("--- Goal Global Config ---");
 
@@ -64,8 +66,21 @@ void GoalObject::ImGuiDrawDebugInfo() {
 #endif
 }
 
-GoalObject::GoalObject() = default;
-GoalObject::~GoalObject() = default;
+GoalObject::GoalObject() {
+    EditorManager::GetInstance()->RegisterObject(this);
+}
+GoalObject::~GoalObject() {
+    EditorManager::SafeUnregister(this);
+}
+
+void GoalObject::OnInspectorGUI() {
+#ifdef USE_IMGUI
+    if (ImGui::CollapsingHeader("GoalObject", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::DragFloat("Radius", &radius_, 0.05f, 0.1f, 5.0f);
+        ImGui::Checkbox("Cleared", &isCleared_);
+    }
+#endif
+}
 
 void GoalObject::Initialize() {
     static bool s_loaded = false;
@@ -77,6 +92,7 @@ void GoalObject::Initialize() {
     radius_ = s_config.radius;
 
     object_ = std::make_unique<Object3d>();
+    object_->SetShowInHierarchy(false);
     ModelManager::GetInstance()->LoadModel(s_config.modelDir, s_config.modelFile);
     object_->Initialize();
     object_->SetModel(s_config.modelFile);
@@ -117,6 +133,7 @@ void GoalObject::SetCamera(Camera* camera) {
 }
 
 void GoalObject::Update() {
+    if (!isVisible_) return;
 #ifdef USE_IMGUI
     ImGuiDrawDebugInfo();
 #endif
@@ -135,6 +152,7 @@ void GoalObject::Update() {
 }
 
 void GoalObject::Draw() {
+    if (!isVisible_) return;
      object_->Draw();
 
     Vector4 color = isCleared_ ? Vector4{ 0.0f, 1.0f, 0.0f, 1.0f } : Vector4{ 1.0f, 1.0f, 0.0f, 1.0f };

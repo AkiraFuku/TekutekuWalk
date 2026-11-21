@@ -1,4 +1,5 @@
 #include "CameraController.h"
+#include "EditorManager.h"
 #include "Player.h"  
 #include "MathFunction.h"  
 #include "Camera.h"
@@ -122,6 +123,7 @@ void CameraController::Update() {
     }
 
 #ifdef USE_IMGUI
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
     ImGui::Begin("Debug/camera");
     if (railMover_) {
         ImGui::Text("Rail Progress: %.2f", railMover_->GetProgress());
@@ -165,6 +167,7 @@ void CameraController::Update() {
         SetDrawDistance(config_.rendering.drawDistance);
     }
     ImGui::End();
+    }
 #endif // USE_IMGUI
 
     if (mode_ == CameraMode::RailCamera && railMover_ && railMover_->isRailSet()) {

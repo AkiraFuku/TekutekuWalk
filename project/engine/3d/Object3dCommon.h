@@ -37,11 +37,16 @@ public:
     void SetGlobalCurvature(float curvature) { globalCurvature_ = curvature; }
     float GetGlobalCurvature() const { return globalCurvature_; }
 
+    // 描画パス（0: Gameビュー, 1: Sceneビュー）
+    void SetRenderPassIndex(int index) { renderPassIndex_ = (index == 1) ? 1 : 0; }
+    int GetRenderPassIndex() const { return renderPassIndex_; }
+
     static std::unique_ptr<Object3dCommon> instance;
      friend struct std::default_delete<Object3dCommon>;
 private:
 
     float globalCurvature_ = 0.0f; // グローバル空間湾曲率 (例: 0.001f)
+    int renderPassIndex_ = 0;      // 0: Gameビュー, 1: Sceneビュー
 
     // シングルトンパターン
     Object3dCommon() = default;

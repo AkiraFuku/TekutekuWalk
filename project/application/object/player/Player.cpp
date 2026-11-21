@@ -16,11 +16,27 @@
 #include "RailPath.h"
 #include "Scene.h"
 #include "collider.h"
+#include "EditorManager.h"
 #include "imgui.h"
 #include <numbers>
 
-Player::Player() = default;
-Player::~Player() = default;
+Player::Player() {
+  EditorManager::GetInstance()->RegisterObject(this);
+}
+Player::~Player() {
+  EditorManager::SafeUnregister(this);
+}
+
+void Player::OnInspectorGUI() {
+#ifdef USE_IMGUI
+  if (ImGui::CollapsingHeader("Player Movement", ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::DragFloat("Walk Speed", &config_.movement.walkSpeed, 0.1f, 0.0f, 50.0f);
+    ImGui::DragFloat("Dash Speed", &config_.movement.dashSpeed, 0.1f, 0.0f, 50.0f);
+    ImGui::DragFloat("Jump Accel", &config_.movement.jumpAcceleration, 0.1f, 0.0f, 50.0f);
+    ImGui::DragFloat("Gravity", &config_.movement.gravity, 0.5f, -150.0f, 0.0f);
+  }
+#endif
+}
 
 void Player::LoadConfig(const std::string &filePath) {
   auto jsonMgr = JsonManager::GetInstance();
@@ -332,6 +348,7 @@ void Player::Initialize() {
 
   inputHandler_ = std::make_unique<InputHandler>();
   object_ = std::make_unique<Object3d>();
+  object_->SetShowInHierarchy(false);
   ModelManager::GetInstance()->LoadModel(config_.paths.modelDir, config_.paths.modelFile);
   object_->Initialize();
   object_->SetModel(config_.paths.modelFile);
@@ -348,6 +365,7 @@ void Player::Initialize() {
   // 右手武器モデル（仮の立方体モデル）の生成・初期化
   ModelManager::GetInstance()->CreateBoxModel("PlayerMachineGunBox");
   weaponObject_ = std::make_unique<Object3d>();
+  weaponObject_->SetShowInHierarchy(false);
   weaponObject_->Initialize();
   weaponObject_->SetModel("PlayerMachineGunBox");
   weaponObject_->SetTexture("resources/white.png");
@@ -382,7 +400,7 @@ void Player::Initialize() {
   DamageSE_ = Audio::GetInstance()->LoadAudio(config_.paths.damageSE);
 }
 void Player::Update() {
-  //   if (!isActive_) return;
+  if (!isVisible_) return;
 
   HandleAlive();
 
@@ -507,6 +525,7 @@ void Player::UpdateTransform() {
 }
 
 void Player::Draw() {
+  if (!isVisible_) return;
   auto drawDebugColliders = [this]() {
     if (auto *col = GetCollider()) {
       col->Draw();
@@ -1253,6 +1272,7 @@ void Player::HandleAlive() {
 
 void Player::ImGuiDrawDebugInfo() {
 #ifdef USE_IMGUI
+  if (EditorManager::GetInstance()->IsEditorEnabled()) return;
   ImGui::Begin("Debug/Player");
   ImGui::Text("Rail Progress: %.2f", railMover_->GetProgress());
   Vector3 pos = object_->GetTranslate();

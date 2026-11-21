@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "LevelData.h"
 #include "MathFunction.h"
+#include "IInspectable.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,11 +14,20 @@
 /// Object3d を内包し、自身のワールドポリゴンを抽出して
 /// GameScene の triangles_ リストへ提供する。
 /// </summary>
-class StageBlock
+class StageBlock : public IEditorInspectable
 {
 public:
     StageBlock() = default;
-    ~StageBlock() = default;
+    ~StageBlock() override;
+
+    // ─── IInspectable ─────────────────────────────────────────────────
+    std::string GetInspectorName() const override { return name_.empty() ? "StageBlock" : name_; }
+    std::string GetInspectorCategory() const override { return "Stage"; }
+    Vector3* GetInspectorPositionPtr() override { return object_ ? object_->GetTranslatePtr() : nullptr; }
+    Vector3* GetInspectorRotationPtr() override { return object_ ? object_->GetRotatePtr() : nullptr; }
+    Vector3* GetInspectorScalePtr() override { return object_ ? object_->GetScalePtr() : nullptr; }
+    bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+    void OnInspectorGUI() override;
 
     /// <summary>
     /// LevelObjectData から初期化する（レベルローダーから呼ばれる）
@@ -68,6 +78,7 @@ private:
     std::string     prefabId_           = "";     ///< 適用されたプレハブID
     LevelObjectType type_               = LevelObjectType::kBlock;
     bool            disabled_           = false;  ///< 無効化フラグ（trueなら更新・描画・判定をスキップ）
+    bool            isVisible_          = true;   ///< 表示オンオフフラグ
     bool            isCollisionEnabled_ = true;   ///< false にすると三角形判定を提供しない
     bool            isOneway_           = false;  ///< すり抜け足場フラグ（上から着地可・下から上昇通過可）
 

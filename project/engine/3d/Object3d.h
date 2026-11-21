@@ -14,18 +14,46 @@
 #include <numbers>
 #include <optional>
 #include "RenderTypes.h"
+#include "IInspectable.h"
+#include "EditorComponent.h"
 
 class Animation;
-class Object3d
+class Object3d : public IEditorInspectable
 {
 
 public:
+    virtual ~Object3d() override;
+
+    // ─── IEditorInspectable ──────────────────────────────────────────
+    std::string GetInspectorName() const override { return editorName_.empty() ? "Object3d" : editorName_; }
+    std::string GetInspectorCategory() const override { return "Object3d"; }
+    Vector3* GetInspectorPositionPtr() override { return &worldTransform_.translate; }
+    Vector3* GetInspectorRotationPtr() override { return &worldTransform_.rotate; }
+    Vector3* GetInspectorScalePtr() override { return &worldTransform_.scale; }
+    bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+    void OnInspectorGUI() override;
+    void SetShowInHierarchy(bool show);
+    void SetEditorName(const std::string& name) { editorName_ = name; }
+
+    // ─── 親子階層 (Transform Parenting) ─────────────────────────────
+    void SetParent(Object3d* newParent);
+    Object3d* GetParent() const { return parent_; }
+    const std::vector<Object3d*>& GetChildren() const { return children_; }
+    bool IsDescendantOf(const Object3d* potentialAncestor) const;
+    bool IsVisibleEffective() const;
+
+    // ─── コンポーネント (AddComponent) ───────────────────────────────
+    void AddComponent(std::unique_ptr<IEditorComponent> comp) {
+        if (comp) components_.push_back(std::move(comp));
+    }
+    const std::vector<std::unique_ptr<IEditorComponent>>& GetComponents() const { return components_; }
 
     // 共通定義 (engine/base/RenderTypes.h) を使用します
     void Initialize();
     void Update();
     void Draw();
     void SetModel(const std::string& filePath);
+    const std::string& GetModelFilePath() const { return modelFilePath_; }
 
     //トランスフォームセッター
     void SetScale(const Vector3& scale) {
@@ -52,6 +80,10 @@ public:
     const Vector3& GetTranslate()const {
         return worldTransform_.translate;
     }
+    EulerTransform* GetTransformPtr() { return &worldTransform_; }
+    Vector3* GetScalePtr() { return &worldTransform_.scale; }
+    Vector3* GetRotatePtr() { return &worldTransform_.rotate; }
+    Vector3* GetTranslatePtr() { return &worldTransform_.translate; }
 
     void SetBlendMode(BlendMode blendMode) {
         blendMode_ = blendMode;
@@ -84,10 +116,7 @@ public:
 
     // ワールド行列ゲッター
     Matrix4x4 GetWorldMatrix() const {
-        if (wvpResource_) {
-            return wvpResource_->World;
-        }
-        return Makeidentity4x4();
+        return currentWorldMatrix_;
     }
 
     // ワールド空間の三角形リストを取得
@@ -210,13 +239,13 @@ private:
     Model::Material* instanceMaterialData_ = nullptr;
     std::optional<Vector4> instanceColor_ = std::nullopt;
 
-    //WVP行列リソース
-    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
-    TransformationMatrix* wvpResource_ = nullptr;
+    //WVP行列リソース（0: Gameビュー, 1: Sceneビュー）
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResources_[2];
+    TransformationMatrix* wvpResources_[2] = { nullptr, nullptr };
     void CreateWVPResource();
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
-    CameraForGPU* cameraData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> cameraResources_[2];
+    CameraForGPU* cameraDatas_[2] = { nullptr, nullptr };
     void  CreateCameraResource();
 
     //トランスフォーム
@@ -233,6 +262,16 @@ private:
 
     std::string psoName_ = "Object3d";
     bool isDepthTestEnable_ = true;
+    bool isVisible_ = true;
+    bool showInHierarchy_ = true;
+    std::string editorName_ = "Object3d";
+    std::string modelFilePath_;
+
+    // 親子階層・コンポーネント
+    Object3d* parent_ = nullptr;
+    std::vector<Object3d*> children_;
+    Matrix4x4 currentWorldMatrix_ = Makeidentity4x4();
+    std::vector<std::unique_ptr<IEditorComponent>> components_;
 
     float curvature_ = -1.0f; // 個別湾曲率 (負数ならグローバルを使用)
 

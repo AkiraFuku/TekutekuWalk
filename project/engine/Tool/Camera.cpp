@@ -4,7 +4,33 @@
 #include "ImGuiManager.h"
 #include "DXCommon.h"
 #include "Object3dCommon.h"
+#include "EditorManager.h"
 #include <cmath>
+
+Camera::~Camera()
+{
+    EditorManager::SafeUnregister(this);
+}
+
+void Camera::OnInspectorGUI()
+{
+#ifdef USE_IMGUI
+    if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        float fovDeg = fovY * (180.0f / 3.14159265f);
+        if (ImGui::SliderFloat("FOV (deg)", &fovDeg, 15.0f, 120.0f, "%.1f")) {
+            fovY = fovDeg * (3.14159265f / 180.0f);
+        }
+        ImGui::DragFloat("Near Clip", &nearCrip, 0.01f, 0.01f, 10.0f);
+        ImGui::DragFloat("Far Clip", &farCrip, 1.0f, 10.0f, 5000.0f);
+        if (isEditorMode_) {
+            ImGui::Separator();
+            ImGui::DragFloat("Move Speed", &moveSpeed_, 0.02f, 0.01f, 10.0f);
+            ImGui::DragFloat("Rotate Speed", &rotateSpeed_, 0.0002f, 0.0005f, 0.05f);
+        }
+    }
+#endif
+}
+
 Camera::Camera()
     :worldTransform_({ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} })
     , fovY(1.047f) // 60度 (約1.047 rad)
@@ -31,8 +57,9 @@ void Camera::UpdateEditorCamera() {
     bool isMouseDownMiddle = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
 
     // ドラッグ開始判定：新規クリック時にImGuiのUI操作中(WantCaptureMouse)なら開始しない
+    bool canStartInput = allowViewportInput_ || !io.WantCaptureMouse;
     if (!isRightDragging_ && isMouseDownRight) {
-        if (!io.WantCaptureMouse) {
+        if (canStartInput) {
             isRightDragging_ = true;
         }
     } else if (!isMouseDownRight) {
@@ -40,7 +67,7 @@ void Camera::UpdateEditorCamera() {
     }
 
     if (!isMiddleDragging_ && isMouseDownMiddle) {
-        if (!io.WantCaptureMouse) {
+        if (canStartInput) {
             isMiddleDragging_ = true;
         }
     } else if (!isMouseDownMiddle) {
@@ -130,7 +157,7 @@ void Camera::UpdateEditorCamera() {
     }
 
     // 3. 通常時のホイール回転：前後ズーム
-    if (!isRightDragging_ && !io.WantCaptureMouse && std::abs(io.MouseWheel) > 0.01f) {
+    if (!isRightDragging_ && (allowViewportInput_ || !io.WantCaptureMouse) && std::abs(io.MouseWheel) > 0.01f) {
         float zoomSpeed = moveSpeed_ * 2.0f;
         if (ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift)) {
             zoomSpeed *= 3.0f;
@@ -150,37 +177,38 @@ void Camera::Update() {
     worldMatrix = MakeAffineMatrix(worldTransform_.scale, worldTransform_.rotate, worldTransform_.translate);
 
 #ifdef USE_IMGUI
-    ImGui::Begin("Camera");
+    if (showDebugWindow_) {
+        ImGui::Begin("Camera");
 
-    ImGui::Checkbox("Editor Camera Mode", &isEditorMode_);
-    if (isEditorMode_) {
-        ImGui::DragFloat("Move Speed", &moveSpeed_, 0.02f, 0.01f, 10.0f);
-        ImGui::DragFloat("Rotate Speed", &rotateSpeed_, 0.0002f, 0.0005f, 0.05f);
-        if (ImGui::Button("Reset Camera")) {
-            worldTransform_ = initialTransform_;
+        ImGui::Checkbox("Editor Camera Mode", &isEditorMode_);
+        if (isEditorMode_) {
+            ImGui::DragFloat("Move Speed", &moveSpeed_, 0.02f, 0.01f, 10.0f);
+            ImGui::DragFloat("Rotate Speed", &rotateSpeed_, 0.0002f, 0.0005f, 0.05f);
+            if (ImGui::Button("Reset Camera")) {
+                worldTransform_ = initialTransform_;
+            }
+            ImGui::Separator();
+            ImGui::TextDisabled("Controls:");
+            ImGui::TextDisabled("- Right Drag + WASD / QE : Flythrough");
+            ImGui::TextDisabled("- Shift : Boost Speed");
+            ImGui::TextDisabled("- Middle Drag : Pan");
+            ImGui::TextDisabled("- Wheel : Zoom / Speed Adj");
         }
+
         ImGui::Separator();
-        ImGui::TextDisabled("Controls:");
-        ImGui::TextDisabled("- Right Drag + WASD / QE : Flythrough");
-        ImGui::TextDisabled("- Shift : Boost Speed");
-        ImGui::TextDisabled("- Middle Drag : Pan");
-        ImGui::TextDisabled("- Wheel : Zoom / Speed Adj");
+        float fovDegrees = fovY * (180.0f / 3.14159265f);
+        if (ImGui::SliderFloat("FOV (Degree)", &fovDegrees, 20.0f, 100.0f, "%.1f deg")) {
+            fovY = fovDegrees * (3.14159265f / 180.0f);
+        }
+        float globalCurvature = Object3dCommon::GetInstance()->GetGlobalCurvature();
+        if (ImGui::SliderFloat("Curvature (空間湾曲)", &globalCurvature, 0.0f, 0.005f, "%.5f")) {
+            Object3dCommon::GetInstance()->SetGlobalCurvature(globalCurvature);
+        }
+        ImGui::DragFloat3("Rotate", &(worldTransform_.rotate.x), 0.01f);
+        ImGui::DragFloat3("Scale", &(worldTransform_.scale.x), 0.01f);
+        ImGui::DragFloat3("Translate", &(worldTransform_.translate.x), 0.1f);
+        ImGui::End();
     }
-
-    ImGui::Separator();
-    float fovDegrees = fovY * (180.0f / 3.14159265f);
-    if (ImGui::SliderFloat("FOV (Degree)", &fovDegrees, 20.0f, 100.0f, "%.1f deg")) {
-        fovY = fovDegrees * (3.14159265f / 180.0f);
-    }
-    float globalCurvature = Object3dCommon::GetInstance()->GetGlobalCurvature();
-    if (ImGui::SliderFloat("Curvature (空間湾曲)", &globalCurvature, 0.0f, 0.005f, "%.5f")) {
-        Object3dCommon::GetInstance()->SetGlobalCurvature(globalCurvature);
-    }
-    ImGui::DragFloat3("Rotate", &(worldTransform_.rotate.x), 0.01f);
-    ImGui::DragFloat3("Scale", &(worldTransform_.scale.x), 0.01f);
-    ImGui::DragFloat3("Translate", &(worldTransform_.translate.x), 0.1f);
-    ImGui::End();
-
 #endif // USE_IMGUI
 
     UpdateView();

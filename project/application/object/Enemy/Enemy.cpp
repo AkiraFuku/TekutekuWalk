@@ -19,11 +19,25 @@
 #include "Robot.h"
 #include "enemyBehavior.h"
 #include "DamagePopupManager.h"
+#include "EditorManager.h"
 #include "imgui.h"
 #include <cmath>
 
-Enemy::Enemy() = default;
-Enemy::~Enemy() = default;
+Enemy::Enemy() {
+  EditorManager::GetInstance()->RegisterObject(this);
+}
+Enemy::~Enemy() {
+  EditorManager::SafeUnregister(this);
+}
+
+void Enemy::OnInspectorGUI() {
+#ifdef USE_IMGUI
+  if (ImGui::CollapsingHeader("Enemy Config", ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::DragFloat("Move Speed", &config_.movement.moveSpeed, 0.1f, 0.0f, 30.0f);
+    ImGui::DragFloat("Radius", &radius_, 0.05f, 0.1f, 5.0f);
+  }
+#endif
+}
 
 void Enemy::SetRobot(std::unique_ptr<Robot> robot) {
   robot_ = std::move(robot);
@@ -144,6 +158,7 @@ void Enemy::Initialize() {
   LoadConfig();
 
   object_ = std::make_unique<Object3d>();
+  object_->SetShowInHierarchy(false);
   ModelManager::GetInstance()->CreateSphereModel("Enemy");
   ModelManager::GetInstance()->LoadModel(config_.paths.modelDir,
                                          config_.paths.modelFile);
@@ -173,6 +188,7 @@ void Enemy::Initialize() {
 }
 
 void Enemy::Update() {
+  if (!isVisible_) return;
   if (turnCooldownTimer_ > 0.0f) {
     turnCooldownTimer_ -= deltaTime_;
     if (turnCooldownTimer_ < 0.0f) {
@@ -236,6 +252,7 @@ void Enemy::UpdateTransform() {
 
 void Enemy::ImGuiDrawDebugInfo() {
 #ifdef USE_IMGUI
+  if (EditorManager::GetInstance()->IsEditorEnabled()) return;
   ImGui::Begin("Debug/Enemy");
 
   // 敵の基本情報
@@ -340,6 +357,7 @@ void Enemy::ImGuiDrawDebugInfo() {
 }
 
 void Enemy::Draw() {
+  if (!isVisible_) return;
   if (object_) {
     object_->Draw();
   }

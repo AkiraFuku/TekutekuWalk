@@ -2,6 +2,7 @@
 #include "PrimitiveDrawer.h"
 #include "OffScreen.h"
 #include "Fade.h"
+#include "Object3dCommon.h"
 void GameEngine::Initialize() {
 
     Framework::Initialize();
@@ -38,11 +39,8 @@ void GameEngine::PreDraw()
 }
 ;
 void GameEngine::Draw() {
-
+    Object3dCommon::GetInstance()->SetRenderPassIndex(0);
     SceneManager::GetInstance()->Draw();
 
     Framework::Draw();
-    ///
-
-
 }

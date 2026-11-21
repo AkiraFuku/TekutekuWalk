@@ -19,7 +19,10 @@ public:
     virtual void Initialize() = 0;
     virtual void Finalize() = 0;
     virtual void Update() = 0;
+    virtual void UpdateInEditor() {}
+    virtual void OnEditorDebugGUI() {}
     virtual void Draw() = 0;
+    virtual void DrawSceneView() { Draw(); }
 
     virtual void SetSceneManager(SceneManager* sceneManager) {
         sceneManager_ = sceneManager;

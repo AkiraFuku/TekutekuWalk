@@ -1,4 +1,5 @@
 #include "StageSelectScene.h"
+#include "EditorManager.h"
 #include "Phase.h"
 #include "SceneManager.h"
 #include "GameScene.h"
@@ -280,6 +281,7 @@ void StageSelectScene::Update()
 
     // --- ImGui デバッグ & ステージ選択 UI ---
 #ifdef USE_IMGUI
+    if (!EditorManager::GetInstance()->IsEditorEnabled()) {
     ImGui::Begin("Stage Select Settings");
     ImGui::Text("Current Selection: %s", itemList_[selectedIndex_].name.c_str());
     ImGui::TextDisabled("Description: %s", itemList_[selectedIndex_].description.c_str());
@@ -333,6 +335,7 @@ void StageSelectScene::Update()
         }
     }
     ImGui::End();
+    }
 #endif
 }
 

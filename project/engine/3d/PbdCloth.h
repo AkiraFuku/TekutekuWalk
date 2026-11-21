@@ -98,14 +98,14 @@ private:
     D3D12_INDEX_BUFFER_VIEW ibv_{};
     UINT indexCount_ = 0;
 
-    // 定数バッファ
-    Microsoft::WRL::ComPtr<ID3D12Resource> transformResource_; // slot 0: WVP
-    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;  // slot 1: Material
-    Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;    // slot 3: Camera
+    // 定数バッファ（0: Gameビュー, 1: Sceneビュー）
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformResources_[2]; // slot 0: WVP
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;      // slot 1: Material
+    Microsoft::WRL::ComPtr<ID3D12Resource> cameraResources_[2];    // slot 3: Camera
 
-    TransformationMatrix* transformData_ = nullptr;
-    MaterialCB*           materialData_  = nullptr;
-    CameraForGPU*         cameraData_    = nullptr;
+    TransformationMatrix* transformDatas_[2] = { nullptr, nullptr };
+    MaterialCB*           materialData_      = nullptr;
+    CameraForGPU*         cameraDatas_[2]    = { nullptr, nullptr };
 
     // テクスチャ
     std::string textureFilePath_ = "resources/default/white.png";

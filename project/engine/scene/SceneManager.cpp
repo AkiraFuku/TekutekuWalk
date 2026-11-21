@@ -7,6 +7,8 @@
 #include "ParticleManager.h"
 #include "EffectManager.h"
 #include "Fade.h"
+#include "EditorManager.h"
+#include "Object3dCommon.h"
 
 // 静的メンバ変数の実体
 std::unique_ptr<SceneManager> SceneManager::instance = nullptr;
@@ -39,6 +41,7 @@ void SceneManager::Update() {
     // シーン切り替え処理
     if (nextScene_) {
         if (scene_) {
+            EditorManager::GetInstance()->ClearObjects();
             scene_->Finalize();
             ParticleManager::GetInstance()->ReleaseAllParticleGroupSets();
             scene_ = nullptr;
@@ -51,12 +54,26 @@ void SceneManager::Update() {
         OffScreen::GetInstance()->SetCamera(scene_->GetActiveCamera());
     }
     if (scene_) {
-        scene_->Update();
-        LightManager::GetInstance()->Update();
-        if (!scene_->IsGameTimeStopped()) {
-            ParticleManager::GetInstance()->Update();
-            EffectManager::GetInstance()->Update();
+        // ゲームカメラは常にシーン自身の activeCamera_ を維持（デバッグカメラと完全分離）
+        if (Camera* gameCam = scene_->GetActiveCamera()) {
+            Object3dCommon::GetInstance()->SetDefaultCamera(gameCam);
+            ParticleManager::GetInstance()->SetCamera(gameCam);
+            PrimitiveDrawer::GetInstance()->SetCamera(gameCam);
         }
+
+        if (EditorManager::GetInstance()->ShouldUpdateGame()) {
+            scene_->Update();
+            LightManager::GetInstance()->Update();
+            if (!scene_->IsGameTimeStopped()) {
+                ParticleManager::GetInstance()->Update();
+                EffectManager::GetInstance()->Update();
+            }
+            EditorManager::GetInstance()->ConsumeStepFrame();
+        } else {
+            scene_->UpdateInEditor();
+            LightManager::GetInstance()->Update();
+        }
+        EditorManager::GetInstance()->UpdateSpawnedObjects(scene_->GetActiveCamera());
     }
 }
 
@@ -64,10 +81,20 @@ void SceneManager::Draw() {
     if (scene_) {
 
         scene_->Draw();
+        EditorManager::GetInstance()->DrawSpawnedObjects();
         PrimitiveDrawer::GetInstance()->Draw(); // シーンの描画後にプリミティブ描画を実行   
     }
     Fade::GetInstance()->Draw();
 
+}
+
+void SceneManager::DrawSceneView() {
+    if (scene_) {
+        EditorManager::GetInstance()->DrawSceneGrid();
+        scene_->DrawSceneView();
+        EditorManager::GetInstance()->DrawSpawnedObjects();
+        PrimitiveDrawer::GetInstance()->DrawSceneView();
+    }
 }
 
 void SceneManager::ChangeScene(const std::string& sceneName)

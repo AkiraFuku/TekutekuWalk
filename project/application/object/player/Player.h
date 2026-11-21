@@ -3,6 +3,7 @@
 #include "Audio.h"
 #include "Behavior/PlayerState.h"
 #include "GameObject.h"
+#include "IInspectable.h"
 #include "Object3d.h"
 #include "RailMover.h"
 #include "Transform.h"
@@ -126,10 +127,19 @@ class Robot;
 class Enemy;
 class Scene;
 
-class Player : public GameObject {
+class Player : public GameObject, public IEditorInspectable {
 public:
   Player();
-  ~Player();
+  ~Player() override;
+
+  // IInspectable
+  std::string GetInspectorName() const override { return "Player"; }
+  std::string GetInspectorCategory() const override { return "Gameplay"; }
+  Vector3* GetInspectorPositionPtr() override { return object_ ? object_->GetTranslatePtr() : nullptr; }
+  Vector3* GetInspectorRotationPtr() override { return object_ ? object_->GetRotatePtr() : nullptr; }
+  Vector3* GetInspectorScalePtr() override { return object_ ? object_->GetScalePtr() : nullptr; }
+  bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+  void OnInspectorGUI() override;
 
   void OnCollision(GameObject *other) override;
 
@@ -303,7 +313,7 @@ public:
   void SetAlive(bool alive) { isAlive_ = alive; }
   void Die() { isAlive_ = false; }
 
-  bool IsActive() const { return isActive_; }
+  bool IsActive() const override { return isVisible_ && isActive_; }
   bool SetActive(bool active) {
     isActive_ = active;
     return isActive_;
@@ -334,6 +344,7 @@ public:
   Object3d *GetObject3d() const { return object_.get(); }
 
 private:
+  bool isVisible_ = true;
   float deltaTime_ = DXCommon::kDeltaTime;
 
   std::unique_ptr<IPlayerState> baseState_;

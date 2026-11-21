@@ -5,6 +5,7 @@
 #include "Transform.h"
 #include "Object3d.h"
 #include "GameObject.h"
+#include "IInspectable.h"
 #include "Scene.h"
 
 /// <summary>
@@ -52,7 +53,7 @@ class Player; // Enemy.h の場合
 class Robot; // Enemy.h の場合
 class ParticleEmitter; // Enemy.h の場合
 
-class Enemy : public GameObject
+class Enemy : public GameObject, public IEditorInspectable
 {
 public:
 
@@ -68,12 +69,22 @@ public:
 
     Enemy();
     virtual ~Enemy();
+
+    // IInspectable
+    std::string GetInspectorName() const override { return "Enemy"; }
+    std::string GetInspectorCategory() const override { return "Enemies"; }
+    Vector3* GetInspectorPositionPtr() override { return object_ ? object_->GetTranslatePtr() : nullptr; }
+    Vector3* GetInspectorRotationPtr() override { return object_ ? object_->GetRotatePtr() : nullptr; }
+    Vector3* GetInspectorScalePtr() override { return object_ ? object_->GetScalePtr() : nullptr; }
+    bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+    void OnInspectorGUI() override;
     //コリジョン
 
     float GetRadius() const {
         return radius_;
     }
     virtual void OnCollision(GameObject* other) override; // Enemy側
+    bool IsActive() const override { return isVisible_; }
     virtual void OnCollideWithPlayer(Player* player);     // プレイヤーと通常接触（体当たり）した際のコールバック
     Vector3 GetWorldPosition() const override {
         return object_->GetTranslate();
@@ -260,6 +271,7 @@ public:
     void SetInitialRotationOffset(const Vector3& offset) { initialRotationOffset_ = offset; }
 
 protected:
+    bool isVisible_ = true;
     void UpdatePhysics(); // 重力やレール座標の合成処理
     void PlayHitEffect(); // パーティクルを発生させるヘルパー関数
 

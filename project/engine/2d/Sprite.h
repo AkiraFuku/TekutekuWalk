@@ -8,6 +8,7 @@
 #include "PSOManager.h"
 #include <initializer_list> 
 #include "RenderTypes.h"
+#include "IInspectable.h"
 
 
 
@@ -27,9 +28,16 @@ namespace Anchor {
  * @brief 2Dスプライトの描画・制御を行うクラス
  * @details 描画位置、サイズ、アンカーポイント、UVの切り出し、反転（フリップ）などの基本機能を備えています。
  */
-class Sprite
+class Sprite : public IEditorInspectable
 {
 public:
+    virtual ~Sprite() override;
+
+    // ─── IEditorInspectable ──────────────────────────────────────────
+    std::string GetInspectorName() const override;
+    std::string GetInspectorCategory() const override { return "UI / Sprite"; }
+    bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+    void OnInspectorGUI() override;
     /// @brief 頂点データ構造体
     struct VertexData {
         Vector4 position; //!< 3D座標（w要素含む）
@@ -288,6 +296,7 @@ private:
 
     bool isFlipX_ = false; //!< 左右反転フラグ
     bool isFlipY_ = false; //!< 上下反転フラグ
+    bool isVisible_ = true; //!< 表示フラグ
 
     Vector2 textureLeftTop = { 0.0f, 0.0f }; //!< テクスチャ切り出しの左上座標（ピクセル単位）
     Vector2 textureSize{ 100.0f, 100.0f };   //!< テクスチャ切り出しサイズ（ピクセル単位）

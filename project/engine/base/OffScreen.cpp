@@ -8,6 +8,7 @@
 #include "TextureManager.h"
 #include "SceneManager.h"
 #include "Scene.h"
+#include "EditorManager.h"
 #ifdef USE_IMGUI
 #include "imgui.h"
 #endif // USE_IMGUI
@@ -111,8 +112,20 @@ void OffScreen::Initialize() {
 void OffScreen::Update()
 {
 #ifdef USE_IMGUI
+    if (EditorManager::GetInstance()->IsEditorEnabled()) {
+        return;
+    }
     if (ImGui::Begin("Post Effect Debug Editor"))
     {
+        DrawImGuiContents();
+    }
+    ImGui::End();
+#endif // USE_IMGUI
+}
+
+void OffScreen::DrawImGuiContents()
+{
+#ifdef USE_IMGUI
         // ----------------------------------------------------
         // 1. エフェクト ON / OFF フラグ切り替え
         // ----------------------------------------------------
@@ -185,12 +198,7 @@ void OffScreen::Update()
                 }
             }
         }
-    }
-    ImGui::End();
 #endif // USE_IMGUI
-
-
-
 }
 void OffScreen::Draw()
 {
@@ -200,8 +208,13 @@ void OffScreen::Draw()
 
     if (!camera_)
     {
-        Logger::Log("Camera is not set for OffScreen.");
-        return;
+        Scene* curScene = SceneManager::GetInstance()->GetCurrentScene();
+        if (curScene) {
+            camera_ = curScene->GetActiveCamera();
+        }
+        if (!camera_) {
+            return;
+        }
     }
 
     // 1. 定数バッファの更新

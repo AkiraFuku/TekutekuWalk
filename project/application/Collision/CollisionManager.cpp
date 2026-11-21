@@ -157,6 +157,11 @@ void CollisionManager::CheckCollision(Collider* a, Collider* b) {
         return;
     }
 
+    if ((a->GetOwner() && !a->GetOwner()->IsActive()) ||
+        (b->GetOwner() && !b->GetOwner()->IsActive())) {
+        return;
+    }
+
     auto spheresA = a->GetWorldSpheres();
     auto spheresB = b->GetWorldSpheres();
     auto aabbsA   = a->GetWorldAABBs();

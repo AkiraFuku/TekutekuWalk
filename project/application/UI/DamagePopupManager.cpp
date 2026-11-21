@@ -1,4 +1,5 @@
 #include "DamagePopupManager.h"
+#include "EditorManager.h"
 #include "Camera.h"
 #include "NumberTex.h"
 #include "WinApp.h"
@@ -162,6 +163,7 @@ void DamagePopupManager::Draw() {
 
 void DamagePopupManager::DrawImGui() {
 #ifdef USE_IMGUI
+  if (EditorManager::GetInstance()->IsEditorEnabled()) return;
   ImGui::Begin("Damage Popup Debug");
 
   // --- [1] キュー内の待機中スプライト (Queue) ---

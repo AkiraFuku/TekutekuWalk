@@ -6,6 +6,7 @@
 #include"imgui.h"
 #include"imgui_impl_dx12.h"
 #include"imgui_impl_win32.h"
+#include"ImGuizmo.h"
 #endif // USE_IMGUI
 
 // 静的メンバ変数の実体
@@ -26,8 +27,26 @@ void ImGuiManager::Initialize() {
     #ifdef USE_IMGUI
 
     ImGui::CreateContext();
-    ImGui::GetIO().IniFilename = "externals/imgui/my_imgui_settings.ini";
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.IniFilename = "externals/imgui/my_imgui_settings.ini";
     ImGui::StyleColorsDark();
+
+    // Unity風ダークテーマ調整
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 4.0f;
+    style.FrameRounding = 3.0f;
+    style.TabRounding = 3.0f;
+    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.14f, 0.14f, 0.15f, 1.0f);
+    style.Colors[ImGuiCol_Header] = ImVec4(0.24f, 0.24f, 0.26f, 1.0f);
+    style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.32f, 0.32f, 0.35f, 1.0f);
+    style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.20f, 0.45f, 0.75f, 1.0f);
+    style.Colors[ImGuiCol_TitleBg] = ImVec4(0.10f, 0.10f, 0.11f, 1.0f);
+    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.16f, 0.16f, 0.18f, 1.0f);
+    style.Colors[ImGuiCol_Tab] = ImVec4(0.14f, 0.14f, 0.15f, 1.0f);
+    style.Colors[ImGuiCol_TabActive] = ImVec4(0.24f, 0.24f, 0.27f, 1.0f);
+    style.Colors[ImGuiCol_TabHovered] = ImVec4(0.30f, 0.30f, 0.34f, 1.0f);
+
     ImGui_ImplWin32_Init(WinApp::GetInstance()->GetHwnd());
 
     // InitInfo をスタック変数で初期化（newによるメモリリークを修正）
@@ -78,6 +97,7 @@ void ImGuiManager::Begin() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+    ImGuizmo::BeginFrame();
 #endif // USE_IMGUI
 
 }

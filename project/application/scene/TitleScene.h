@@ -29,7 +29,10 @@ public:
     void Initialize()override;
     void Finalize()override;
     void Update()override;
+    void UpdateInEditor()override;
+    void OnEditorDebugGUI()override;
     void Draw()override;
+    void DrawSceneView()override;
 
 
 private:

@@ -67,6 +67,7 @@ public:
     void DrawAABB(const AABB& aabb, const Vector4& color);
     void DrawSegment(const Segment& segment, const Vector4& color);
     void DrawPlane(const Plane& plane, const Vector4& color);
+    void DrawSceneView();
 
     // 全体ON/OFF
     bool IsEnable() const { return isEnabled_; }
@@ -112,8 +113,8 @@ private:
 
 private:
   
-    Microsoft::WRL::ComPtr<ID3D12Resource> WVPResource_;
-    WVPMatrix* wvpData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> WVPResources_[2];
+    WVPMatrix* wvpDatas_[2] = { nullptr, nullptr };
     void WVPResourceCreate();
 
     Camera* camera_ = nullptr;

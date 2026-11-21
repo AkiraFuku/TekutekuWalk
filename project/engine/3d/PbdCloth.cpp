@@ -1,5 +1,7 @@
 #include "PbdCloth.h"
 #include "PbdCommon.h"
+#include "Object3dCommon.h"
+#include "EditorManager.h"
 #include "DXCommon.h"
 #include "TextureManager.h"
 #include "MathFunction.h"
@@ -77,12 +79,14 @@ void PbdCloth::CreateBuffers() {
 void PbdCloth::CreateConstantBuffers() {
     auto dxCommon = DXCommon::GetInstance();
 
-    // WVP
-    transformResource_ = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
-    transformResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformData_));
-    transformData_->WVP = Makeidentity4x4();
-    transformData_->World = Makeidentity4x4();
-    transformData_->WorldInverseTranspose = Makeidentity4x4();
+    // WVP（0: Game, 1: Scene）
+    for (int i = 0; i < 2; ++i) {
+        transformResources_[i] = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
+        transformResources_[i]->Map(0, nullptr, reinterpret_cast<void**>(&transformDatas_[i]));
+        transformDatas_[i]->WVP = Makeidentity4x4();
+        transformDatas_[i]->World = Makeidentity4x4();
+        transformDatas_[i]->WorldInverseTranspose = Makeidentity4x4();
+    }
 
     // Material
     materialResource_ = dxCommon->CreateBufferResource(sizeof(MaterialCB));
@@ -90,13 +94,15 @@ void PbdCloth::CreateConstantBuffers() {
     materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
     materialData_->enableLighting = 1;
 
-    // Camera (256バイト境界整列)
+    // Camera (256バイト境界整列, 0: Game, 1: Scene)
     size_t cameraBufferSize = (sizeof(CameraForGPU) + 0xff) & ~0xff;
-    cameraResource_ = dxCommon->CreateBufferResource(cameraBufferSize);
-    cameraResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
-    cameraData_->worldPosition = { 0.0f, 0.0f, -10.0f };
-    cameraData_->farClip = 1000.0f;
-    cameraData_->cameraForward = { 0.0f, 0.0f, 1.0f };
+    for (int i = 0; i < 2; ++i) {
+        cameraResources_[i] = dxCommon->CreateBufferResource(cameraBufferSize);
+        cameraResources_[i]->Map(0, nullptr, reinterpret_cast<void**>(&cameraDatas_[i]));
+        cameraDatas_[i]->worldPosition = { 0.0f, 0.0f, -10.0f };
+        cameraDatas_[i]->farClip = 1000.0f;
+        cameraDatas_[i]->cameraForward = { 0.0f, 0.0f, 1.0f };
+    }
 }
 
 void PbdCloth::UpdateNormalsAndVertices() {
@@ -154,22 +160,29 @@ void PbdCloth::Draw() {
         camera_ = PbdCommon::GetInstance()->GetDefaultCamera();
     }
 
+    int pass = Object3dCommon::GetInstance()->GetRenderPassIndex();
+    Camera* activeCam = (pass == 1 && EditorManager::GetInstance()->GetEditorCamera())
+        ? EditorManager::GetInstance()->GetEditorCamera()
+        : camera_;
+
     Matrix4x4 worldMatrix = MakeAffineMatrix(scale_, rotate_, translate_);
     Matrix4x4 wvpMatrix = worldMatrix;
 
-    if (camera_) {
-        wvpMatrix = Multiply(worldMatrix, camera_->GetViewProtectionMatrix());
-        cameraData_->worldPosition = camera_->GetTranslate();
-        cameraData_->farClip = 1000.0f;
+    if (activeCam && cameraDatas_[pass]) {
+        wvpMatrix = Multiply(worldMatrix, activeCam->GetViewProtectionMatrix());
+        cameraDatas_[pass]->worldPosition = activeCam->GetTranslate();
+        cameraDatas_[pass]->farClip = 1000.0f;
 
-        const Matrix4x4& mat = camera_->GetWorldMatrix();
+        const Matrix4x4& mat = activeCam->GetWorldMatrix();
         Vector3 forward = { mat.m[2][0], mat.m[2][1], mat.m[2][2] };
-        cameraData_->cameraForward = Normalize(forward);
+        cameraDatas_[pass]->cameraForward = Normalize(forward);
     }
 
-    transformData_->WVP = wvpMatrix;
-    transformData_->World = worldMatrix;
-    transformData_->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+    if (transformDatas_[pass]) {
+        transformDatas_[pass]->WVP = wvpMatrix;
+        transformDatas_[pass]->World = worldMatrix;
+        transformDatas_[pass]->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+    }
 
     auto commandList = DXCommon::GetInstance()->GetCommandList();
 
@@ -178,13 +191,13 @@ void PbdCloth::Draw() {
 
     // ルートパラメータの設定
     // 0: WVP (Vertex)
-    commandList->SetGraphicsRootConstantBufferView(0, transformResource_->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootConstantBufferView(0, transformResources_[pass]->GetGPUVirtualAddress());
     // 1: Material (Pixel)
     commandList->SetGraphicsRootConstantBufferView(1, materialResource_->GetGPUVirtualAddress());
     // 2: Texture (Pixel Table)
     commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_));
     // 3: Camera (Pixel)
-    commandList->SetGraphicsRootConstantBufferView(3, cameraResource_->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootConstantBufferView(3, cameraResources_[pass]->GetGPUVirtualAddress());
 
     // 頂点バッファ & インデックスバッファのセット
     commandList->IASetVertexBuffers(0, 1, &vbv_);

@@ -4,11 +4,12 @@
 #include "Vector3.h"
 #include "Vector2.h"
 #include "GameObject.h"
+#include "IInspectable.h"
 class RailPath;
 class RailMover;
 class Player;
 
-class GoalObject : public GameObject {
+class GoalObject : public GameObject, public IEditorInspectable {
 public:
     struct GoalConfig {
         std::string modelDir = "resources/Goal/";
@@ -37,6 +38,7 @@ public:
 
     // 衝突判定用
     void OnCollision(GameObject* other) override;
+    bool IsActive() const override { return isVisible_; }
     bool IsCleared() const {
         return isCleared_;
     }
@@ -53,6 +55,15 @@ public:
     Object3d* GetObject3d() const {
         return object_.get();
     }
+
+    // IInspectable
+    std::string GetInspectorName() const override { return "Goal"; }
+    std::string GetInspectorCategory() const override { return "Gameplay"; }
+    Vector3* GetInspectorPositionPtr() override { return object_ ? object_->GetTranslatePtr() : nullptr; }
+    Vector3* GetInspectorRotationPtr() override { return object_ ? object_->GetRotatePtr() : nullptr; }
+    Vector3* GetInspectorScalePtr() override { return object_ ? object_->GetScalePtr() : nullptr; }
+    bool* GetInspectorVisiblePtr() override { return &isVisible_; }
+    void OnInspectorGUI() override;
 private:
     std::unique_ptr<Object3d> object_;
     std::unique_ptr<RailMover> railMover_;
@@ -60,6 +71,7 @@ private:
     const float rotateSpeed=5.0f;
     float radius_ = 0.5f;   // 当たり判定の大きさ（見た目の星モデルに合わせたサイズ）
     bool isCleared_ = false; // クリアフラグ
+    bool isVisible_ = true;  // 表示オンオフフラグ
 
     static inline GoalConfig s_config;
 };
