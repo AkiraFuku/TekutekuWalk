@@ -2,16 +2,28 @@ static const uint kMaxParticles = 1024;
 
 struct Particle {
     float3 translate;
-    float3 scale;
     float lifeTime;
-    float3 velocity;
+    float3 scale;
     float currentTime;
+    float3 velocity;
+    float drag;
+    float3 rotate;
+    float gravity;
+    float3 startScale;
+    float pad0;
+    float3 endScale;
+    float pad1;
     float4 color;
+    float4 startColor;
+    float4 endColor;
 };
 
 struct PerView {
     float4x4 viewProjection;
     float4x4 billboardMatrix;
+    uint useBillboard;
+    uint useVelocityStretch;
+    float2 padding;
 };
 
 struct PerFrame {
@@ -19,13 +31,33 @@ struct PerFrame {
     float deltaTime;
 };
 
-struct EmitterSphere {
+struct EmitterConfig {
     float3 translate;
-    float radius;
     uint count;
-    float frequency;
-    float frequencyTime;
-    uint emit;
+    float3 emitRangeMin;
+    float lifeTimeMin;
+    float3 emitRangeMax;
+    float lifeTimeMax;
+    float3 startScaleMin;
+    float drag;
+    float3 startScaleMax;
+    float gravity;
+    float3 endScaleMin;
+    float pad0;
+    float3 endScaleMax;
+    float pad1;
+    float3 rotateMin;
+    float pad2;
+    float3 rotateMax;
+    float pad3;
+    float3 velocityMin;
+    float pad4;
+    float3 velocityMax;
+    float pad5;
+    float4 startColorMin;
+    float4 startColorMax;
+    float4 endColorMin;
+    float4 endColorMax;
 };
 
 struct VertexShaderOutput {

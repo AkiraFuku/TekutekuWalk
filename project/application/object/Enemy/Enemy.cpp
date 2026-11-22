@@ -843,7 +843,7 @@ bool Enemy::CanDamagePlayer() const {
 
 void Enemy::PlayHitEffect() {
   if (object_) {
-    GpuParticleManager::GetInstance()->Emit(object_->GetTranslate(), 24, 0.8f);
+    GpuParticleManager::GetInstance()->Emit("EnemyDefeat", object_->GetTranslate());
   }
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "DXCommon.h"
 #include "Camera.h"
+#include "PSOManager.h"
 #include "Vector3.h"
 #include "Vector4.h"
 #include "Vector2.h"
@@ -12,50 +13,150 @@
 #include <string>
 #include <array>
 #include <vector>
+#include <unordered_map>
 
 class GpuParticleManager {
 public:
     static constexpr uint32_t kMaxParticles = 1024;
     static constexpr uint32_t kMaxEmitRequestsPerFrame = 16;
 
+    enum class EffectType {
+        Plane,
+        Ring,
+        Cylinder,
+    };
+
+    struct EmitterConfig {
+        uint32_t count = 16;
+        Vector3 emitRangeMin{ -0.2f, -0.2f, -0.2f };
+        Vector3 emitRangeMax{  0.2f,  0.2f,  0.2f };
+        float lifeTimeMin = 0.3f;
+        float lifeTimeMax = 0.6f;
+        Vector3 startScaleMin{ 0.3f, 0.3f, 0.3f };
+        Vector3 startScaleMax{ 0.3f, 0.3f, 0.3f };
+        Vector3 endScaleMin{ 0.0f, 0.0f, 0.0f };
+        Vector3 endScaleMax{ 0.0f, 0.0f, 0.0f };
+        Vector3 rotateMin{ 0.0f, 0.0f, 0.0f };
+        Vector3 rotateMax{ 0.0f, 0.0f, 0.0f };
+        Vector3 velocityMin{ -1.0f, -1.0f, -1.0f };
+        Vector3 velocityMax{  1.0f,  1.0f,  1.0f };
+        Vector4 startColorMin{ 1.0f, 1.0f, 1.0f, 1.0f };
+        Vector4 startColorMax{ 1.0f, 1.0f, 1.0f, 1.0f };
+        Vector4 endColorMin{ 1.0f, 1.0f, 1.0f, 0.0f };
+        Vector4 endColorMax{ 1.0f, 1.0f, 1.0f, 0.0f };
+        float drag = 0.0f;
+        float gravity = 0.0f;
+    };
+
     struct EmitRequest {
-        Vector3 translate;
-        float radius;
-        uint32_t count;
+        Vector3 position{};
+        Vector3 direction{ 0.0f, 0.0f, 1.0f };
+        bool useDirection = false;
     };
 
     struct ParticleCS {
         Vector3 translate;
-        Vector3 scale;
         float lifeTime;
-        Vector3 velocity;
+        Vector3 scale;
         float currentTime;
+        Vector3 velocity;
+        float drag;
+        Vector3 rotate;
+        float gravity;
+        Vector3 startScale;
+        float pad0;
+        Vector3 endScale;
+        float pad1;
         Vector4 color;
+        Vector4 startColor;
+        Vector4 endColor;
     };
+    static_assert(sizeof(ParticleCS) % 16 == 0, "ParticleCS must be 16-byte aligned");
 
     struct PerView {
         Matrix4x4 viewProjection;
         Matrix4x4 billboardMatrix;
+        uint32_t useBillboard;
+        uint32_t useVelocityStretch;
+        float padding[2];
     };
+    static_assert(sizeof(PerView) % 16 == 0, "PerView must be 16-byte aligned");
 
     struct PerFrame {
         float time;
         float deltaTime;
     };
 
-    struct EmitterSphere {
+    struct EmitterConfigGPU {
         Vector3 translate;
-        float radius;
         uint32_t count;
-        float frequency;
-        float frequencyTime;
-        uint32_t emit;
+        Vector3 emitRangeMin;
+        float lifeTimeMin;
+        Vector3 emitRangeMax;
+        float lifeTimeMax;
+        Vector3 startScaleMin;
+        float drag;
+        Vector3 startScaleMax;
+        float gravity;
+        Vector3 endScaleMin;
+        float pad0;
+        Vector3 endScaleMax;
+        float pad1;
+        Vector3 rotateMin;
+        float pad2;
+        Vector3 rotateMax;
+        float pad3;
+        Vector3 velocityMin;
+        float pad4;
+        Vector3 velocityMax;
+        float pad5;
+        Vector4 startColorMin;
+        Vector4 startColorMax;
+        Vector4 endColorMin;
+        Vector4 endColorMax;
     };
+    static_assert(sizeof(EmitterConfigGPU) % 16 == 0, "EmitterConfigGPU must be 16-byte aligned");
 
     struct VertexData {
         Vector4 position;
         Vector2 texCoord;
         Vector3 normal;
+    };
+
+    struct PrimitiveResource {
+        Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+        D3D12_VERTEX_BUFFER_VIEW vbv{};
+        uint32_t vertexCount = 0;
+    };
+
+    struct GpuParticleGroup {
+        std::string name;
+        EffectType effectType = EffectType::Plane;
+        EmitterConfig config{};
+        bool useBillboard = true;
+        bool useVelocityStretch = false;
+        BlendMode blendMode = BlendMode::Add;
+        uint32_t textureSrvIndex = 0;
+
+        bool isInitializedGpu = false;
+        bool isFreeListBarrierInitialized = false;
+        D3D12_RESOURCE_STATES particleResourceState = D3D12_RESOURCE_STATE_COMMON;
+
+        Microsoft::WRL::ComPtr<ID3D12Resource> particleResource;
+        Microsoft::WRL::ComPtr<ID3D12Resource> freeListIndexResource;
+        Microsoft::WRL::ComPtr<ID3D12Resource> freeListResource;
+
+        uint32_t particleUavIndex = 0;
+        uint32_t particleSrvIndex = 0;
+        uint32_t freeListIndexUavIndex = 0;
+        uint32_t freeListUavIndex = 0;
+
+        Microsoft::WRL::ComPtr<ID3D12Resource> perViewResource;
+        PerView* perViewData = nullptr;
+
+        std::vector<EmitRequest> pendingEmits;
+        std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, kMaxEmitRequestsPerFrame> emitRequestResources;
+        std::array<EmitterConfigGPU*, kMaxEmitRequestsPerFrame> emitRequestData{};
     };
 
     static GpuParticleManager* GetInstance();
@@ -69,15 +170,37 @@ public:
     void SetCamera(Camera* camera) { camera_ = camera; }
     void SetActive(bool active) { isActive_ = active; }
     bool IsActive() const { return isActive_; }
-    void SetAutoEmit(bool autoEmit) { autoEmit_ = autoEmit; }
 
+    // グループ・エフェクトセット登録
+    void CreateParticleGroup(
+        const std::string& groupName,
+        const std::string& textureFilepath,
+        const EmitterConfig& config,
+        bool useBillboard = true,
+        bool useVelocityStretch = false,
+        BlendMode blendMode = BlendMode::Add,
+        EffectType effectType = EffectType::Plane
+    );
+    void AddGroupToSet(const std::string& setName, const std::string& groupName);
+    void RegisterEffectGroup(
+        const std::string& setName,
+        const std::string& groupName,
+        const std::string& textureFilepath,
+        const EmitterConfig& config,
+        bool useBillboard = true,
+        bool useVelocityStretch = false,
+        BlendMode blendMode = BlendMode::Add,
+        EffectType effectType = EffectType::Plane
+    );
+
+    // 発生リクエスト
+    void Emit(const std::string& setName, const Vector3& position);
+    void Emit(const std::string& setName, const Vector3& position, const Vector3& direction);
+    void EmitGroup(const std::string& groupName, const Vector3& position);
+    void EmitGroup(const std::string& groupName, const Vector3& position, const Vector3& direction);
+
+    // 後方互換用
     void Emit(const Vector3& position, uint32_t count = 24, float radius = 0.8f);
-
-    void SetEmitterPosition(const Vector3& pos);
-    void SetEmitterRadius(float radius);
-    void SetEmitterCount(uint32_t count);
-    void SetEmitterFrequency(float frequency);
-    void SetTexture(const std::string& textureFilepath);
 
     // GPU側のバッファを再初期化するフラグを立てる（シーン切り替え時など）
     void ResetParticles();
@@ -89,48 +212,28 @@ private:
     GpuParticleManager& operator=(const GpuParticleManager&) = delete;
 
     void RegisterPsos();
-    void CreateResources();
-    void CreateVertexBuffer();
+    void CreateSharedResources();
+    void CreatePrimitiveBuffers();
+    void CreatePrimitiveBuffer(EffectType type);
+    std::vector<VertexData> PrimitiveVertexPlane();
+    std::vector<VertexData> PrimitiveVertexRing();
+    std::vector<VertexData> PrimitiveVertexCylinder();
+    void InitGroupResources(GpuParticleGroup& group);
+    EmitterConfigGPU MakeGpuConfig(const GpuParticleGroup& group, const EmitRequest& req) const;
 
     static std::unique_ptr<GpuParticleManager> instance_;
 
     Camera* camera_ = nullptr;
     bool isActive_ = true;
-    bool autoEmit_ = false;
-    bool isInitializedGpu_ = false;
-    bool isFreeListBarrierInitialized_ = false;
-    D3D12_RESOURCE_STATES particleResourceState_ = D3D12_RESOURCE_STATE_COMMON;
-
-    // GPUバッファ (DEFAULTヒープ)
-    Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_;
-    Microsoft::WRL::ComPtr<ID3D12Resource> freeListIndexResource_;
-    Microsoft::WRL::ComPtr<ID3D12Resource> freeListResource_;
-
-    // ディスクリプタインデックス
-    uint32_t particleUavIndex_ = 0;
-    uint32_t particleSrvIndex_ = 0;
-    uint32_t freeListIndexUavIndex_ = 0;
-    uint32_t freeListUavIndex_ = 0;
-    uint32_t textureSrvIndex_ = 0;
-
-    // 定数バッファ (UPLOADヒープ)
-    Microsoft::WRL::ComPtr<ID3D12Resource> perViewResource_;
-    PerView* perViewData_ = nullptr;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> perFrameResource_;
     PerFrame* perFrameData_ = nullptr;
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> emitterResource_;
-    EmitterSphere* emitterData_ = nullptr;
+    std::unordered_map<EffectType, PrimitiveResource> primitiveResources_;
 
-    std::vector<EmitRequest> pendingEmits_;
-    std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, kMaxEmitRequestsPerFrame> emitRequestResources_;
-    std::array<EmitterSphere*, kMaxEmitRequestsPerFrame> emitRequestData_{};
-
-    // 頂点バッファ
-    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
-    D3D12_VERTEX_BUFFER_VIEW vbv_{};
-    uint32_t vertexCount_ = 0;
+    std::unordered_map<std::string, std::unique_ptr<GpuParticleGroup>> groups_;
+    std::vector<std::string> groupOrder_;
+    std::unordered_map<std::string, std::vector<std::string>> effectSets_;
 
     float totalTime_ = 0.0f;
 };

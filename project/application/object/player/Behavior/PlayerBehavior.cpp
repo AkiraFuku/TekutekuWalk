@@ -4,6 +4,8 @@
 #include "Player.h"
 #include "PlayerAction.h"
 #include "PlayerState.h"
+#include "GpuParticleManager.h"
+#include <cmath>
 
 // --- BehaviorRoot ---
 void BehaviorRoot::Initialize(Player *player) {}
@@ -115,6 +117,18 @@ void BehaviorAttack::Update(Player *player) {
     if (!isStrikePhase_) {
       isStrikePhase_ = true;
       player->TriggerSquashStretch(0.15f, config.rushDuration);
+
+      Vector3 forward = player->GetDirection() * (attackDir_ < 0 ? -1.0f : 1.0f);
+      float len = std::sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
+      if (len > 1e-4f) {
+        forward = forward / len;
+      } else {
+        forward = { 0.0f, 0.0f, 1.0f };
+      }
+      const auto &colCfg = player->GetConfig().collider;
+      Vector3 emitPos = player->GetWorldPosition() + forward * (colCfg.attackOffsetForward * 0.45f);
+      emitPos.y += colCfg.attackOffsetY;
+      GpuParticleManager::GetInstance()->Emit("PlayerMelee", emitPos, forward);
     }
     // 打撃フェーズ中は常にヒットボックスを有効に維持する
     player->SetAttackHitboxActive(true);
