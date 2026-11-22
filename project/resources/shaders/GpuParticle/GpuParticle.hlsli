@@ -16,6 +16,12 @@ struct Particle {
     float4 color;
     float4 startColor;
     float4 endColor;
+    float3 angularVelocity;
+    float pad2;
+    float2 uvOffset;
+    float2 uvScale;
+    float2 uvScrollSpeed;
+    float2 pad3;
 };
 
 struct PerView {
@@ -23,7 +29,8 @@ struct PerView {
     float4x4 billboardMatrix;
     uint useBillboard;
     uint useVelocityStretch;
-    float2 padding;
+    uint flipUvY;
+    float uvTwist;
 };
 
 struct PerFrame {
@@ -58,6 +65,14 @@ struct EmitterConfig {
     float4 startColorMax;
     float4 endColorMin;
     float4 endColorMax;
+    float3 angularVelocityMin;
+    float randomSeed;
+    float3 angularVelocityMax;
+    float pad6;
+    float2 uvOffset;
+    float2 uvScale;
+    float2 uvScrollSpeed;
+    float2 pad7;
 };
 
 struct VertexShaderOutput {

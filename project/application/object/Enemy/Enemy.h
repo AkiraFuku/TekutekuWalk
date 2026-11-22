@@ -262,6 +262,7 @@ public:
 protected:
     void UpdatePhysics(); // 重力やレール座標の合成処理
     void PlayHitEffect(); // パーティクルを発生させるヘルパー関数
+    void PlayDamagedEffect(float knockbackDirection); // 被弾シリンダーエフェクト発生
 
 private:
     float deltaTime_ = DXCommon::kDeltaTime; // フレームレートに合わせたデルタタイム

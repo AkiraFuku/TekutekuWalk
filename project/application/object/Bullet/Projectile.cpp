@@ -9,6 +9,7 @@
 #include "Physics.h"
 #include "JsonManager.h"
 #include "Logger.h"
+#include "GpuParticleManager.h"
 #include <algorithm>
 #include <cmath>
 
@@ -180,11 +181,21 @@ void Projectile::Update() {
 
     // 5. 3D移動ベクトルから弾頭の向き（Yaw / Pitch）を算出して飛翔方向へ真っ直ぐ向ける
     Vector3 moveVec = Subtract(finalPos, prevPos);
-    if (Length(moveVec) > 0.0001f) {
+    float moveLen = Length(moveVec);
+    if (moveLen > 0.0001f) {
         float yaw = std::atan2(moveVec.x, moveVec.z);
         float horizontalDist = std::sqrt(moveVec.x * moveVec.x + moveVec.z * moveVec.z);
         float pitch = -std::atan2(moveVec.y, (std::max)(horizontalDist, 0.0001f));
         object_->SetRotate({ pitch, yaw, 0.0f });
+
+        // 弾の飛翔軌道に沿ってらせん状シリンダーエフェクトを発生させる
+        Vector3 forward{ moveVec.x / moveLen, moveVec.y / moveLen, moveVec.z / moveLen };
+        Vector3 spawnPos{
+            prevPos.x + moveVec.x * 0.2f,
+            prevPos.y + moveVec.y * 0.2f,
+            prevPos.z + moveVec.z * 0.2f
+        };
+        GpuParticleManager::GetInstance()->Emit("BulletSpiral", spawnPos, forward);
     }
 
     // 6. 消滅直前（残り6フレーム）は曳光剤が燃え尽きるように弾体を細く収束させる

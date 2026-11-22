@@ -14,6 +14,8 @@ void main(uint3 DTid : SV_DispatchThreadID) {
             gParticles[particleIndex].velocity.y -= gParticles[particleIndex].gravity * dt;
             gParticles[particleIndex].velocity *= saturate(1.0f - gParticles[particleIndex].drag * dt);
             gParticles[particleIndex].translate += gParticles[particleIndex].velocity * dt;
+            gParticles[particleIndex].rotate += gParticles[particleIndex].angularVelocity * dt;
+            gParticles[particleIndex].uvOffset += gParticles[particleIndex].uvScrollSpeed * dt;
             gParticles[particleIndex].currentTime += dt;
 
             float progress = saturate(gParticles[particleIndex].currentTime / gParticles[particleIndex].lifeTime);

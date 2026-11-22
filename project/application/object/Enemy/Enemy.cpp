@@ -444,6 +444,8 @@ void Enemy::TakeDamage(float knockbackDirection, bool isDeadly) {
   if (isDeadly) {
     PlayHitEffect();
     ChangeState(std::make_unique<StateEnemyDead>());
+  } else {
+    PlayDamagedEffect(knockbackDirection);
   }
 }
 
@@ -598,6 +600,7 @@ void Enemy::TakeBulletDamage(float knockbackDirection) {
   }
 
   // まだHPが残っている間は無敵時間を貼らず、地上で小刻みに怯ませて次弾を連続ヒットさせる（ストッピングパワー）
+  PlayDamagedEffect(knockbackDirection);
   isKnockback_ = true;
   knockbackDirection_ = knockbackDirection;
   knockbackTimer_ = 0.10f;
@@ -845,6 +848,12 @@ void Enemy::PlayHitEffect() {
   if (object_) {
     GpuParticleManager::GetInstance()->Emit("EnemyDefeat", object_->GetTranslate());
   }
+}
+
+void Enemy::PlayDamagedEffect(float knockbackDirection) {
+  if (!object_) return;
+  Vector3 dir = railMover_ ? railMover_->GetCurrentDirection() * knockbackDirection : Vector3{ 0.0f, 0.0f, 1.0f };
+  GpuParticleManager::GetInstance()->Emit("EnemyHit", object_->GetTranslate(), dir);
 }
 
 float Enemy::GetCurrentDistance() const {

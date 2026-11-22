@@ -13,7 +13,9 @@ void main(uint3 DTid : SV_DispatchThreadID) {
     }
 
     RandomGenerator generator;
-    generator.seed = (float3(DTid) + gPerFrame.time + 1.0f) * (gPerFrame.time + 1.37f) + gEmitter.translate * 0.13f;
+    generator.seed = (float3(DTid) + gPerFrame.time + 1.0f) * (gPerFrame.time + 1.37f)
+        + gEmitter.translate * 0.13f
+        + float3(gEmitter.randomSeed, gEmitter.randomSeed * 1.73f, gEmitter.randomSeed * 2.41f);
 
     for (uint countIndex = 0; countIndex < gEmitter.count; ++countIndex) {
         int freeListIndex;
@@ -25,6 +27,7 @@ void main(uint3 DTid : SV_DispatchThreadID) {
             float3 rPos = generator.Generate3d();
             float3 rVel = generator.Generate3d();
             float3 rRot = generator.Generate3d();
+            float3 rAng = generator.Generate3d();
             float3 rStartScale = generator.Generate3d();
             float3 rEndScale = generator.Generate3d();
             float rLife = generator.Generate1d();
@@ -39,6 +42,7 @@ void main(uint3 DTid : SV_DispatchThreadID) {
             gParticles[particleIndex].translate = gEmitter.translate + lerp(gEmitter.emitRangeMin, gEmitter.emitRangeMax, rPos);
             gParticles[particleIndex].velocity = lerp(gEmitter.velocityMin, gEmitter.velocityMax, rVel);
             gParticles[particleIndex].rotate = lerp(gEmitter.rotateMin, gEmitter.rotateMax, rRot);
+            gParticles[particleIndex].angularVelocity = lerp(gEmitter.angularVelocityMin, gEmitter.angularVelocityMax, rAng);
             gParticles[particleIndex].startScale = startScale;
             gParticles[particleIndex].endScale = endScale;
             gParticles[particleIndex].scale = startScale;
@@ -49,6 +53,9 @@ void main(uint3 DTid : SV_DispatchThreadID) {
             gParticles[particleIndex].currentTime = 0.0f;
             gParticles[particleIndex].drag = gEmitter.drag;
             gParticles[particleIndex].gravity = gEmitter.gravity;
+            gParticles[particleIndex].uvOffset = gEmitter.uvOffset;
+            gParticles[particleIndex].uvScale = gEmitter.uvScale;
+            gParticles[particleIndex].uvScrollSpeed = gEmitter.uvScrollSpeed;
         } else {
             InterlockedAdd(gFreeListIndex[0], 1);
             break;

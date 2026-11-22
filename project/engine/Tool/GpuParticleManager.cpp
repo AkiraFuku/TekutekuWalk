@@ -11,14 +11,68 @@ size_t Align256(size_t size) {
     return (size + 255) & ~size_t(255);
 }
 
-Vector3 RotateY(const Vector3& v, float yaw) {
-    float c = std::cos(yaw);
-    float s = std::sin(yaw);
-    return {
-        v.x * c + v.z * s,
-        v.y,
-        -v.x * s + v.z * c
+Vector3 RotateXY(const Vector3& v, float pitch, float yaw) {
+    float cx = std::cos(pitch);
+    float sx = std::sin(pitch);
+    Vector3 rx{
+        v.x,
+        v.y * cx - v.z * sx,
+        v.y * sx + v.z * cx
     };
+
+    float cy = std::cos(yaw);
+    float sy = std::sin(yaw);
+    return {
+        rx.x * cy + rx.z * sy,
+        rx.y,
+        -rx.x * sy + rx.z * cy
+    };
+}
+
+void RotateRangeXY(Vector3& minVal, Vector3& maxVal, float pitch, float yaw) {
+    // 回転後の軸平行バウンディングボックスを求めて min <= max を保証する
+    const Vector3 corners[8] = {
+        { minVal.x, minVal.y, minVal.z },
+        { maxVal.x, minVal.y, minVal.z },
+        { minVal.x, maxVal.y, minVal.z },
+        { maxVal.x, maxVal.y, minVal.z },
+        { minVal.x, minVal.y, maxVal.z },
+        { maxVal.x, minVal.y, maxVal.z },
+        { minVal.x, maxVal.y, maxVal.z },
+        { maxVal.x, maxVal.y, maxVal.z },
+    };
+    Vector3 r0 = RotateXY(corners[0], pitch, yaw);
+    Vector3 outMin = r0;
+    Vector3 outMax = r0;
+    for (int i = 1; i < 8; ++i) {
+        Vector3 r = RotateXY(corners[i], pitch, yaw);
+        outMin.x = (std::min)(outMin.x, r.x);
+        outMin.y = (std::min)(outMin.y, r.y);
+        outMin.z = (std::min)(outMin.z, r.z);
+        outMax.x = (std::max)(outMax.x, r.x);
+        outMax.y = (std::max)(outMax.y, r.y);
+        outMax.z = (std::max)(outMax.z, r.z);
+    }
+    minVal = outMin;
+    maxVal = outMax;
+}
+
+void ReleaseGroupGpuResources(GpuParticleManager::GpuParticleGroup& group) {
+    if (group.perViewResource) {
+        group.perViewResource->Unmap(0, nullptr);
+        group.perViewData = nullptr;
+        group.perViewResource.Reset();
+    }
+    for (uint32_t i = 0; i < GpuParticleManager::kMaxEmitRequestsPerFrame; ++i) {
+        if (group.emitRequestResources[i]) {
+            group.emitRequestResources[i]->Unmap(0, nullptr);
+            group.emitRequestData[i] = nullptr;
+            group.emitRequestResources[i].Reset();
+        }
+    }
+    group.particleResource.Reset();
+    group.freeListIndexResource.Reset();
+    group.freeListResource.Reset();
 }
 } // namespace
 
@@ -43,26 +97,14 @@ void GpuParticleManager::Initialize() {
 
 void GpuParticleManager::Finalize() {
     for (auto& [name, group] : groups_) {
-        if (!group) continue;
-        if (group->perViewResource) {
-            group->perViewResource->Unmap(0, nullptr);
-            group->perViewData = nullptr;
-            group->perViewResource.Reset();
+        if (group) {
+            ReleaseGroupGpuResources(*group);
         }
-        for (uint32_t i = 0; i < kMaxEmitRequestsPerFrame; ++i) {
-            if (group->emitRequestResources[i]) {
-                group->emitRequestResources[i]->Unmap(0, nullptr);
-                group->emitRequestData[i] = nullptr;
-                group->emitRequestResources[i].Reset();
-            }
-        }
-        group->particleResource.Reset();
-        group->freeListIndexResource.Reset();
-        group->freeListResource.Reset();
     }
     groups_.clear();
     groupOrder_.clear();
     effectSets_.clear();
+    effectSetActive_.clear();
 
     if (perFrameResource_) {
         perFrameResource_->Unmap(0, nullptr);
@@ -126,15 +168,15 @@ void GpuParticleManager::RegisterPsos() {
         psoManager->RegisterPsoGenerator("GpuParticleUpdateCS", config);
     }
 
-    // 4. Graphics PSO (GpuParticle)
-    {
+    // 4. Graphics PSO (GpuParticle / GpuParticleWrap)
+    auto registerGraphicsPso = [psoManager, device](const std::string& psoName, D3D12_TEXTURE_ADDRESS_MODE addressMode) {
         PsoConfig config{};
         config.shaderPaths.push_back({ ShaderType::VS, L"resources/shaders/GpuParticle/GpuParticle.VS.hlsl", "main", L"vs_6_0" });
         config.shaderPaths.push_back({ ShaderType::PS, L"resources/shaders/GpuParticle/GpuParticle.PS.hlsl", "main", L"ps_6_0" });
-        config.rootSignatureGenerator = [device, psoManager]() {
+        config.rootSignatureGenerator = [device, psoManager, addressMode]() {
             auto sampler = psoManager->StaticSamplers();
-            sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-            sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+            sampler.AddressU = addressMode;
+            sampler.AddressV = addressMode;
             return RootSignatureBuilder()
                 .AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX)                                                  // b0: gPerView
                 .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX) // t0 (VS): gParticles
@@ -156,8 +198,11 @@ void GpuParticleManager::RegisterPsos() {
         config.depthEnable = true;
         config.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
         config.cullMode = D3D12_CULL_MODE_NONE;
-        psoManager->RegisterPsoGenerator("GpuParticle", config);
-    }
+        psoManager->RegisterPsoGenerator(psoName, config);
+    };
+
+    registerGraphicsPso("GpuParticle", D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+    registerGraphicsPso("GpuParticleWrap", D3D12_TEXTURE_ADDRESS_MODE_WRAP);
 }
 
 void GpuParticleManager::CreateSharedResources() {
@@ -301,6 +346,8 @@ void GpuParticleManager::InitGroupResources(GpuParticleGroup& group) {
     group.perViewData->billboardMatrix = Makeidentity4x4();
     group.perViewData->useBillboard = group.useBillboard ? 1u : 0u;
     group.perViewData->useVelocityStretch = group.useVelocityStretch ? 1u : 0u;
+    group.perViewData->flipUvY = group.config.flipUvY ? 1u : 0u;
+    group.perViewData->uvTwist = group.config.uvTwist;
 
     for (uint32_t i = 0; i < kMaxEmitRequestsPerFrame; ++i) {
         group.emitRequestResources[i] = dxCommon->CreateBufferResource(Align256(sizeof(EmitterConfigGPU)));
@@ -340,6 +387,7 @@ void GpuParticleManager::CreateParticleGroup(
     group->useVelocityStretch = useVelocityStretch;
     group->blendMode = blendMode;
     group->textureSrvIndex = texSrv;
+    group->seedOffset = static_cast<float>(std::hash<std::string>{}(groupName) % 10000) * 0.0137f + 0.1f;
     InitGroupResources(*group);
 
     groups_[groupName] = std::move(group);
@@ -350,6 +398,9 @@ void GpuParticleManager::AddGroupToSet(const std::string& setName, const std::st
     auto& list = effectSets_[setName];
     if (std::find(list.begin(), list.end(), groupName) == list.end()) {
         list.push_back(groupName);
+    }
+    if (!effectSetActive_.contains(setName)) {
+        effectSetActive_[setName] = true;
     }
 }
 
@@ -368,7 +419,7 @@ void GpuParticleManager::RegisterEffectGroup(
 }
 
 void GpuParticleManager::Emit(const std::string& setName, const Vector3& position) {
-    if (!isActive_) return;
+    if (!isActive_ || !IsEffectSetActive(setName)) return;
     auto it = effectSets_.find(setName);
     if (it == effectSets_.end()) return;
     for (const auto& groupName : it->second) {
@@ -377,7 +428,7 @@ void GpuParticleManager::Emit(const std::string& setName, const Vector3& positio
 }
 
 void GpuParticleManager::Emit(const std::string& setName, const Vector3& position, const Vector3& direction) {
-    if (!isActive_) return;
+    if (!isActive_ || !IsEffectSetActive(setName)) return;
     auto it = effectSets_.find(setName);
     if (it == effectSets_.end()) return;
     for (const auto& groupName : it->second) {
@@ -388,7 +439,7 @@ void GpuParticleManager::Emit(const std::string& setName, const Vector3& positio
 void GpuParticleManager::EmitGroup(const std::string& groupName, const Vector3& position) {
     if (!isActive_) return;
     auto it = groups_.find(groupName);
-    if (it == groups_.end() || !it->second) return;
+    if (it == groups_.end() || !it->second || !it->second->isActive) return;
     if (it->second->pendingEmits.size() >= kMaxEmitRequestsPerFrame) return;
     it->second->pendingEmits.push_back({ position, { 0.0f, 0.0f, 1.0f }, false });
 }
@@ -396,7 +447,7 @@ void GpuParticleManager::EmitGroup(const std::string& groupName, const Vector3& 
 void GpuParticleManager::EmitGroup(const std::string& groupName, const Vector3& position, const Vector3& direction) {
     if (!isActive_) return;
     auto it = groups_.find(groupName);
-    if (it == groups_.end() || !it->second) return;
+    if (it == groups_.end() || !it->second || !it->second->isActive) return;
     if (it->second->pendingEmits.size() >= kMaxEmitRequestsPerFrame) return;
     it->second->pendingEmits.push_back({ position, direction, true });
 }
@@ -407,6 +458,56 @@ void GpuParticleManager::Emit(const Vector3& position, uint32_t count, float rad
     Emit("EnemyDefeat", position);
 }
 
+void GpuParticleManager::SetEffectSetActive(const std::string& setName, bool active) {
+    effectSetActive_[setName] = active;
+    auto it = effectSets_.find(setName);
+    if (it == effectSets_.end()) return;
+    for (const auto& groupName : it->second) {
+        SetGroupActive(groupName, active);
+    }
+}
+
+bool GpuParticleManager::IsEffectSetActive(const std::string& setName) const {
+    auto it = effectSetActive_.find(setName);
+    return it == effectSetActive_.end() ? true : it->second;
+}
+
+void GpuParticleManager::SetGroupActive(const std::string& groupName, bool active) {
+    auto it = groups_.find(groupName);
+    if (it != groups_.end() && it->second) {
+        it->second->isActive = active;
+    }
+}
+
+void GpuParticleManager::ReleaseEffectSet(const std::string& setName) {
+    auto setIt = effectSets_.find(setName);
+    if (setIt == effectSets_.end()) return;
+
+    std::vector<std::string> targets = std::move(setIt->second);
+    effectSets_.erase(setIt);
+    effectSetActive_.erase(setName);
+
+    // 他セットから参照されていないグループのみ解放する
+    for (const auto& groupName : targets) {
+        bool referencedElsewhere = false;
+        for (const auto& [otherSet, groupList] : effectSets_) {
+            (void)otherSet;
+            if (std::find(groupList.begin(), groupList.end(), groupName) != groupList.end()) {
+                referencedElsewhere = true;
+                break;
+            }
+        }
+        if (referencedElsewhere) continue;
+
+        auto gIt = groups_.find(groupName);
+        if (gIt != groups_.end() && gIt->second) {
+            ReleaseGroupGpuResources(*gIt->second);
+            groups_.erase(gIt);
+        }
+        groupOrder_.erase(std::remove(groupOrder_.begin(), groupOrder_.end(), groupName), groupOrder_.end());
+    }
+}
+
 void GpuParticleManager::ResetParticles() {
     for (auto& [name, group] : groups_) {
         if (!group) continue;
@@ -415,7 +516,7 @@ void GpuParticleManager::ResetParticles() {
     }
 }
 
-GpuParticleManager::EmitterConfigGPU GpuParticleManager::MakeGpuConfig(const GpuParticleGroup& group, const EmitRequest& req) const {
+GpuParticleManager::EmitterConfigGPU GpuParticleManager::MakeGpuConfig(GpuParticleGroup& group, const EmitRequest& req) const {
     const auto& src = group.config;
     EmitterConfigGPU dst{};
     dst.translate = req.position;
@@ -436,20 +537,30 @@ GpuParticleManager::EmitterConfigGPU GpuParticleManager::MakeGpuConfig(const Gpu
     dst.startColorMax = src.startColorMax;
     dst.endColorMin = src.endColorMin;
     dst.endColorMax = src.endColorMax;
+    dst.angularVelocityMin = src.angularVelocityMin;
+    dst.angularVelocityMax = src.angularVelocityMax;
+    dst.uvOffset = src.uvOffset;
+    dst.uvScale = src.uvScale;
+    dst.uvScrollSpeed = src.uvScrollSpeed;
     dst.drag = src.drag;
     dst.gravity = src.gravity;
 
+    group.seedCounter = (group.seedCounter + 1) % 4096;
+    dst.randomSeed = group.seedOffset + static_cast<float>(group.seedCounter) * 0.317f;
+
     if (req.useDirection) {
-        float xzLenSq = req.direction.x * req.direction.x + req.direction.z * req.direction.z;
-        if (xzLenSq > 1e-6f) {
-            float yaw = std::atan2(req.direction.x, req.direction.z);
+        float lenSq = req.direction.x * req.direction.x + req.direction.y * req.direction.y + req.direction.z * req.direction.z;
+        if (lenSq > 1e-6f) {
+            float invLen = 1.0f / std::sqrt(lenSq);
+            Vector3 dir{ req.direction.x * invLen, req.direction.y * invLen, req.direction.z * invLen };
+            float yaw = std::atan2(dir.x, dir.z);
+            float pitch = -std::asin(std::clamp(dir.y, -1.0f, 1.0f));
+            dst.rotateMin.x += pitch;
+            dst.rotateMax.x += pitch;
             dst.rotateMin.y += yaw;
             dst.rotateMax.y += yaw;
-            dst.velocityMin = RotateY(dst.velocityMin, yaw);
-            dst.velocityMax = RotateY(dst.velocityMax, yaw);
-            // 回転後に min > max となった成分を入れ替え
-            if (dst.velocityMin.x > dst.velocityMax.x) std::swap(dst.velocityMin.x, dst.velocityMax.x);
-            if (dst.velocityMin.z > dst.velocityMax.z) std::swap(dst.velocityMin.z, dst.velocityMax.z);
+            RotateRangeXY(dst.emitRangeMin, dst.emitRangeMax, pitch, yaw);
+            RotateRangeXY(dst.velocityMin, dst.velocityMax, pitch, yaw);
         }
     }
 
@@ -480,6 +591,8 @@ void GpuParticleManager::Update() {
             group->perViewData->viewProjection = viewProjection;
             group->perViewData->useBillboard = group->useBillboard ? 1u : 0u;
             group->perViewData->useVelocityStretch = group->useVelocityStretch ? 1u : 0u;
+            group->perViewData->flipUvY = group->config.flipUvY ? 1u : 0u;
+            group->perViewData->uvTwist = group->config.uvTwist;
         }
     }
 }
@@ -493,7 +606,7 @@ void GpuParticleManager::Draw() {
 
     for (const auto& name : groupOrder_) {
         auto it = groups_.find(name);
-        if (it == groups_.end() || !it->second) continue;
+        if (it == groups_.end() || !it->second || !it->second->isActive) continue;
         auto& group = *it->second;
 
         // 1. リソース状態遷移 (SRV/COMMON -> UAV)
@@ -596,7 +709,10 @@ void GpuParticleManager::Draw() {
         // 5. DrawInstanced
         {
             const auto& prim = primitiveResources_[group.effectType];
-            const auto& drawPso = psoManager->GetPso("GpuParticle", group.blendMode);
+            const char* psoName = (group.effectType == EffectType::Cylinder || group.config.useUvWrap)
+                ? "GpuParticleWrap"
+                : "GpuParticle";
+            const auto& drawPso = psoManager->GetPso(psoName, group.blendMode);
             commandList->SetGraphicsRootSignature(drawPso.rootSignature.Get());
             commandList->SetPipelineState(drawPso.pipelineState.Get());
             commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

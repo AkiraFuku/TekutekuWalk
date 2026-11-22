@@ -87,7 +87,12 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     worldMatrix[3] = float4(particle.translate, 1.0f);
 
     output.position = mul(input.position, mul(worldMatrix, gPerView.viewProjection));
-    output.texCoord = input.texCoord;
+    float2 uv = input.texCoord * particle.uvScale + particle.uvOffset;
+    uv.x += input.texCoord.y * gPerView.uvTwist;
+    if (gPerView.flipUvY != 0) {
+        uv.y = 1.0f - uv.y;
+    }
+    output.texCoord = uv;
     output.color = particle.color;
     return output;
 }

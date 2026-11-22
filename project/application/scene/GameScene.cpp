@@ -135,63 +135,121 @@ void GameScene::Initialize() {
         auto* gpuParticle = GpuParticleManager::GetInstance();
         gpuParticle->ResetParticles();
 
-        // 1. カービィ64風エフェクト ("EnemyDefeat")
+        // 1. 星のカービィ64風 敵撃破エフェクト ("EnemyDefeat")
         {
-            GpuParticleManager::EmitterConfig ring{};
-            ring.count = 1;
-            ring.emitRangeMin = { 0.0f, 0.0f, 0.0f };
-            ring.emitRangeMax = { 0.0f, 0.0f, 0.0f };
-            ring.lifeTimeMin = 0.24f;
-            ring.lifeTimeMax = 0.30f;
-            ring.startScaleMin = { 0.30f, 0.30f, 0.30f };
-            ring.startScaleMax = { 0.35f, 0.35f, 0.35f };
-            ring.endScaleMin = { 2.20f, 2.20f, 2.20f };
-            ring.endScaleMax = { 2.50f, 2.50f, 2.50f };
-            ring.velocityMin = { 0.0f, 0.0f, 0.0f };
-            ring.velocityMax = { 0.0f, 0.0f, 0.0f };
-            ring.startColorMin = { 1.4f, 1.25f, 0.60f, 1.0f };
-            ring.startColorMax = { 1.6f, 1.45f, 0.85f, 1.0f };
-            ring.endColorMin = { 1.0f, 0.55f, 0.15f, 0.0f };
-            ring.endColorMax = { 1.0f, 0.65f, 0.25f, 0.0f };
-            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_Ring", "resources/Efect.png", ring, true, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
-
+            // 中心の強い白い閃光（パッと弾けるコア）
             GpuParticleManager::EmitterConfig flash{};
             flash.count = 1;
-            flash.emitRangeMin = { 0.0f, 0.0f, 0.0f };
-            flash.emitRangeMax = { 0.0f, 0.0f, 0.0f };
-            flash.lifeTimeMin = 0.12f;
-            flash.lifeTimeMax = 0.16f;
-            flash.startScaleMin = { 1.35f, 1.35f, 1.35f };
-            flash.startScaleMax = { 1.55f, 1.55f, 1.55f };
-            flash.endScaleMin = { 0.10f, 0.10f, 0.10f };
-            flash.endScaleMax = { 0.15f, 0.15f, 0.15f };
-            flash.velocityMin = { 0.0f, 0.0f, 0.0f };
-            flash.velocityMax = { 0.0f, 0.0f, 0.0f };
-            flash.startColorMin = { 1.5f, 1.5f, 1.2f, 1.0f };
-            flash.startColorMax = { 1.8f, 1.8f, 1.5f, 1.0f };
-            flash.endColorMin = { 1.0f, 0.85f, 0.40f, 0.0f };
-            flash.endColorMax = { 1.0f, 0.90f, 0.50f, 0.0f };
-            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_Flash", "resources/circle2.png", flash, true, false, BlendMode::Add);
+            flash.lifeTimeMin = 0.14f;
+            flash.lifeTimeMax = 0.18f;
+            flash.startScaleMin = { 1.70f, 1.70f, 1.70f };
+            flash.startScaleMax = { 2.00f, 2.00f, 2.00f };
+            flash.endScaleMin = { 0.08f, 0.08f, 0.08f };
+            flash.endScaleMax = { 0.14f, 0.14f, 0.14f };
+            flash.startColorMin = { 1.8f, 1.75f, 1.35f, 1.0f };
+            flash.startColorMax = { 2.0f, 1.95f, 1.60f, 1.0f };
+            flash.endColorMin = { 1.0f, 0.85f, 0.35f, 0.0f };
+            flash.endColorMax = { 1.0f, 0.90f, 0.45f, 0.0f };
+            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_Flash", "resources/circle2.png", flash, true, false, BlendMode::Add, GpuParticleManager::EffectType::Plane);
 
+            // 黄金〜オレンジの衝撃波リング（外側へ一気に広がる）
+            GpuParticleManager::EmitterConfig ring{};
+            ring.count = 1;
+            ring.lifeTimeMin = 0.26f;
+            ring.lifeTimeMax = 0.32f;
+            ring.startScaleMin = { 0.30f, 0.30f, 0.30f };
+            ring.startScaleMax = { 0.38f, 0.38f, 0.38f };
+            ring.endScaleMin = { 2.35f, 2.35f, 2.35f };
+            ring.endScaleMax = { 2.70f, 2.70f, 2.70f };
+            ring.angularVelocityMin = { 0.0f, 0.0f, -3.5f };
+            ring.angularVelocityMax = { 0.0f, 0.0f,  3.5f };
+            ring.startColorMin = { 1.5f, 1.25f, 0.45f, 1.0f };
+            ring.startColorMax = { 1.7f, 1.45f, 0.65f, 1.0f };
+            ring.endColorMin = { 1.0f, 0.50f, 0.10f, 0.0f };
+            ring.endColorMax = { 1.0f, 0.60f, 0.20f, 0.0f };
+            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_Ring", "resources/Efect.png", ring, true, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
+
+            // 追従する内側の白黄リング
+            GpuParticleManager::EmitterConfig subRing{};
+            subRing.count = 1;
+            subRing.lifeTimeMin = 0.18f;
+            subRing.lifeTimeMax = 0.22f;
+            subRing.startScaleMin = { 0.18f, 0.18f, 0.18f };
+            subRing.startScaleMax = { 0.24f, 0.24f, 0.24f };
+            subRing.endScaleMin = { 1.50f, 1.50f, 1.50f };
+            subRing.endScaleMax = { 1.75f, 1.75f, 1.75f };
+            subRing.startColorMin = { 1.6f, 1.55f, 1.15f, 1.0f };
+            subRing.startColorMax = { 1.8f, 1.75f, 1.35f, 1.0f };
+            subRing.endColorMin = { 1.0f, 0.80f, 0.30f, 0.0f };
+            subRing.endColorMax = { 1.0f, 0.88f, 0.40f, 0.0f };
+            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_SubRing", "resources/Efect.png", subRing, true, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
+
+            // カービィ64らしいポフッと膨らんで消える丸い煙玉（通常ブレンド）
+            GpuParticleManager::EmitterConfig smoke{};
+            smoke.count = 9;
+            smoke.emitRangeMin = { -0.25f, -0.20f, -0.25f };
+            smoke.emitRangeMax = {  0.25f,  0.25f,  0.25f };
+            smoke.lifeTimeMin = 0.35f;
+            smoke.lifeTimeMax = 0.52f;
+            smoke.startScaleMin = { 0.45f, 0.45f, 0.45f };
+            smoke.startScaleMax = { 0.65f, 0.65f, 0.65f };
+            smoke.endScaleMin = { 1.05f, 1.05f, 1.05f };
+            smoke.endScaleMax = { 1.40f, 1.40f, 1.40f };
+            smoke.velocityMin = { -4.2f, -1.5f, -4.2f };
+            smoke.velocityMax = {  4.2f,  3.5f,  4.2f };
+            smoke.startColorMin = { 1.00f, 0.96f, 0.86f, 0.92f };
+            smoke.startColorMax = { 1.00f, 0.88f, 0.68f, 0.96f };
+            smoke.endColorMin = { 0.95f, 0.78f, 0.58f, 0.0f };
+            smoke.endColorMax = { 1.00f, 0.85f, 0.68f, 0.0f };
+            smoke.drag = 7.0f;
+            smoke.gravity = -0.6f;
+            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_SmokePuff", "resources/circle2.png", smoke, true, false, BlendMode::Normal, GpuParticleManager::EffectType::Plane);
+
+            // クルクル回転しながら四方八方に飛び散るキラキラ星片
+            GpuParticleManager::EmitterConfig stars{};
+            stars.count = 16;
+            stars.emitRangeMin = { -0.15f, -0.15f, -0.15f };
+            stars.emitRangeMax = {  0.15f,  0.15f,  0.15f };
+            stars.lifeTimeMin = 0.36f;
+            stars.lifeTimeMax = 0.56f;
+            stars.startScaleMin = { 0.16f, 0.16f, 0.16f };
+            stars.startScaleMax = { 0.26f, 0.26f, 0.26f };
+            stars.endScaleMin = { 0.01f, 0.01f, 0.01f };
+            stars.endScaleMax = { 0.03f, 0.03f, 0.03f };
+            stars.rotateMin = { 0.0f, 0.0f, -std::numbers::pi_v<float> };
+            stars.rotateMax = { 0.0f, 0.0f,  std::numbers::pi_v<float> };
+            stars.angularVelocityMin = { 0.0f, 0.0f, -14.0f };
+            stars.angularVelocityMax = { 0.0f, 0.0f,  14.0f };
+            stars.velocityMin = { -7.5f,  1.0f, -7.5f };
+            stars.velocityMax = {  7.5f,  8.5f,  7.5f };
+            stars.startColorMin = { 1.6f, 1.35f, 0.40f, 1.0f };
+            stars.startColorMax = { 1.9f, 1.75f, 0.85f, 1.0f };
+            stars.endColorMin = { 1.0f, 0.45f, 0.10f, 0.0f };
+            stars.endColorMax = { 1.0f, 0.65f, 0.20f, 0.0f };
+            stars.drag = 4.5f;
+            stars.gravity = 6.5f;
+            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_StarSpin", "resources/white.png", stars, true, false, BlendMode::Add, GpuParticleManager::EffectType::Plane);
+
+            // 放射線状に走る光の筋（速度ストレッチ）
             GpuParticleManager::EmitterConfig scatter{};
-            scatter.count = 16;
-            scatter.emitRangeMin = { -0.15f, -0.15f, -0.15f };
-            scatter.emitRangeMax = {  0.15f,  0.15f,  0.15f };
-            scatter.lifeTimeMin = 0.38f;
-            scatter.lifeTimeMax = 0.58f;
-            scatter.startScaleMin = { 0.32f, 0.32f, 0.32f };
-            scatter.startScaleMax = { 0.48f, 0.48f, 0.48f };
-            scatter.endScaleMin = { 0.02f, 0.02f, 0.02f };
-            scatter.endScaleMax = { 0.05f, 0.05f, 0.05f };
-            scatter.velocityMin = { -8.0f,  1.5f, -8.0f };
-            scatter.velocityMax = {  8.0f,  9.5f,  8.0f };
-            scatter.startColorMin = { 1.3f, 0.90f, 0.35f, 1.0f };
-            scatter.startColorMax = { 1.5f, 1.25f, 0.70f, 1.0f };
-            scatter.endColorMin = { 1.0f, 0.35f, 0.10f, 0.0f };
-            scatter.endColorMax = { 1.0f, 0.50f, 0.15f, 0.0f };
-            scatter.drag = 6.0f;
-            scatter.gravity = 7.5f;
-            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_Scatter", "resources/circle2.png", scatter, true, false, BlendMode::Add);
+            scatter.count = 14;
+            scatter.emitRangeMin = { -0.10f, -0.10f, -0.10f };
+            scatter.emitRangeMax = {  0.10f,  0.10f,  0.10f };
+            scatter.lifeTimeMin = 0.22f;
+            scatter.lifeTimeMax = 0.34f;
+            scatter.startScaleMin = { 0.14f, 0.20f, 0.14f };
+            scatter.startScaleMax = { 0.22f, 0.30f, 0.22f };
+            scatter.endScaleMin = { 0.02f, 0.04f, 0.02f };
+            scatter.endScaleMax = { 0.04f, 0.06f, 0.04f };
+            scatter.velocityMin = { -9.5f, -3.5f, -9.5f };
+            scatter.velocityMax = {  9.5f,  9.5f,  9.5f };
+            scatter.startColorMin = { 1.5f, 1.15f, 0.40f, 1.0f };
+            scatter.startColorMax = { 1.8f, 1.55f, 0.85f, 1.0f };
+            scatter.endColorMin = { 1.0f, 0.40f, 0.10f, 0.0f };
+            scatter.endColorMax = { 1.0f, 0.60f, 0.20f, 0.0f };
+            scatter.drag = 6.5f;
+            scatter.gravity = 3.0f;
+            gpuParticle->RegisterEffectGroup("EnemyDefeat", "EnemyDefeat_Scatter", "resources/circle2.png", scatter, false, true, BlendMode::Add, GpuParticleManager::EffectType::Plane);
         }
 
         // 2. プレイヤー近距離攻撃エフェクト ("PlayerMelee")
@@ -201,99 +259,202 @@ void GameScene::Initialize() {
             meleeFlash.count = 1;
             meleeFlash.emitRangeMin = { 0.0f, 0.0f, 0.0f };
             meleeFlash.emitRangeMax = { 0.0f, 0.0f, 0.0f };
-            meleeFlash.lifeTimeMin = 0.14f;
-            meleeFlash.lifeTimeMax = 0.18f;
-            meleeFlash.startScaleMin = { 0.75f, 0.75f, 0.75f };
-            meleeFlash.startScaleMax = { 0.90f, 0.90f, 0.90f };
+            meleeFlash.lifeTimeMin = 0.12f;
+            meleeFlash.lifeTimeMax = 0.16f;
+            meleeFlash.startScaleMin = { 0.85f, 0.85f, 0.85f };
+            meleeFlash.startScaleMax = { 1.00f, 1.00f, 1.00f };
             meleeFlash.endScaleMin = { 0.05f, 0.05f, 0.05f };
             meleeFlash.endScaleMax = { 0.08f, 0.08f, 0.08f };
-            meleeFlash.velocityMin = { 0.0f, 0.0f, 0.2f };
-            meleeFlash.velocityMax = { 0.0f, 0.0f, 0.4f };
+            meleeFlash.velocityMin = { 0.0f, 0.0f, 0.5f };
+            meleeFlash.velocityMax = { 0.0f, 0.0f, 1.0f };
             meleeFlash.startColorMin = { 1.5f, 1.7f, 1.8f, 1.0f };
             meleeFlash.startColorMax = { 1.8f, 1.9f, 2.0f, 1.0f };
             meleeFlash.endColorMin = { 0.40f, 0.80f, 1.0f, 0.0f };
             meleeFlash.endColorMax = { 0.60f, 0.90f, 1.0f, 0.0f };
             gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_Flash", "resources/circle2.png", meleeFlash, true, false, BlendMode::Add, GpuParticleManager::EffectType::Plane);
 
-            // カメラ正面からも円形がくっきり見える衝撃波リング（ビルボード）
-            GpuParticleManager::EmitterConfig bbRing{};
-            bbRing.count = 1;
-            bbRing.emitRangeMin = { 0.0f, 0.0f, 0.0f };
-            bbRing.emitRangeMax = { 0.0f, 0.0f, 0.0f };
-            bbRing.lifeTimeMin = 0.20f;
-            bbRing.lifeTimeMax = 0.26f;
-            bbRing.startScaleMin = { 0.25f, 0.25f, 0.25f };
-            bbRing.startScaleMax = { 0.30f, 0.30f, 0.30f };
-            bbRing.endScaleMin = { 0.85f, 0.85f, 0.85f };
-            bbRing.endScaleMax = { 0.95f, 0.95f, 0.95f };
-            bbRing.velocityMin = { 0.0f, 0.0f, 0.2f };
-            bbRing.velocityMax = { 0.0f, 0.0f, 0.4f };
-            bbRing.startColorMin = { 0.85f, 1.40f, 1.70f, 1.0f };
-            bbRing.startColorMax = { 1.20f, 1.60f, 1.90f, 1.0f };
-            bbRing.endColorMin = { 0.20f, 0.60f, 1.0f, 0.0f };
-            bbRing.endColorMax = { 0.40f, 0.80f, 1.0f, 0.0f };
-            gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_BillboardRing", "resources/Efect.png", bbRing, true, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
+            // プレイヤー進行方向に面を向けて前方に進む衝撃波リング（インナー）
+            GpuParticleManager::EmitterConfig shockRingInner{};
+            shockRingInner.count = 1;
+            shockRingInner.emitRangeMin = { 0.0f, 0.0f, 0.10f };
+            shockRingInner.emitRangeMax = { 0.0f, 0.0f, 0.18f };
+            shockRingInner.lifeTimeMin = 0.20f;
+            shockRingInner.lifeTimeMax = 0.25f;
+            shockRingInner.startScaleMin = { 0.25f, 0.25f, 0.25f };
+            shockRingInner.startScaleMax = { 0.30f, 0.30f, 0.30f };
+            shockRingInner.endScaleMin = { 0.95f, 0.95f, 0.95f };
+            shockRingInner.endScaleMax = { 1.10f, 1.10f, 1.10f };
+            shockRingInner.angularVelocityMin = { 0.0f, 0.0f, 4.0f };
+            shockRingInner.angularVelocityMax = { 0.0f, 0.0f, 6.0f };
+            shockRingInner.velocityMin = { 0.0f, 0.0f, 4.2f };
+            shockRingInner.velocityMax = { 0.0f, 0.0f, 5.2f };
+            shockRingInner.startColorMin = { 1.00f, 1.50f, 1.85f, 1.0f };
+            shockRingInner.startColorMax = { 1.30f, 1.70f, 2.00f, 1.0f };
+            shockRingInner.endColorMin = { 0.25f, 0.65f, 1.0f, 0.0f };
+            shockRingInner.endColorMax = { 0.45f, 0.85f, 1.0f, 0.0f };
+            gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_ShockRing", "resources/Efect.png", shockRingInner, false, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
 
-            // 進行方向を向く立体衝撃波リング（非ビルボード）
-            GpuParticleManager::EmitterConfig shockRing{};
-            shockRing.count = 1;
-            shockRing.emitRangeMin = { 0.0f, 0.0f, 0.0f };
-            shockRing.emitRangeMax = { 0.0f, 0.0f, 0.0f };
-            shockRing.lifeTimeMin = 0.22f;
-            shockRing.lifeTimeMax = 0.28f;
-            shockRing.startScaleMin = { 0.30f, 0.30f, 0.30f };
-            shockRing.startScaleMax = { 0.35f, 0.35f, 0.35f };
-            shockRing.endScaleMin = { 0.85f, 0.85f, 0.85f };
-            shockRing.endScaleMax = { 0.95f, 0.95f, 0.95f };
-            shockRing.velocityMin = { 0.0f, 0.0f, 0.3f };
-            shockRing.velocityMax = { 0.0f, 0.0f, 0.5f };
-            shockRing.startColorMin = { 0.90f, 1.40f, 1.80f, 1.0f };
-            shockRing.startColorMax = { 1.20f, 1.60f, 2.00f, 1.0f };
-            shockRing.endColorMin = { 0.20f, 0.55f, 1.0f, 0.0f };
-            shockRing.endColorMax = { 0.35f, 0.70f, 1.0f, 0.0f };
-            gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_ShockRing", "resources/Efect.png", shockRing, false, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
+            // プレイヤー進行方向に面を向けて大きく広がる外周衝撃波リング（アウター）
+            GpuParticleManager::EmitterConfig shockRingOuter{};
+            shockRingOuter.count = 1;
+            shockRingOuter.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            shockRingOuter.emitRangeMax = { 0.0f, 0.0f, 0.05f };
+            shockRingOuter.lifeTimeMin = 0.24f;
+            shockRingOuter.lifeTimeMax = 0.30f;
+            shockRingOuter.startScaleMin = { 0.35f, 0.35f, 0.35f };
+            shockRingOuter.startScaleMax = { 0.42f, 0.42f, 0.42f };
+            shockRingOuter.endScaleMin = { 1.35f, 1.35f, 1.35f };
+            shockRingOuter.endScaleMax = { 1.55f, 1.55f, 1.55f };
+            shockRingOuter.angularVelocityMin = { 0.0f, 0.0f, -5.0f };
+            shockRingOuter.angularVelocityMax = { 0.0f, 0.0f, -3.0f };
+            shockRingOuter.velocityMin = { 0.0f, 0.0f, 2.0f };
+            shockRingOuter.velocityMax = { 0.0f, 0.0f, 2.8f };
+            shockRingOuter.startColorMin = { 0.80f, 1.30f, 1.75f, 1.0f };
+            shockRingOuter.startColorMax = { 1.10f, 1.50f, 1.95f, 1.0f };
+            shockRingOuter.endColorMin = { 0.15f, 0.50f, 1.0f, 0.0f };
+            shockRingOuter.endColorMax = { 0.30f, 0.65f, 1.0f, 0.0f };
+            gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_ShockRingOuter", "resources/Efect.png", shockRingOuter, false, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
 
-            // パンチの突き出し方向に伸びる風の円柱（非ビルボード）
+            // シリンダーで表現する、攻撃範囲内（emitPosから約1.2m以内）を飛ぶエネルギー球
+            GpuParticleManager::EmitterConfig energySphere{};
+            energySphere.count = 1;
+            energySphere.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            energySphere.emitRangeMax = { 0.0f, 0.0f, 0.05f };
+            energySphere.lifeTimeMin = 0.20f;
+            energySphere.lifeTimeMax = 0.22f;
+            energySphere.rotateMin = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            energySphere.rotateMax = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            energySphere.startScaleMin = { 0.75f, 0.80f, 0.75f };
+            energySphere.startScaleMax = { 0.85f, 0.90f, 0.85f };
+            energySphere.endScaleMin = { 0.20f, 0.24f, 0.20f };
+            energySphere.endScaleMax = { 0.26f, 0.30f, 0.26f };
+            energySphere.velocityMin = { 0.0f, 0.0f, 5.5f };
+            energySphere.velocityMax = { 0.0f, 0.0f, 6.5f };
+            energySphere.startColorMin = { 1.35f, 1.70f, 2.00f, 1.0f };
+            energySphere.startColorMax = { 1.60f, 1.85f, 2.00f, 1.0f };
+            energySphere.endColorMin = { 0.30f, 0.75f, 1.00f, 0.0f };
+            energySphere.endColorMax = { 0.45f, 0.85f, 1.00f, 0.0f };
+            energySphere.uvScrollSpeed = { 0.0f, -2.5f };
+            energySphere.drag = 4.0f;
+            gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_EnergySphere", "resources/circle2.png", energySphere, false, false, BlendMode::Add, GpuParticleManager::EffectType::Cylinder);
+
+            // 飛ぶ球の周囲を包んで攻撃範囲内を突き抜ける疾風シリンダー
             GpuParticleManager::EmitterConfig thrust{};
             thrust.count = 1;
-            thrust.emitRangeMin = { 0.0f, 0.0f, 0.15f };
-            thrust.emitRangeMax = { 0.0f, 0.0f, 0.25f };
-            thrust.lifeTimeMin = 0.20f;
-            thrust.lifeTimeMax = 0.26f;
+            thrust.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            thrust.emitRangeMax = { 0.0f, 0.0f, 0.05f };
+            thrust.lifeTimeMin = 0.18f;
+            thrust.lifeTimeMax = 0.22f;
             thrust.rotateMin = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
             thrust.rotateMax = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
-            thrust.startScaleMin = { 0.55f, 0.90f, 0.55f };
-            thrust.startScaleMax = { 0.65f, 1.05f, 0.65f };
-            thrust.endScaleMin = { 0.35f, 0.90f, 0.35f };
-            thrust.endScaleMax = { 0.45f, 1.05f, 0.45f };
-            thrust.velocityMin = { 0.0f, 0.0f, 0.6f };
-            thrust.velocityMax = { 0.0f, 0.0f, 1.0f };
-            thrust.startColorMin = { 1.00f, 1.50f, 1.80f, 1.0f };
-            thrust.startColorMax = { 1.30f, 1.75f, 2.00f, 1.0f };
-            thrust.endColorMin = { 0.25f, 0.65f, 1.0f, 0.0f };
-            thrust.endColorMax = { 0.40f, 0.75f, 1.0f, 0.0f };
+            thrust.startScaleMin = { 0.55f, 0.70f, 0.55f };
+            thrust.startScaleMax = { 0.65f, 0.85f, 0.65f };
+            thrust.endScaleMin = { 0.25f, 0.35f, 0.25f };
+            thrust.endScaleMax = { 0.32f, 0.45f, 0.32f };
+            thrust.velocityMin = { 0.0f, 0.0f, 4.0f };
+            thrust.velocityMax = { 0.0f, 0.0f, 5.0f };
+            thrust.startColorMin = { 0.90f, 1.45f, 1.85f, 1.0f };
+            thrust.startColorMax = { 1.20f, 1.65f, 2.00f, 1.0f };
+            thrust.endColorMin = { 0.20f, 0.60f, 1.0f, 0.0f };
+            thrust.endColorMax = { 0.35f, 0.75f, 1.0f, 0.0f };
+            thrust.uvScrollSpeed = { 0.0f, -4.0f };
+            thrust.flipUvY = true;
+            thrust.drag = 4.5f;
             gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_ThrustCylinder", "resources/gradationLine.png", thrust, false, false, BlendMode::Add, GpuParticleManager::EffectType::Cylinder);
 
-            // 攻撃に沿って散る火花（速度ストレッチで細長く伸びる）
+            // 攻撃範囲に沿って散る火花（速度ストレッチで細長く伸びる）
             GpuParticleManager::EmitterConfig sparks{};
             sparks.count = 20;
-            sparks.emitRangeMin = { -0.15f, -0.15f, -0.05f };
-            sparks.emitRangeMax = {  0.15f,  0.15f,  0.15f };
-            sparks.lifeTimeMin = 0.26f;
-            sparks.lifeTimeMax = 0.38f;
+            sparks.emitRangeMin = { -0.15f, -0.15f, 0.0f };
+            sparks.emitRangeMax = {  0.15f,  0.15f, 0.15f };
+            sparks.lifeTimeMin = 0.20f;
+            sparks.lifeTimeMax = 0.28f;
             sparks.startScaleMin = { 0.12f, 0.18f, 0.12f };
-            sparks.startScaleMax = { 0.18f, 0.26f, 0.18f };
+            sparks.startScaleMax = { 0.18f, 0.24f, 0.18f };
             sparks.endScaleMin = { 0.02f, 0.04f, 0.02f };
             sparks.endScaleMax = { 0.04f, 0.08f, 0.04f };
-            sparks.velocityMin = { -2.8f, -2.2f, 2.8f };
-            sparks.velocityMax = {  2.8f,  2.8f, 6.2f };
+            sparks.velocityMin = { -2.4f, -2.0f, 4.5f };
+            sparks.velocityMax = {  2.4f,  2.4f, 7.5f };
             sparks.startColorMin = { 1.40f, 1.10f, 0.45f, 1.0f };
             sparks.startColorMax = { 1.80f, 1.70f, 1.20f, 1.0f };
             sparks.endColorMin = { 1.00f, 0.55f, 0.15f, 0.0f };
             sparks.endColorMax = { 1.00f, 0.75f, 0.30f, 0.0f };
-            sparks.drag = 8.5f;
+            sparks.drag = 7.5f;
             sparks.gravity = 2.0f;
             gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_SlashSparks", "resources/circle2.png", sparks, false, true, BlendMode::Add, GpuParticleManager::EffectType::Plane);
+        }
+
+        // 3. 敵被弾エフェクト ("EnemyHit": シリンダー)
+        {
+            // 敵を縦に包んで広がる衝撃シリンダー
+            GpuParticleManager::EmitterConfig hitAura{};
+            hitAura.count = 1;
+            hitAura.emitRangeMin = { 0.0f, -0.45f, 0.0f };
+            hitAura.emitRangeMax = { 0.0f, -0.45f, 0.0f };
+            hitAura.lifeTimeMin = 0.16f;
+            hitAura.lifeTimeMax = 0.20f;
+            hitAura.startScaleMin = { 0.70f, 0.90f, 0.70f };
+            hitAura.startScaleMax = { 0.80f, 1.00f, 0.80f };
+            hitAura.endScaleMin = { 1.45f, 1.50f, 1.45f };
+            hitAura.endScaleMax = { 1.65f, 1.70f, 1.65f };
+            hitAura.startColorMin = { 1.80f, 0.75f, 0.25f, 1.0f };
+            hitAura.startColorMax = { 2.00f, 0.95f, 0.35f, 1.0f };
+            hitAura.endColorMin = { 1.00f, 0.15f, 0.05f, 0.0f };
+            hitAura.endColorMax = { 1.00f, 0.25f, 0.10f, 0.0f };
+            hitAura.uvScrollSpeed = { 0.0f, -5.0f };
+            hitAura.flipUvY = true;
+            gpuParticle->RegisterEffectGroup("EnemyHit", "EnemyHit_AuraCylinder", "resources/gradationLine.png", hitAura, false, false, BlendMode::Add, GpuParticleManager::EffectType::Cylinder);
+
+            // 被弾方向へ突き抜ける横シリンダー
+            GpuParticleManager::EmitterConfig hitImpact{};
+            hitImpact.count = 1;
+            hitImpact.emitRangeMin = { 0.0f, 0.0f, -0.15f };
+            hitImpact.emitRangeMax = { 0.0f, 0.0f,  0.00f };
+            hitImpact.lifeTimeMin = 0.12f;
+            hitImpact.lifeTimeMax = 0.16f;
+            hitImpact.rotateMin = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            hitImpact.rotateMax = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            hitImpact.startScaleMin = { 0.45f, 0.85f, 0.45f };
+            hitImpact.startScaleMax = { 0.55f, 0.95f, 0.55f };
+            hitImpact.endScaleMin = { 0.95f, 1.35f, 0.95f };
+            hitImpact.endScaleMax = { 1.10f, 1.50f, 1.10f };
+            hitImpact.velocityMin = { 0.0f, 0.0f, 2.5f };
+            hitImpact.velocityMax = { 0.0f, 0.0f, 3.5f };
+            hitImpact.startColorMin = { 2.00f, 1.50f, 0.70f, 1.0f };
+            hitImpact.startColorMax = { 2.00f, 1.70f, 0.95f, 1.0f };
+            hitImpact.endColorMin = { 1.00f, 0.30f, 0.10f, 0.0f };
+            hitImpact.endColorMax = { 1.00f, 0.45f, 0.15f, 0.0f };
+            hitImpact.uvScrollSpeed = { 0.0f, -4.0f };
+            hitImpact.drag = 4.0f;
+            gpuParticle->RegisterEffectGroup("EnemyHit", "EnemyHit_ImpactCylinder", "resources/circle2.png", hitImpact, false, false, BlendMode::Add, GpuParticleManager::EffectType::Cylinder);
+        }
+
+        // 4. 弾のらせんシリンダーエフェクト ("BulletSpiral")
+        {
+            GpuParticleManager::EmitterConfig spiralCyl{};
+            spiralCyl.count = 1;
+            spiralCyl.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            spiralCyl.emitRangeMax = { 0.0f, 0.0f, 0.0f };
+            spiralCyl.lifeTimeMin = 0.09f;
+            spiralCyl.lifeTimeMax = 0.12f;
+            spiralCyl.rotateMin = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            spiralCyl.rotateMax = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            spiralCyl.startScaleMin = { 0.36f, 0.72f, 0.36f };
+            spiralCyl.startScaleMax = { 0.42f, 0.80f, 0.42f };
+            spiralCyl.endScaleMin = { 0.08f, 0.50f, 0.08f };
+            spiralCyl.endScaleMax = { 0.12f, 0.60f, 0.12f };
+            spiralCyl.velocityMin = { 0.0f, 0.0f, 2.2f };
+            spiralCyl.velocityMax = { 0.0f, 0.0f, 2.8f };
+            spiralCyl.startColorMin = { 0.75f, 1.65f, 2.00f, 1.0f };
+            spiralCyl.startColorMax = { 1.10f, 1.85f, 2.00f, 1.0f };
+            spiralCyl.endColorMin = { 0.15f, 0.55f, 1.00f, 0.0f };
+            spiralCyl.endColorMax = { 0.25f, 0.70f, 1.00f, 0.0f };
+            spiralCyl.uvScale = { 2.0f, 1.0f };
+            spiralCyl.uvTwist = 2.0f;
+            spiralCyl.uvScrollSpeed = { 6.0f, -2.0f };
+            spiralCyl.useUvWrap = true;
+            spiralCyl.drag = 3.0f;
+            gpuParticle->RegisterEffectGroup("BulletSpiral", "BulletSpiral_Cylinder", "resources/gradationLine.png", spiralCyl, false, false, BlendMode::Add, GpuParticleManager::EffectType::Cylinder);
         }
     }
     LightManager::GetInstance()->AddDirectionalLight({ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f }, 1.0f);

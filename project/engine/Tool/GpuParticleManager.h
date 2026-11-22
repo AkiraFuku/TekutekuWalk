@@ -18,7 +18,7 @@
 class GpuParticleManager {
 public:
     static constexpr uint32_t kMaxParticles = 1024;
-    static constexpr uint32_t kMaxEmitRequestsPerFrame = 16;
+    static constexpr uint32_t kMaxEmitRequestsPerFrame = 64;
 
     enum class EffectType {
         Plane,
@@ -44,6 +44,14 @@ public:
         Vector4 startColorMax{ 1.0f, 1.0f, 1.0f, 1.0f };
         Vector4 endColorMin{ 1.0f, 1.0f, 1.0f, 0.0f };
         Vector4 endColorMax{ 1.0f, 1.0f, 1.0f, 0.0f };
+        Vector3 angularVelocityMin{ 0.0f, 0.0f, 0.0f };
+        Vector3 angularVelocityMax{ 0.0f, 0.0f, 0.0f };
+        Vector2 uvOffset{ 0.0f, 0.0f };
+        Vector2 uvScale{ 1.0f, 1.0f };
+        Vector2 uvScrollSpeed{ 0.0f, 0.0f };
+        float uvTwist = 0.0f;
+        bool flipUvY = false;
+        bool useUvWrap = false;
         float drag = 0.0f;
         float gravity = 0.0f;
     };
@@ -70,6 +78,12 @@ public:
         Vector4 color;
         Vector4 startColor;
         Vector4 endColor;
+        Vector3 angularVelocity;
+        float pad2;
+        Vector2 uvOffset;
+        Vector2 uvScale;
+        Vector2 uvScrollSpeed;
+        Vector2 pad3;
     };
     static_assert(sizeof(ParticleCS) % 16 == 0, "ParticleCS must be 16-byte aligned");
 
@@ -78,7 +92,8 @@ public:
         Matrix4x4 billboardMatrix;
         uint32_t useBillboard;
         uint32_t useVelocityStretch;
-        float padding[2];
+        uint32_t flipUvY;
+        float uvTwist;
     };
     static_assert(sizeof(PerView) % 16 == 0, "PerView must be 16-byte aligned");
 
@@ -114,6 +129,14 @@ public:
         Vector4 startColorMax;
         Vector4 endColorMin;
         Vector4 endColorMax;
+        Vector3 angularVelocityMin;
+        float randomSeed;
+        Vector3 angularVelocityMax;
+        float pad6;
+        Vector2 uvOffset;
+        Vector2 uvScale;
+        Vector2 uvScrollSpeed;
+        Vector2 pad7;
     };
     static_assert(sizeof(EmitterConfigGPU) % 16 == 0, "EmitterConfigGPU must be 16-byte aligned");
 
@@ -137,6 +160,9 @@ public:
         bool useVelocityStretch = false;
         BlendMode blendMode = BlendMode::Add;
         uint32_t textureSrvIndex = 0;
+        bool isActive = true;
+        float seedOffset = 0.0f;
+        uint32_t seedCounter = 0;
 
         bool isInitializedGpu = false;
         bool isFreeListBarrierInitialized = false;
@@ -202,6 +228,12 @@ public:
     // 後方互換用
     void Emit(const Vector3& position, uint32_t count = 24, float radius = 0.8f);
 
+    // セット・グループの有効制御と解放
+    void SetEffectSetActive(const std::string& setName, bool active);
+    bool IsEffectSetActive(const std::string& setName) const;
+    void SetGroupActive(const std::string& groupName, bool active);
+    void ReleaseEffectSet(const std::string& setName);
+
     // GPU側のバッファを再初期化するフラグを立てる（シーン切り替え時など）
     void ResetParticles();
 
@@ -219,7 +251,7 @@ private:
     std::vector<VertexData> PrimitiveVertexRing();
     std::vector<VertexData> PrimitiveVertexCylinder();
     void InitGroupResources(GpuParticleGroup& group);
-    EmitterConfigGPU MakeGpuConfig(const GpuParticleGroup& group, const EmitRequest& req) const;
+    EmitterConfigGPU MakeGpuConfig(GpuParticleGroup& group, const EmitRequest& req) const;
 
     static std::unique_ptr<GpuParticleManager> instance_;
 
@@ -234,6 +266,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<GpuParticleGroup>> groups_;
     std::vector<std::string> groupOrder_;
     std::unordered_map<std::string, std::vector<std::string>> effectSets_;
+    std::unordered_map<std::string, bool> effectSetActive_;
 
     float totalTime_ = 0.0f;
 };
