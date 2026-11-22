@@ -5,7 +5,8 @@
 #include "imgui.h"
 #include "PrimitiveDrawer.h"
 #include "SceneManager.h"
-#include "ParticleManager.h"//フレームワークに移植
+#include "ParticleManager.h"
+#include "GpuParticleManager.h"//フレームワークに移植
 #include "ParticleEmitter.h"
 #include "PSOManager.h"
 #include "LightManager.h"
@@ -129,6 +130,7 @@ void GameScene::Initialize() {
 
     ParticleManager::GetInstance()->CreateParticleGroup("GameEffects", "Hit", "resources/Efect.png", ParticleManager::EffectType::Ring, initialize, update);
     ParticleManager::GetInstance()->SetCamera(activeCamera_);
+    GpuParticleManager::GetInstance()->SetCamera(activeCamera_);
     LightManager::GetInstance()->AddDirectionalLight({ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f }, 1.0f);
 
 
@@ -690,6 +692,7 @@ void GameScene::Draw() {
 #endif
 
     ParticleManager::GetInstance()->Draw();
+    GpuParticleManager::GetInstance()->Draw();
 
 
     playerHPUI_->Draw();

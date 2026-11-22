@@ -66,6 +66,10 @@ public:
   void CreateSRVForStructuredBuffer(uint32_t srvIndex,
                                     ID3D12Resource *pResource, UINT numElements,
                                     UINT structureByteStride);
+
+  void CreateUAVForStructuredBuffer(uint32_t uavIndex,
+                                    ID3D12Resource *pResource, UINT numElements,
+                                    UINT structureByteStride);
   /// <summary>
   /// 行列パレットのSRVを作成する
   /// </summary>
@@ -79,6 +83,8 @@ public:
 
   void SetGraphicsRootDescriptorTable(UINT RootParameterIndex,
                                       uint32_t srvIndex);
+  void SetComputeRootDescriptorTable(UINT RootParameterIndex,
+                                     uint32_t srvIndex);
   void PreDraw();
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDescriptorHeap() {
     return descriptorHeap_;

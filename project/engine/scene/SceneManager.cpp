@@ -5,6 +5,7 @@
 #include "PrimitiveDrawer.h"
 #include "OffScreen.h"
 #include "ParticleManager.h"
+#include "GpuParticleManager.h"
 #include "EffectManager.h"
 #include "Fade.h"
 
@@ -41,6 +42,8 @@ void SceneManager::Update() {
         if (scene_) {
             scene_->Finalize();
             ParticleManager::GetInstance()->ReleaseAllParticleGroupSets();
+            GpuParticleManager::GetInstance()->ResetParticles();
+            GpuParticleManager::GetInstance()->SetCamera(nullptr);
             scene_ = nullptr;
         }
         scene_ = std::move(nextScene_);
@@ -55,6 +58,7 @@ void SceneManager::Update() {
         LightManager::GetInstance()->Update();
         if (!scene_->IsGameTimeStopped()) {
             ParticleManager::GetInstance()->Update();
+            GpuParticleManager::GetInstance()->Update();
             EffectManager::GetInstance()->Update();
         }
     }

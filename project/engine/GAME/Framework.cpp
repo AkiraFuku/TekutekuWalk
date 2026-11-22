@@ -1,5 +1,6 @@
 #include "Framework.h"
 #include "ParticleManager.h"//フレームワークに移植
+#include "GpuParticleManager.h"
 #include "SceneManager.h"
 #include "WinApp.h"//フレームワークに移植
 #include "ImGuiManager.h"//フレームワークに移植
@@ -95,6 +96,7 @@ void Framework::Initialize()
     TextureManager::GetInstance()->Initialize();
     ModelManager::GetInstance()->Initialize();
     ParticleManager::GetInstance()->Initialize();
+    GpuParticleManager::GetInstance()->Initialize();
     Logger::Log(StringUtility::ConvertString(std::format(L"WSTRING{}\n", wstr)));
     LightManager::GetInstance()->Initialize();
     // 外部入力
@@ -114,6 +116,7 @@ void Framework::Finalize()
     LightManager::GetInstance()->Finalize();
     SrvManager::GetInstance()->Finalize();
     SceneManager::GetInstance()->Finalize();
+    GpuParticleManager::GetInstance()->Finalize();
     DXCommon::GetInstance()->Finalize();
     PSOManager::GetInstance()->Finalize();
 

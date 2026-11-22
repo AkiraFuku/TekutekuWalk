@@ -10,6 +10,7 @@
 #include "ModelManager.h"
 #include "Object3D.h"
 #include "ParticleEmitter.h"
+#include "GpuParticleManager.h"
 #include "Physics.h"
 #include "Player.h"
 #include "PrimitiveDrawer.h"
@@ -841,10 +842,8 @@ bool Enemy::CanDamagePlayer() const {
 }
 
 void Enemy::PlayHitEffect() {
-  if (hitParticle_) {
-
-    hitParticle_->SetTransform(object_->GetTransform());
-    hitParticle_->Emit();
+  if (object_) {
+    GpuParticleManager::GetInstance()->Emit(object_->GetTranslate(), 24, 0.8f);
   }
 }
 

@@ -127,6 +127,22 @@ void PSOManager::CreatePso(const std::string& name, BlendMode blend, FillMode fi
     ShaderSet shaders;
     EnsureShaders(name, shaders);
 
+    // Compute Shader のみの場合は Compute PSO を構築
+    if (shaders.blobs.count(ShaderType::CS) && shaders.blobs.size() == 1) {
+        D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc{};
+        computePsoDesc.pRootSignature = rootSignature.Get();
+        auto& csBlob = shaders.blobs[ShaderType::CS];
+        computePsoDesc.CS = { csBlob->GetBufferPointer(), csBlob->GetBufferSize() };
+
+        PsoSet psoSet;
+        psoSet.rootSignature = rootSignature;
+        HRESULT hr = device->CreateComputePipelineState(&computePsoDesc, IID_PPV_ARGS(&psoSet.pipelineState));
+        assert(SUCCEEDED(hr) && "Failed to create Compute Pipeline State");
+
+        psoCache_[{name, blend, fill, type}] = psoSet;
+        return;
+    }
+
     // 4. PSO構築
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
     psoDesc.pRootSignature = rootSignature.Get();

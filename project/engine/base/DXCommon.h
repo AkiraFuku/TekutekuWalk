@@ -49,6 +49,9 @@ public:
     // クリエイトバッファ
     Microsoft::WRL::ComPtr<ID3D12Resource>
         CreateBufferResource(size_t sizeInBytes);
+    // クリエイトUAVバッファ (DefaultHeap + ALLOW_UNORDERED_ACCESS)
+    Microsoft::WRL::ComPtr<ID3D12Resource>
+        CreateUAVBufferResource(size_t sizeInBytes);
     // クリエイトテクスチャ
     Microsoft::WRL::ComPtr<ID3D12Resource>
         CreateTextureResourse(const DirectX::TexMetadata& metadata);
