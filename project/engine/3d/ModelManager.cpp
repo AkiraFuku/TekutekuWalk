@@ -90,6 +90,31 @@ void ModelManager::CreateBoxModel(const std::string& modelName)
     models.insert(std::make_pair(modelName, std::move(model)));
 }
 
+void ModelManager::CreatePropPlaneModel(const std::string& modelName)
+{
+    if (models.contains(modelName)) return;
+
+    std::vector<Model::VertexData> verts = {
+        // 表面 (-Z向き)
+        { {-0.5f, 1.0f, 0.0f, 1.0f}, {0.02f, 0.02f}, {0.0f, 1.0f, 0.0f} },
+        { { 0.5f, 1.0f, 0.0f, 1.0f}, {0.98f, 0.02f}, {0.0f, 1.0f, 0.0f} },
+        { {-0.5f, 0.0f, 0.0f, 1.0f}, {0.02f, 0.98f}, {0.0f, 1.0f, 0.0f} },
+        { { 0.5f, 0.0f, 0.0f, 1.0f}, {0.98f, 0.98f}, {0.0f, 1.0f, 0.0f} },
+        // 裏面 (+Z向き)
+        { { 0.5f, 1.0f, 0.0f, 1.0f}, {0.02f, 0.02f}, {0.0f, 1.0f, 0.0f} },
+        { {-0.5f, 1.0f, 0.0f, 1.0f}, {0.98f, 0.02f}, {0.0f, 1.0f, 0.0f} },
+        { { 0.5f, 0.0f, 0.0f, 1.0f}, {0.02f, 0.98f}, {0.0f, 1.0f, 0.0f} },
+        { {-0.5f, 0.0f, 0.0f, 1.0f}, {0.98f, 0.98f}, {0.0f, 1.0f, 0.0f} },
+    };
+    std::vector<uint32_t> inds = {
+        0, 1, 2,  2, 1, 3,
+        4, 5, 6,  6, 5, 7
+    };
+    std::shared_ptr<Model> model = Model::CreateFromMeshData(verts, inds, "resources/white.png");
+    model->SetName(modelName);
+    models.insert(std::make_pair(modelName, std::move(model)));
+}
+
 void ModelManager::CreateTerrainModel(
     const std::string& modelName,
     float sizeX, float sizeY,

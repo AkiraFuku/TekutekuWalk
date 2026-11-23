@@ -49,6 +49,7 @@ public:
     bool IsCollisionEnabled()  const { return isCollisionEnabled_; }
     bool IsOneway()            const { return isOneway_; }
     const std::string& GetPrefabId() const { return prefabId_; }
+    const std::string& GetTexturePath() const { return texturePath_; }
     const std::string& GetName() const { return name_; }
     LevelObjectType GetType()  const { return type_; }
 
@@ -66,6 +67,7 @@ private:
 
     std::string     name_               = "";
     std::string     prefabId_           = "";     ///< 適用されたプレハブID
+    std::string     texturePath_        = "";     ///< 適用されたテクスチャパス
     LevelObjectType type_               = LevelObjectType::kBlock;
     bool            disabled_           = false;  ///< 無効化フラグ（trueなら更新・描画・判定をスキップ）
     bool            isCollisionEnabled_ = true;   ///< false にすると三角形判定を提供しない

@@ -62,6 +62,20 @@ void GameScene::Initialize() {
     TextureManager::GetInstance()->LoadTexture("resources/grass.png");
     TextureManager::GetInstance()->LoadTexture("resources/gradationLine.png");
     TextureManager::GetInstance()->LoadTexture("resources/Efect.png");
+    TextureManager::GetInstance()->LoadTexture("resources/props/circle_shadow.png");
+
+    // 丸影用水平板モデル登録 (XZ [-0.5, 0.5], Y=0.0)
+    {
+        std::vector<Model::VertexData> sVerts = {
+            { {-0.5f, 0.0f,  0.5f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f} },
+            { { 0.5f, 0.0f,  0.5f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f} },
+            { {-0.5f, 0.0f, -0.5f, 1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f} },
+            { { 0.5f, 0.0f, -0.5f, 1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f} },
+        };
+        std::vector<uint32_t> sInds = { 0, 1, 2,  2, 1, 3 };
+        auto sModel = Model::CreateFromMeshData(sVerts, sInds, "resources/props/circle_shadow.png");
+        ModelManager::GetInstance()->RegisterModel("shadow_plane", std::move(sModel));
+    }
 
     ParticleManager::ParticleEmitterFunc initializeFunc = [](const Vector3& emitterPosition, std::mt19937& randomEngine)-> ParticleManager::Particle {
 
@@ -457,7 +471,7 @@ void GameScene::Initialize() {
             gpuParticle->RegisterEffectGroup("BulletSpiral", "BulletSpiral_Cylinder", "resources/gradationLine.png", spiralCyl, false, false, BlendMode::Add, GpuParticleManager::EffectType::Cylinder);
         }
     }
-    LightManager::GetInstance()->AddDirectionalLight({ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f }, 1.0f);
+    LightManager::GetInstance()->AddDirectionalLight({ 1.0f, 0.98f, 0.92f, 1.0f }, { 0.35f, -0.85f, 0.40f }, 1.05f);
 
 
 
@@ -952,10 +966,12 @@ void GameScene::Update() {
     DamagePopupManager::GetInstance()->Update();
     DamagePopupManager::GetInstance()->DrawImGui();
 
+    UpdateDropShadows();
 }
 void GameScene::Draw() {
 
-    skyBox->Draw();
+    // 背景はStageBackgroundの青空・山並みを使用するため、SkyBoxの背景描画は無効化
+    // skyBox->Draw();
 
     if (stageManager_) {
         stageManager_->Draw();
@@ -966,6 +982,10 @@ void GameScene::Draw() {
 #ifdef _DEBUG
     if (stageRail) stageRail->DebugDraw();
 #endif
+    // キャラクター・敵の足元の丸影描画
+    for (size_t i = 0; i < activeShadowCount_ && i < shadowObjects_.size(); ++i) {
+        shadowObjects_[i]->Draw();
+    }
     if (!isDefeated_) {
         player->Draw();
     }
@@ -1230,6 +1250,87 @@ void GameScene::DrawBannerSprite()
 {
     if (bannerSprite_) {
         bannerSprite_->Draw();
+    }
+}
+
+void GameScene::UpdateDropShadows()
+{
+    activeShadowCount_ = 0;
+
+    auto findGroundY = [&](float x, float y, float z) -> float {
+        float bestY = -0.5f;
+        bool found = false;
+        for (const auto& tri : triangles_) {
+            const Vector3& a = tri.vertices[0];
+            const Vector3& b = tri.vertices[1];
+            const Vector3& c = tri.vertices[2];
+
+            float minX = (std::min)({ a.x, b.x, c.x });
+            float maxX = (std::max)({ a.x, b.x, c.x });
+            float minZ = (std::min)({ a.z, b.z, c.z });
+            float maxZ = (std::max)({ a.z, b.z, c.z });
+            if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
+
+            // 重心座標によるXZ平面内包判定
+            float v0x = c.x - a.x, v0z = c.z - a.z;
+            float v1x = b.x - a.x, v1z = b.z - a.z;
+            float v2x = x   - a.x, v2z = z   - a.z;
+
+            float dot00 = v0x * v0x + v0z * v0z;
+            float dot01 = v0x * v1x + v0z * v1z;
+            float dot02 = v0x * v2x + v0z * v2z;
+            float dot11 = v1x * v1x + v1z * v1z;
+            float dot12 = v1x * v2x + v1z * v2z;
+
+            float denom = dot00 * dot11 - dot01 * dot01;
+            if (std::abs(denom) < 1e-6f) continue;
+            float invDenom = 1.0f / denom;
+            float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+            float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+            if (u >= -0.01f && v >= -0.01f && (u + v) <= 1.01f) {
+                float hitY = a.y + u * (c.y - a.y) + v * (b.y - a.y);
+                if (hitY <= y + 0.35f && (!found || hitY > bestY)) {
+                    bestY = hitY;
+                    found = true;
+                }
+            }
+        }
+        return bestY;
+    };
+
+    auto pushShadow = [&](const Vector3& pos, float baseRadius) {
+        float groundY = findGroundY(pos.x, pos.y, pos.z);
+        float heightDiff = (std::max)(0.0f, pos.y - groundY);
+        if (heightDiff > 12.0f) return;
+
+        float scaleFactor = (std::max)(0.45f, 1.0f - heightDiff * 0.06f);
+        float alpha = (std::max)(0.18f, 1.0f - heightDiff * 0.08f);
+
+        if (activeShadowCount_ >= shadowObjects_.size()) {
+            auto obj = std::make_unique<Object3d>();
+            obj->Initialize();
+            obj->SetModel("shadow_plane");
+            obj->SetTexture("resources/props/circle_shadow.png");
+            obj->SetCamera(activeCamera_);
+            shadowObjects_.push_back(std::move(obj));
+        }
+
+        Object3d* shadow = shadowObjects_[activeShadowCount_++].get();
+        shadow->SetCamera(activeCamera_);
+        shadow->SetTranslate({ pos.x, groundY + 0.03f, pos.z });
+        float s = baseRadius * 2.1f * scaleFactor;
+        shadow->SetScale({ s, 1.0f, s });
+        shadow->SetModelColor({ 1.0f, 1.0f, 1.0f, alpha });
+        shadow->Update();
+    };
+
+    if (player && !isDefeated_) {
+        pushShadow(player->GetWorldPosition(), 0.55f);
+    }
+    for (const auto& enemy : enemies_) {
+        if (enemy && !enemy->IsDead()) {
+            pushShadow(enemy->GetWorldPosition(), 0.55f);
+        }
     }
 }
 

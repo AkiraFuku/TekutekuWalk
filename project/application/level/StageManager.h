@@ -116,6 +116,9 @@ private:
     /// 全ブロック/地形から三角形リストを再構築する
     void RebuildTriangles();
 
+    /// レール周辺に柵・草・花などの板メッシュと背景チェックキューブを仮置き配置する
+    void PopulateDefaultProps(Camera* camera);
+
     // ─── 管理リスト ──────────────────────────────────────────────────
     std::unique_ptr<Terrain>                  terrain_;  ///< kTerrain
     std::unique_ptr<StageBackground>          stageBackground_; ///< レール沿い奥側背景メッシュ
@@ -148,10 +151,10 @@ private:
     std::string loadedPath_;
 
     // ─── ステージ定義カメラ設定 ───────────────────────────────────────
-    float stageCameraDrawDistance_ = 80.0f;
+    float stageCameraDrawDistance_ = 500.0f;
     std::string stageCameraMode_   = "AUTO_OFFSET";
-    float stageCameraDistance_     = 11.5f;
-    float stageCameraHeight_       = 4.6f;
+    float stageCameraDistance_     = 9.5f;
+    float stageCameraHeight_       = 3.5f;
 
     // ─── デバッグ描画フラグ ───────────────────────────────────────────
     bool isDebugDrawEnabled_ = false;

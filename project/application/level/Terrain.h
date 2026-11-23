@@ -12,6 +12,8 @@
 #include <vector>
 #include <memory>
 
+class RailPath;
+
 /// <summary>
 /// 地形グリッド専用クラス（Terrain）
 /// 専用PSO（シェーダー）を持ち、落とし穴のマス目抜き・縁の三角ポリゴン化、
@@ -33,7 +35,8 @@ public:
         Vector4 position;
         Vector2 texCoord;
         Vector3 normal;
-        float   roadAttr; // 0.0 = 地面(草), 1.0 = 道
+        float   roadAttr;   // 0.0 = 地面(草), 1.0 = 道
+        Vector3 extendInfo; // xy: XZ押し出し方向, z: 延長ウェイト (0.0=元の端, 1.0=地平線)
     };
 
     struct MaterialData {
@@ -46,6 +49,10 @@ public:
         Matrix4x4 WVP;
         Matrix4x4 World;
         Matrix4x4 WorldInverseTranspose;
+        float horizonExtendDist;
+        float horizonDropY;
+        float sizeX;
+        float sizeY;
     };
 
     Terrain() = default;
@@ -71,6 +78,11 @@ public:
     /// ワールド座標からその位置のセル属性（GROUND / ROAD / HOLE）を取得
     /// </summary>
     CellType GetSurfaceType(const Vector3& worldPos) const;
+
+    /// <summary>
+    /// StageRail の軌道に沿って地形頂点の roadAttr（道テクスチャ領域）を自動設定する
+    /// </summary>
+    void ApplyRailRoad(const RailPath* rail, float roadHalfWidth = 1.6f);
 
 private:
     void BuildMesh(const LevelObjectData& data);

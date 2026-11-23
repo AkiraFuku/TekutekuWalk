@@ -104,69 +104,43 @@ StageBackground::Config StageBackground::CreateDefaultConfig()
     cfg.marginStart  = 14.0f;
     cfg.marginEnd    = 14.0f;
 
-    // Layer 0: 遠景地面リング（手前Terrainの端〜山並みの麓までの隙間を埋める）
-    LayerConfig ground;
-    ground.style       = Style::HorizonGround;
-    ground.distance    = 66.0f;  // 外径
-    ground.skirtDepth  = 28.0f;  // 内径（コース周辺の穴に重ならない距離）
-    ground.bottomY     = -8.5f;
-    ground.uvScaleU    = 16.0f;
-    ground.texturePath = "resources/grass.png";
-    ground.color       = { 0.44f, 0.75f, 0.36f, 1.0f };
-    cfg.layers.push_back(ground);
-
-    // Layer 1: コース奥側のなだらかな緑の丘（手前草原と地平線の繋ぎ）
-    LayerConfig hill;
-    hill.style       = Style::MountainBand;
-    hill.distance    = 21.0f;
-    hill.bottomY     = -8.5f;
-    hill.baseHeight  = 10.5f;
-    hill.amplitude   = 1.6f;
-    hill.frequency   = 0.14f;
-    hill.phase       = 0.4f;
-    hill.skirtDepth  = 4.5f;
-    hill.uvScaleU    = 16.0f;
-    hill.texturePath = "resources/grass.png";
-    hill.color       = { 0.44f, 0.78f, 0.36f, 1.0f };
-    cfg.layers.push_back(hill);
-
-    // Layer 1: 中景の青緑の山並み（外周リング・滑らかな稜線）
+    // Layer 0: 中景の青緑の山並み（外周リング・滑らかな稜線）
     LayerConfig midMountain;
     midMountain.style       = Style::HorizonMountain;
-    midMountain.distance    = 50.0f;
-    midMountain.bottomY     = -10.0f;
-    midMountain.baseHeight  = 15.5f;
-    midMountain.amplitude   = 3.4f;
-    midMountain.frequency   = 6.0f;  // 1周あたりの山の数
+    midMountain.distance    = 160.0f;
+    midMountain.bottomY     = -40.0f;
+    midMountain.baseHeight  = 58.0f;
+    midMountain.amplitude   = 7.0f;
+    midMountain.frequency   = 7.0f;  // 1周あたりの山の数
     midMountain.phase       = 0.5f;
     midMountain.uvScaleU    = 12.0f;
     midMountain.texturePath = "resources/white.png";
-    midMountain.color       = { 0.36f, 0.72f, 0.70f, 1.0f };
+    midMountain.color       = { 0.34f, 0.78f, 0.65f, 1.0f };
     cfg.layers.push_back(midMountain);
 
-    // Layer 2: 遠景の淡い水色の山並み（空気遠近法・外周リング）
+    // Layer 1: 遠景の淡い水色の山並み（空気遠近法・外周リング）
     LayerConfig farMountain;
     farMountain.style       = Style::HorizonMountain;
-    farMountain.distance    = 58.0f;
-    farMountain.bottomY     = -10.0f;
-    farMountain.baseHeight  = 19.5f;
-    farMountain.amplitude   = 4.0f;
+    farMountain.distance    = 205.0f;
+    farMountain.bottomY     = -40.0f;
+    farMountain.baseHeight  = 66.0f;
+    farMountain.amplitude   = 8.0f;
     farMountain.frequency   = 5.0f;
     farMountain.phase       = 2.1f;
     farMountain.uvScaleU    = 12.0f;
     farMountain.texturePath = "resources/white.png";
-    farMountain.color       = { 0.58f, 0.84f, 0.92f, 1.0f };
+    farMountain.color       = { 0.56f, 0.86f, 0.94f, 1.0f };
     cfg.layers.push_back(farMountain);
 
-    // Layer 3: 青空パノラマ帯（山並みの奥を囲む明るい水色の空）
+    // Layer 2: 青空＋白い雲パノラマ帯（山並みの奥を囲む明るい水色の空）
     LayerConfig sky;
     sky.style       = Style::HorizonSky;
-    sky.distance    = 66.0f;
-    sky.bottomY     = -12.0f;
-    sky.baseHeight  = 58.0f;
-    sky.uvScaleU    = 12.0f;
-    sky.texturePath = "resources/white.png";
-    sky.color       = { 0.54f, 0.86f, 0.99f, 1.0f };
+    sky.distance    = 245.0f;
+    sky.bottomY     = -45.0f;
+    sky.baseHeight  = 160.0f;
+    sky.uvScaleU    = 6.0f;
+    sky.texturePath = "resources/terrain/sky_clouds.png";
+    sky.color       = { 1.00f, 1.00f, 1.00f, 1.0f };
     cfg.layers.push_back(sky);
 
     return cfg;
@@ -683,8 +657,8 @@ void StageBackground::BuildHorizonGround(
         AddOrientedQuad(
             outVertices, outIndices,
             innerPts[i], outerPts[i], innerPts[next], outerPts[next],
-            { u0, 0.0f }, { u0, 2.0f },
-            { u1, 0.0f }, { u1, 2.0f },
+            { u0, 0.0f }, { u0, 12.0f },
+            { u1, 0.0f }, { u1, 12.0f },
             up, true);
     }
 }

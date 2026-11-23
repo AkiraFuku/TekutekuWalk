@@ -133,6 +133,10 @@ private:
 
     //テスト用地面
     std::unique_ptr<Object3d> TestGround_;
+    // 丸影（ドロップシャドウ）プール
+    std::vector<std::unique_ptr<Object3d>> shadowObjects_;
+    size_t activeShadowCount_ = 0;
+    void UpdateDropShadows();
     //ステージマネージャー（LevelLoader経由でステージ・敵等を統括）
     std::unique_ptr<StageManager> stageManager_;
     //生存限界

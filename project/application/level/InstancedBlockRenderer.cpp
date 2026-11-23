@@ -60,9 +60,8 @@ void InstancedBlockRenderer::AddBlock(StageBlock* block, Camera* camera)
     if (!obj) return;
 
     // モデルとテクスチャ情報を取得
-    // Object3d のモデル名を取得
     std::string modelName = "box";
-    std::string texturePath = "resources/grass.png";
+    std::string texturePath = block->GetTexturePath().empty() ? "resources/checker/checker_gray.png" : block->GetTexturePath();
 
     // プレハブ定義またはブロック情報からキーを決定
     if (!block->GetPrefabId().empty()) {

@@ -34,8 +34,9 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     playerSpawnRailPos_ = { 0.0f, 0.0f };
     goalPos_            = { 0.0f, 0.0f, 0.0f };
     goalRailPos_        = { 0.0f, 0.0f };
-    stageCameraDistance_ = 11.5f;
-    stageCameraHeight_   = 4.6f;
+    stageCameraDrawDistance_ = 500.0f;
+    stageCameraDistance_ = 9.5f;
+    stageCameraHeight_   = 3.5f;
 
     camera_     = camera;
     loadedPath_ = jsonPath;
@@ -48,10 +49,14 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
         ProcessObject(obj, camera, spawnEnemy);
     }
 
-    // ステージレールがあれば奥側背景ポリゴンメッシュを生成
+    // ステージレールがあれば道テクスチャを適用＆奥側背景ポリゴンメッシュを生成
     if (stageRail_) {
+        if (terrain_) {
+            terrain_->ApplyRailRoad(stageRail_.get(), 1.65f);
+        }
         stageBackground_ = std::make_unique<StageBackground>();
         stageBackground_->Initialize(stageRail_.get(), camera, backgroundConfig_);
+        PopulateDefaultProps(camera);
     }
 
     // 三角形リストの初期構築
@@ -249,9 +254,9 @@ void StageManager::ProcessObject(const LevelObjectData& data, Camera* camera, Sp
             }
             return def;
         };
-        stageCameraDrawDistance_ = getFloat("draw_distance", 80.0f);
-        stageCameraDistance_     = getFloat("camera_distance", 11.5f);
-        stageCameraHeight_       = getFloat("camera_height", 4.6f);
+        stageCameraDrawDistance_ = getFloat("draw_distance", 500.0f);
+        stageCameraDistance_     = getFloat("camera_distance", 9.5f);
+        stageCameraHeight_       = getFloat("camera_height", 3.5f);
         auto itMode = data.properties.find("camera_mode");
         if (itMode != data.properties.end()) {
             stageCameraMode_ = itMode->second;
@@ -408,5 +413,183 @@ void StageManager::DebugDraw()
         pd->DrawLine(tri.vertices[0], tri.vertices[1], triColor);
         pd->DrawLine(tri.vertices[1], tri.vertices[2], triColor);
         pd->DrawLine(tri.vertices[2], tri.vertices[0], triColor);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// レール周辺の仮置き装飾（柵・草・花・チェック柄キューブ）自動配置
+// ─────────────────────────────────────────────────────────────────────
+void StageManager::PopulateDefaultProps(Camera* camera)
+{
+    if (!stageRail_) return;
+    float totalLen = stageRail_->GetTotalLength();
+    if (totalLen < 4.0f) return;
+
+    // 既に多数のPropがJSONで配置されている場合は追加しない
+    if (props_.size() >= 10) return;
+
+    float baseGroundY = terrain_ ? terrain_->GetTranslate().y : -0.5f;
+    float flipSign = backgroundConfig_.flipSide ? -1.0f : 1.0f;
+
+    // 地形三角形から正確な地面高さと法線Yを取得（穴や急斜面は false を返す）
+    auto sampleTerrainSurface = [&](float x, float z, float& outY, float& outNormalY) -> bool {
+        if (!terrain_) {
+            outY = baseGroundY;
+            outNormalY = 1.0f;
+            return true;
+        }
+        if (terrain_->GetSurfaceType({ x, 0.0f, z }) == Terrain::CellType::kHole) {
+            return false;
+        }
+
+        const auto& tris = terrain_->GetWorldTriangles();
+        bool found = false;
+        float bestY = -1e9f;
+        float bestNY = 0.0f;
+
+        for (const auto& tri : tris) {
+            const Vector3& a = tri.vertices[0];
+            const Vector3& b = tri.vertices[1];
+            const Vector3& c = tri.vertices[2];
+
+            float minX = (std::min)({ a.x, b.x, c.x });
+            float maxX = (std::max)({ a.x, b.x, c.x });
+            float minZ = (std::min)({ a.z, b.z, c.z });
+            float maxZ = (std::max)({ a.z, b.z, c.z });
+            if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
+
+            float v0x = c.x - a.x, v0z = c.z - a.z;
+            float v1x = b.x - a.x, v1z = b.z - a.z;
+            float v2x = x   - a.x, v2z = z   - a.z;
+
+            float dot00 = v0x * v0x + v0z * v0z;
+            float dot01 = v0x * v1x + v0z * v1z;
+            float dot02 = v0x * v2x + v0z * v2z;
+            float dot11 = v1x * v1x + v1z * v1z;
+            float dot12 = v1x * v2x + v1z * v2z;
+
+            float denom = dot00 * dot11 - dot01 * dot01;
+            if (std::abs(denom) < 1e-6f) continue;
+            float invDenom = 1.0f / denom;
+            float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+            float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+            if (u >= -0.01f && v >= -0.01f && (u + v) <= 1.01f) {
+                float hitY = a.y + u * (c.y - a.y) + v * (b.y - a.y);
+                Vector3 e1 = { b.x - a.x, b.y - a.y, b.z - a.z };
+                Vector3 e2 = { c.x - a.x, c.y - a.y, c.z - a.z };
+                Vector3 n = Cross(e1, e2);
+                float nLen = Length(n);
+                float ny = (nLen > 1e-5f) ? std::abs(n.y / nLen) : 0.0f;
+                if (!found || hitY > bestY) {
+                    bestY = hitY;
+                    bestNY = ny;
+                    found = true;
+                }
+            }
+        }
+
+        if (!found) return false;
+        // 崖スカート底や急斜面には配置しない
+        if (bestY < baseGroundY - 1.8f || bestNY < 0.85f) return false;
+
+        outY = bestY;
+        outNormalY = bestNY;
+        return true;
+    };
+
+    auto hash01 = [](uint32_t seed) -> float {
+        uint32_t x = seed * 747796405u + 2891336453u;
+        x = ((x >> ((x >> 28u) + 4u)) ^ x) * 277803737u;
+        x = (x >> 22u) ^ x;
+        return static_cast<float>(x & 0x00FFFFFFu) / static_cast<float>(0x01000000u);
+    };
+
+    auto spawnProp = [&](const std::string& prefabId, const Vector3& pos, float rotY, float scaleMul = 1.0f, const std::string& checkerColor = "") {
+        LevelObjectData d;
+        d.name = "AutoProp_" + prefabId;
+        d.type = LevelObjectType::kProp;
+        d.transform.translation = pos;
+        d.transform.rotation = { 0.0f, rotY, 0.0f };
+        d.transform.scale = { scaleMul, scaleMul, scaleMul };
+        d.properties["prefab_id"] = prefabId;
+        if (!checkerColor.empty()) {
+            d.properties["checker_color"] = checkerColor;
+        }
+        auto prop = std::make_unique<StageBlock>();
+        prop->Initialize(d, camera);
+        prop->SetCollisionEnabled(false);
+        props_.push_back(std::move(prop));
+    };
+
+    const char* flowerIds[] = { "prop_flower_pink", "prop_flower_white", "prop_flower_purple" };
+    const char* checkerCols[] = { "pink", "yellow", "blue" };
+
+    uint32_t idx = 0;
+    for (float dist = 2.0f; dist < totalLen - 2.0f; dist += 3.8f) {
+        float t = stageRail_->GetTFromDistance(dist);
+        Vector3 railPos = stageRail_->GetPosition(t);
+        Vector3 fwd = stageRail_->GetDirection(t);
+        fwd.y = 0.0f;
+        float fLen = Length(fwd);
+        if (fLen > 1e-4f) fwd = fwd * (1.0f / fLen);
+        else fwd = { 0.0f, 0.0f, 1.0f };
+
+        // カメラ側から見た「奥側」方向ベクトル
+        Vector3 right = Normalize(Cross({ 0.0f, 1.0f, 0.0f }, fwd));
+        Vector3 farDir = right * (-1.0f * flipSign);
+        float faceRotY = std::atan2(-farDir.x, -farDir.z);
+
+        float hitY = 0.0f;
+        float ny = 1.0f;
+
+        // 1. コース奥側と手前側に白い柵を仮置き（穴や急斜面を避け、地形高さに接地）
+        if (hash01(idx * 13 + 1) > 0.25f) {
+            float fx = railPos.x + farDir.x * 2.5f;
+            float fz = railPos.z + farDir.z * 2.5f;
+            if (sampleTerrainSurface(fx, fz, hitY, ny)) {
+                spawnProp("prop_fence", { fx, hitY, fz }, faceRotY);
+            }
+        }
+        if (hash01(idx * 13 + 2) > 0.45f) {
+            float fx = railPos.x - farDir.x * 2.4f;
+            float fz = railPos.z - farDir.z * 2.4f;
+            if (sampleTerrainSurface(fx, fz, hitY, ny)) {
+                spawnProp("prop_fence", { fx, hitY, fz }, faceRotY);
+            }
+        }
+
+        // 2. ギザギザ草・クローバー・花を奥側と手前側に散りばめる
+        float rGrass = hash01(idx * 13 + 3);
+        float offsetFar = 3.2f + rGrass * 8.0f;
+        {
+            float gx = railPos.x + farDir.x * offsetFar;
+            float gz = railPos.z + farDir.z * offsetFar;
+            if (sampleTerrainSurface(gx, gz, hitY, ny)) {
+                spawnProp((idx % 2 == 0) ? "prop_grass" : "prop_clover", { gx, hitY, gz }, faceRotY, 0.85f + rGrass * 0.45f);
+            }
+        }
+
+        float rFlower = hash01(idx * 13 + 4);
+        if (rFlower > 0.30f) {
+            float fDist = (rFlower > 0.65f) ? -(1.8f + rFlower * 1.4f) : (2.8f + rFlower * 5.0f);
+            float flx = railPos.x + farDir.x * fDist;
+            float flz = railPos.z + farDir.z * fDist;
+            if (sampleTerrainSurface(flx, flz, hitY, ny)) {
+                spawnProp(flowerIds[idx % 3], { flx, hitY, flz }, faceRotY, 0.8f + rFlower * 0.4f);
+            }
+        }
+
+        // 3. 奥側の草原にチェック柄装飾キューブを点在させる
+        if (idx % 3 == 1) {
+            float cubeDist = 6.5f + hash01(idx * 13 + 5) * 7.5f;
+            float cubeScale = 1.6f + hash01(idx * 13 + 6) * 1.0f;
+            float cx = railPos.x + farDir.x * cubeDist;
+            float cz = railPos.z + farDir.z * cubeDist;
+            if (sampleTerrainSurface(cx, cz, hitY, ny)) {
+                spawnProp("deco_cube", { cx, hitY + cubeScale * 0.5f, cz }, faceRotY, cubeScale, checkerCols[idx % 3]);
+            }
+        }
+
+        idx++;
     }
 }

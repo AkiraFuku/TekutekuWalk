@@ -56,6 +56,10 @@ VertexShaderOutput input)
     output.color.rgb = float3(0.0f, 0.0f, 0.0f);
     output.color.a = 1.0f;
     float2 difference = float2(0.0f, 0.0f);
+    float centerNdc = gTextureDepth.Sample(gSamplerPoint, input.texcoord);
+    float4 centerView = mul(float4(0.0f, 0.0f, centerNdc, 1.0f), gMaterial.ProjectionInverse);
+    float centerDist = abs(-centerView.z * rcp(centerView.w));
+
     for (int x = 0; x < 3; ++x)
     {
         for (int y = 0; y < 3; ++y)
@@ -69,8 +73,11 @@ VertexShaderOutput input)
         }
     }
  
-    float weight = length(difference);
-    weight = saturate(weight);
+    // 遠景の地面の傾きによる黒潰れを防ぐため、距離に応じた正規化と遠景フェードを適用
+    float distScale = max(1.0f, centerDist * 0.12f);
+    float farAtten = saturate(1.0f - (centerDist - 40.0f) / 100.0f);
+    float weight = length(difference) / distScale;
+    weight = saturate(weight) * farAtten;
     output.color.rgb = (1.0f-weight)*gTexture.Sample(gSampler, input.texcoord).rgb;
     
     return output;

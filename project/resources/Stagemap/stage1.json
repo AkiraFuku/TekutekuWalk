@@ -76,11 +76,11 @@
             "type": "MESH",
             "object_type": "BLOCK",
             "file_name": "box",
-            "texture": "resources/grass.png",
+            "texture": "resources/checker/checker_pink.png",
             "transform": {
-                "translation": [-20.0, 0.5, 0.0],
+                "translation": [-20.0, 0.4, 0.0],
                 "rotation": [0.0, 0.0, 0.0],
-                "scaling": [4.0, 4.0, 4.0]
+                "scaling": [2.2, 1.8, 2.2]
             }
         },
         {

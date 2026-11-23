@@ -84,10 +84,28 @@ void StageBlock::Initialize(const LevelObjectData& data, Camera* camera)
     }
     isCollisionEnabled_ = isCollisionEnabled;
 
+    // JSON側の properties["checker_color"] によるチェックテクスチャ指定
+    auto checkerIt = data.properties.find("checker_color");
+    if (checkerIt != data.properties.end()) {
+        const std::string& col = checkerIt->second;
+        if (col == "pink")        texturePath = "resources/checker/checker_pink.png";
+        else if (col == "yellow") texturePath = "resources/checker/checker_yellow.png";
+        else if (col == "blue")   texturePath = "resources/checker/checker_blue.png";
+        else if (col == "gray")   texturePath = "resources/checker/checker_gray.png";
+        else if (col == "green")  texturePath = "resources/checker/checker_green.png";
+    }
+    // デフォルトが grass.png のままになっているboxブロックはグレーチェックにする
+    if (modelName == "box" && (texturePath.empty() || texturePath == "resources/grass.png")) {
+        texturePath = "resources/checker/checker_gray.png";
+    }
+    texturePath_ = texturePath;
+
     // モデルの読み込みと Object3d 初期化
     if (!modelName.empty()) {
         if (modelName == "box") {
             ModelManager::GetInstance()->CreateBoxModel("box");
+        } else if (modelName == "prop_plane") {
+            ModelManager::GetInstance()->CreatePropPlaneModel("prop_plane");
         } else if (modelName == "terrain_grid") {
             // ─── 地形グリッドを頂点データから動的生成 ───────────────────
             auto getFloat = [&](const std::string& key, float def) -> float {

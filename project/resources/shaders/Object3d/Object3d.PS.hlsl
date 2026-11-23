@@ -121,9 +121,12 @@ float4 Environment(float3 V, float3 N)
 }
 float3 Lighting(float3 V, float3 N, VertexShaderOutput input)
 {
-    float3 finalLighting = float3(0.0f, 0.0f, 0.0f);
+    // 半球環境光（空からの水色＋地面からの緑の照り返しで黒潰れを防ぎ鮮やかに保つ）
+    float3 skyAmbient    = float3(0.58f, 0.88f, 1.00f);
+    float3 groundAmbient = float3(0.36f, 0.60f, 0.28f);
+    float hemiFactor     = N.y * 0.5f + 0.5f;
+    float3 finalLighting = gMaterial.Color.rgb * lerp(groundAmbient, skyAmbient, hemiFactor) * 0.52f;
 
-    
     // Directional Light
     for (int i = 0; i < gLightCounts.numDirectionalLights; ++i)
     {
@@ -219,6 +222,10 @@ PixelShaderOutput main(VertexShaderOutput input)
         output.color.rgb += refrectColor.rgb;
         
     }
+
+    // 彩度ブースト（パステル〜ビビッドな64風の発色にする）
+    float lum = dot(output.color.rgb, float3(0.299f, 0.587f, 0.114f));
+    output.color.rgb = saturate(lerp(float3(lum, lum, lum), output.color.rgb, 1.16f));
     
     // アルファテスト
     if (output.color.a < 0.01f)

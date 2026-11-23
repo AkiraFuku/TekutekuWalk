@@ -304,9 +304,10 @@ void CameraController::AutoOffsetCamera()
         right = right * -1.0f;
     }
 
-    // 目標カメラ位置と注視点: クランプ済み基準位置 + オフセット
-    Vector3 targetCamPos = focusBasePos + right * config_.autoOffset.distance + up * config_.autoOffset.height;
-    Vector3 targetFocusPos = focusBasePos + up * config_.autoOffset.lookAtHeight;
+    // 目標カメラ位置と注視点: クランプ済み基準位置 + 進行方向のわずかな先読み + オフセット
+    Vector3 lookAhead = railFwd * 0.6f;
+    Vector3 targetCamPos = focusBasePos + lookAhead * 0.5f + right * config_.autoOffset.distance + up * config_.autoOffset.height;
+    Vector3 targetFocusPos = focusBasePos + lookAhead + up * config_.autoOffset.lookAtHeight;
 
     Vector3 currentCamPos = camera_->GetTranslate();
     if (!isFocusInitialized_ || Length(currentCamPos) < 1e-4f) {

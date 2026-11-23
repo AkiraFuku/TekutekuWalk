@@ -4,4 +4,5 @@ struct VertexShaderOutput {
     float3 normal        : NORMAL0;
     float  roadAttr      : TEXCOORD1;
     float3 worldPosition : POSITION0;
+    float  extendWeight  : TEXCOORD2;
 };

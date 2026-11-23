@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include "Terrain.h"
+#include "RailPath.h"
 #include "PSOManager.h"
 #include "TextureManager.h"
 #include "DXCommon.h"
@@ -59,6 +60,7 @@ void Terrain::SetupPSO()
             { "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "TEXCOORD",  1, DXGI_FORMAT_R32_FLOAT,          0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD",  2, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
         inputLayout.inputLayout.pInputElementDescs = inputLayout.inputElement.data();
         inputLayout.inputLayout.NumElements = static_cast<UINT>(inputLayout.inputElement.size());
@@ -96,12 +98,20 @@ void Terrain::BuildMesh(const LevelObjectData& data)
     divY_   = getInt  ("divisions_y", 80);
     uvTile_ = getFloat("uv_tile",     10.0f);
 
-    // テクスチャ設定
+    // テクスチャ設定（古いデフォルトがJSONに残っている場合も新しい草原・道テクスチャを適用）
     auto itGrass = data.properties.find("grass_texture");
-    grassTexturePath_ = (itGrass != data.properties.end()) ? itGrass->second : (!data.texturePath.empty() ? data.texturePath : "resources/Stagemap/863603.png");
+    if (itGrass != data.properties.end() && itGrass->second != "resources/Stagemap/863603.png") {
+        grassTexturePath_ = itGrass->second;
+    } else {
+        grassTexturePath_ = "resources/terrain/grass_vivid.png";
+    }
 
     auto itRoad = data.properties.find("road_texture");
-    roadTexturePath_ = (itRoad != data.properties.end()) ? itRoad->second : "resources/grass.png";
+    if (itRoad != data.properties.end() && itRoad->second != "resources/grass.png") {
+        roadTexturePath_ = itRoad->second;
+    } else {
+        roadTexturePath_ = "resources/terrain/road_cobble.png";
+    }
 
     TextureManager::GetInstance()->LoadTexture(grassTexturePath_);
     TextureManager::GetInstance()->LoadTexture(roadTexturePath_);
@@ -165,9 +175,10 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             v.position = { pos.x, pos.y, pos.z, 1.0f };
             float tx = (pos.x + halfX) / (sizeX_ > 1e-4f ? sizeX_ : 1.0f);
             float tz = (pos.z + halfZ) / (sizeY_ > 1e-4f ? sizeY_ : 1.0f);
-            v.texCoord = { tx, tz };
-            v.normal   = { 0.0f, 1.0f, 0.0f };
-            v.roadAttr = 0.0f;
+            v.texCoord   = { tx, tz };
+            v.normal     = { 0.0f, 1.0f, 0.0f };
+            v.roadAttr   = 0.0f;
+            v.extendInfo = { 0.0f, 0.0f, 0.0f };
             vertices_.push_back(v);
         }
 
@@ -246,7 +257,8 @@ void Terrain::BuildMesh(const LevelObjectData& data)
                         roadWeight = (std::max)(roadWeight, 0.7f);
                     }
                 }
-                v.roadAttr = roadWeight;
+                v.roadAttr   = roadWeight;
+                v.extendInfo = { 0.0f, 0.0f, 0.0f };
 
                 vertices_.push_back(v);
             }
@@ -312,24 +324,26 @@ void Terrain::BuildMesh(const LevelObjectData& data)
         }
     }
 
-    // ─── 段差・穴境界・外周の開放辺に崖スカート壁を追加（見た目専用） ────
+    // ─── 段差・穴境界・外周の開放辺に崖スカート壁 / シェーダー地平線延長を追加（見た目専用） ────
     {
         struct EdgeInfo {
-            uint32_t a = 0;
-            uint32_t b = 0;
-            int count = 0;
+            uint32_t a   = 0;
+            uint32_t b   = 0;
+            uint32_t opp = 0; // 三角形の第3頂点（外向き法線判定用）
+            int count    = 0;
         };
         std::unordered_map<uint64_t, EdgeInfo> edgeMap;
         edgeMap.reserve(indices_.size());
 
-        auto recordEdge = [&](uint32_t a, uint32_t b) {
+        auto recordEdge = [&](uint32_t a, uint32_t b, uint32_t opp) {
             uint32_t lo = (std::min)(a, b);
             uint32_t hi = (std::max)(a, b);
             uint64_t key = (static_cast<uint64_t>(lo) << 32) | static_cast<uint64_t>(hi);
             auto& info = edgeMap[key];
             if (info.count == 0) {
-                info.a = a;
-                info.b = b;
+                info.a   = a;
+                info.b   = b;
+                info.opp = opp;
             }
             info.count++;
         };
@@ -339,36 +353,232 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             uint32_t i0 = indices_[t * 3 + 0];
             uint32_t i1 = indices_[t * 3 + 1];
             uint32_t i2 = indices_[t * 3 + 2];
-            recordEdge(i0, i1);
-            recordEdge(i1, i2);
-            recordEdge(i2, i0);
+            recordEdge(i0, i1, i2);
+            recordEdge(i1, i2, i0);
+            recordEdge(i2, i0, i1);
         }
 
+        // 地形全体のXZ・Yバウンディングボックスを算出
+        float minBX = 1e9f, maxBX = -1e9f, minBY = 1e9f, minBZ = 1e9f, maxBZ = -1e9f;
+        for (const auto& v : vertices_) {
+            minBX = (std::min)(minBX, v.position.x);
+            maxBX = (std::max)(maxBX, v.position.x);
+            minBY = (std::min)(minBY, v.position.y);
+            minBZ = (std::min)(minBZ, v.position.z);
+            maxBZ = (std::max)(maxBZ, v.position.z);
+        }
+        float centerBX = (minBX + maxBX) * 0.5f;
+        float centerBZ = (minBZ + maxBZ) * 0.5f;
+        const float edgeTol = (std::max)(1.0f, (std::max)(maxBX - minBX, maxBZ - minBZ) * 0.015f);
+
+        auto isOnBBoxEdge = [&](const VertexData& a, const VertexData& b) -> bool {
+            bool onMinX = (std::abs(a.position.x - minBX) < edgeTol && std::abs(b.position.x - minBX) < edgeTol);
+            bool onMaxX = (std::abs(a.position.x - maxBX) < edgeTol && std::abs(b.position.x - maxBX) < edgeTol);
+            bool onMinZ = (std::abs(a.position.z - minBZ) < edgeTol && std::abs(b.position.z - minBZ) < edgeTol);
+            bool onMaxZ = (std::abs(a.position.z - maxBZ) < edgeTol && std::abs(b.position.z - maxBZ) < edgeTol);
+            return onMinX || onMaxX || onMinZ || onMaxZ;
+        };
+
         constexpr float kSkirtBottomY = -10.0f;
+
+        // 開放辺 (count == 1) を収集し、連結成分（境界ループ）ごとに分類する
+        struct OpenEdge {
+            uint32_t a   = 0;
+            uint32_t b   = 0;
+            uint32_t opp = 0;
+            Vector3  outDir = { 0.0f, 0.0f, 1.0f };
+            int      compId = -1;
+            bool     isOuter = false;
+        };
+        std::vector<OpenEdge> openEdges;
+        openEdges.reserve(edgeMap.size() / 4);
+
         for (const auto& [key, info] : edgeMap) {
-            if (info.count != 1) {
-                continue;
-            }
-            const auto& vA = vertices_[info.a];
-            const auto& vB = vertices_[info.b];
-            if (vA.position.y <= kSkirtBottomY + 0.05f && vB.position.y <= kSkirtBottomY + 0.05f) {
+            if (info.count != 1) continue;
+            const auto& pA   = vertices_[info.a].position;
+            const auto& pB   = vertices_[info.b].position;
+            const auto& pOpp = vertices_[info.opp].position;
+            if (pA.y <= kSkirtBottomY + 0.05f && pB.y <= kSkirtBottomY + 0.05f) {
                 continue;
             }
 
+            // XZ平面で三角形の内側頂点(opp)と反対向きの垂直ベクトルを外向き法線とする
+            float edx = pB.x - pA.x;
+            float edz = pB.z - pA.z;
+            float perpX = -edz;
+            float perpZ =  edx;
+            float toOppX = pOpp.x - pA.x;
+            float toOppZ = pOpp.z - pA.z;
+            if (perpX * toOppX + perpZ * toOppZ > 0.0f) {
+                perpX = -perpX;
+                perpZ = -perpZ;
+            }
+            float pLenSq = perpX * perpX + perpZ * perpZ;
+            Vector3 outN = { 0.0f, 0.0f, 1.0f };
+            if (pLenSq > 1e-6f) {
+                float inv = 1.0f / std::sqrt(pLenSq);
+                outN = { perpX * inv, 0.0f, perpZ * inv };
+            } else {
+                float rx = (pA.x + pB.x) * 0.5f - centerBX;
+                float rz = (pA.z + pB.z) * 0.5f - centerBZ;
+                float rLenSq = rx * rx + rz * rz;
+                if (rLenSq > 1e-6f) {
+                    float inv = 1.0f / std::sqrt(rLenSq);
+                    outN = { rx * inv, 0.0f, rz * inv };
+                }
+            }
+
+            OpenEdge oe;
+            oe.a = info.a;
+            oe.b = info.b;
+            oe.opp = info.opp;
+            oe.outDir = outN;
+            openEdges.push_back(oe);
+        }
+
+        // 頂点インデックスで開放辺を連結し、最大のバウンディング面積を持つループを外周と判定
+        std::unordered_map<uint32_t, std::vector<size_t>> vertToEdges;
+        for (size_t i = 0; i < openEdges.size(); ++i) {
+            vertToEdges[openEdges[i].a].push_back(i);
+            vertToEdges[openEdges[i].b].push_back(i);
+        }
+
+        int numComps = 0;
+        int largestCompId = -1;
+        float largestCompArea = -1.0f;
+        std::vector<size_t> queue;
+        for (size_t i = 0; i < openEdges.size(); ++i) {
+            if (openEdges[i].compId != -1) continue;
+            int cid = numComps++;
+            float cMinX = 1e9f, cMaxX = -1e9f, cMinZ = 1e9f, cMaxZ = -1e9f;
+            queue.clear();
+            queue.push_back(i);
+            openEdges[i].compId = cid;
+
+            for (size_t qIdx = 0; qIdx < queue.size(); ++qIdx) {
+                const auto& e = openEdges[queue[qIdx]];
+                const auto& pa = vertices_[e.a].position;
+                const auto& pb = vertices_[e.b].position;
+                cMinX = (std::min)({ cMinX, pa.x, pb.x });
+                cMaxX = (std::max)({ cMaxX, pa.x, pb.x });
+                cMinZ = (std::min)({ cMinZ, pa.z, pb.z });
+                cMaxZ = (std::max)({ cMaxZ, pa.z, pb.z });
+
+                auto pushNeighbors = [&](uint32_t vIdx) {
+                    for (size_t nei : vertToEdges[vIdx]) {
+                        if (openEdges[nei].compId == -1) {
+                            openEdges[nei].compId = cid;
+                            queue.push_back(nei);
+                        }
+                    }
+                };
+                pushNeighbors(e.a);
+                pushNeighbors(e.b);
+            }
+
+            float area = (cMaxX - cMinX) * (cMaxZ - cMinZ);
+            if (area > largestCompArea) {
+                largestCompArea = area;
+                largestCompId = cid;
+            }
+        }
+
+        // 外周頂点ごとの押し出し方向を計算
+        // ステージ内側に入り込んでステージを埋めるのを防ぐため、
+        // ステージ中心からの放射方向と同じ側を向いている外周エッジのみ延長対象にする
+        std::unordered_map<uint32_t, Vector3> smoothOutDir;
+        auto calcRadialOut = [&](float px, float pz) -> Vector3 {
+            float rx = px - centerBX;
+            float rz = pz - centerBZ;
+            float rSq = rx * rx + rz * rz;
+            if (rSq > 1e-6f) {
+                float inv = 1.0f / std::sqrt(rSq);
+                return { rx * inv, 0.0f, rz * inv };
+            }
+            return { 0.0f, 0.0f, 1.0f };
+        };
+
+        for (auto& oe : openEdges) {
+            bool candidateOuter = (oe.compId == largestCompId || isOnBBoxEdge(vertices_[oe.a], vertices_[oe.b]));
+            if (!candidateOuter) continue;
+
+            const auto& pa = vertices_[oe.a].position;
+            const auto& pb = vertices_[oe.b].position;
+            Vector3 radMid = calcRadialOut((pa.x + pb.x) * 0.5f, (pa.z + pb.z) * 0.5f);
+            float dotRad = oe.outDir.x * radMid.x + oe.outDir.z * radMid.z;
+
+            // 外向き法線が中心からの放射方向と逆向き（凹みの内側など）なら延長しない
+            if (dotRad > 0.15f) {
+                oe.isOuter = true;
+                Vector3 rA = calcRadialOut(pa.x, pa.z);
+                Vector3 rB = calcRadialOut(pb.x, pb.z);
+                smoothOutDir[oe.a].x += rA.x;
+                smoothOutDir[oe.a].z += rA.z;
+                smoothOutDir[oe.b].x += rB.x;
+                smoothOutDir[oe.b].z += rB.z;
+            }
+        }
+        for (auto& [vIdx, dir] : smoothOutDir) {
+            float lSq = dir.x * dir.x + dir.z * dir.z;
+            if (lSq > 1e-6f) {
+                float inv = 1.0f / std::sqrt(lSq);
+                dir = { dir.x * inv, 0.0f, dir.z * inv };
+            } else {
+                const auto& vp = vertices_[vIdx].position;
+                dir = calcRadialOut(vp.x, vp.z);
+            }
+        }
+
+        for (const auto& oe : openEdges) {
+            // vertices_.push_back による再確保で参照が無効化されないよう値コピーする
+            const VertexData vA = vertices_[oe.a];
+            const VertexData vB = vertices_[oe.b];
+
+            if (oe.isOuter) {
+                // ── 外周境界：頂点シェーダーで地平線まで押し出す草原クワッドを生成 ──
+                Vector3 dirA = smoothOutDir[oe.a];
+                Vector3 dirB = smoothOutDir[oe.b];
+
+                VertexData nearA = vA;
+                nearA.normal     = { 0.0f, 1.0f, 0.0f };
+                nearA.roadAttr   = 0.0f;
+                nearA.extendInfo = { dirA.x, dirA.z, 0.0f };
+
+                VertexData nearB = vB;
+                nearB.normal     = { 0.0f, 1.0f, 0.0f };
+                nearB.roadAttr   = 0.0f;
+                nearB.extendInfo = { dirB.x, dirB.z, 0.0f };
+
+                // far頂点は初期位置をnearと同じにし、extendWeight=1.0fでシェーダー側で伸ばす
+                VertexData farA = nearA;
+                farA.extendInfo.z = 1.0f;
+
+                VertexData farB = nearB;
+                farB.extendInfo.z = 1.0f;
+
+                uint32_t baseV = static_cast<uint32_t>(vertices_.size());
+                vertices_.push_back(nearA);
+                vertices_.push_back(nearB);
+                vertices_.push_back(farA);
+                vertices_.push_back(farB);
+
+                indices_.push_back(baseV + 0);
+                indices_.push_back(baseV + 2);
+                indices_.push_back(baseV + 1);
+
+                indices_.push_back(baseV + 1);
+                indices_.push_back(baseV + 2);
+                indices_.push_back(baseV + 3);
+                continue;
+            }
+
+            // ── 内部の穴エッジ：崖スカート壁を生成 ──
             Vector3 edgeVec = {
                 vB.position.x - vA.position.x,
                 vB.position.y - vA.position.y,
                 vB.position.z - vA.position.z
             };
-            Vector3 outN = { -edgeVec.z, 0.0f, edgeVec.x };
-            float nLenSq = outN.x * outN.x + outN.z * outN.z;
-            if (nLenSq > 1e-6f) {
-                float inv = 1.0f / std::sqrt(nLenSq);
-                outN.x *= inv;
-                outN.z *= inv;
-            } else {
-                outN = { 0.0f, 1.0f, 0.0f };
-            }
+            Vector3 outN = oe.outDir;
 
             float vSpanA = (std::max)(0.2f, (vA.position.y - kSkirtBottomY) * 0.15f);
             float vSpanB = (std::max)(0.2f, (vB.position.y - kSkirtBottomY) * 0.15f);
@@ -379,11 +589,13 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             topA.normal = outN;
             topA.texCoord = { 0.0f, 0.0f };
             topA.roadAttr = 0.0f;
+            topA.extendInfo = { 0.0f, 0.0f, 0.0f };
 
             VertexData topB = vB;
             topB.normal = outN;
             topB.texCoord = { uEdge, 0.0f };
             topB.roadAttr = 0.0f;
+            topB.extendInfo = { 0.0f, 0.0f, 0.0f };
 
             VertexData botA = topA;
             botA.position.y = kSkirtBottomY;
@@ -405,6 +617,40 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             indices_.push_back(baseV + 1);
             indices_.push_back(baseV + 2);
             indices_.push_back(baseV + 3);
+        }
+
+        // ── 谷底・穴の下から地平線まで途切れないよう、地形最低点のすぐ下にベース草原フロアを追加 ──
+        // （頂点シェーダーで horizonExtendDist だけ4隅へ押し出し、ステージ自体は埋めずに地平線まで草原で覆う）
+        {
+            const float floorY = minBY - 0.1f;
+            const float invSqrt2 = 0.70710678f;
+            const Vector3 cornerDirs[4] = {
+                { -invSqrt2, 0.0f, -invSqrt2 },
+                {  invSqrt2, 0.0f, -invSqrt2 },
+                { -invSqrt2, 0.0f,  invSqrt2 },
+                {  invSqrt2, 0.0f,  invSqrt2 },
+            };
+            const float cornerX[4] = { minBX, maxBX, minBX, maxBX };
+            const float cornerZ[4] = { minBZ, minBZ, maxBZ, maxBZ };
+
+            uint32_t floorBase = static_cast<uint32_t>(vertices_.size());
+            for (int c = 0; c < 4; ++c) {
+                VertexData fv{};
+                fv.position   = { cornerX[c], floorY, cornerZ[c], 1.0f };
+                fv.texCoord   = { (cornerX[c] + halfX) / (std::max)(1.0f, sizeX_), (cornerZ[c] + halfZ) / (std::max)(1.0f, sizeY_) };
+                fv.normal     = { 0.0f, 1.0f, 0.0f };
+                fv.roadAttr   = 0.0f;
+                fv.extendInfo = { cornerDirs[c].x, cornerDirs[c].z, 1.0f };
+                vertices_.push_back(fv);
+            }
+
+            indices_.push_back(floorBase + 0);
+            indices_.push_back(floorBase + 2);
+            indices_.push_back(floorBase + 1);
+
+            indices_.push_back(floorBase + 1);
+            indices_.push_back(floorBase + 2);
+            indices_.push_back(floorBase + 3);
         }
     }
 
@@ -463,6 +709,10 @@ void Terrain::Update()
         wvpData_->WVP   = wvp;
         wvpData_->World = world;
         wvpData_->WorldInverseTranspose = Transpose(Inverse(world));
+        wvpData_->horizonExtendDist = 380.0f;
+        wvpData_->horizonDropY      = 0.0f;
+        wvpData_->sizeX             = sizeX_;
+        wvpData_->sizeY             = sizeY_;
     }
 }
 
@@ -520,4 +770,61 @@ Terrain::CellType Terrain::GetSurfaceType(const Vector3& worldPos) const
     }
 
     return CellType::kGround;
+}
+
+void Terrain::ApplyRailRoad(const RailPath* rail, float roadHalfWidth)
+{
+    if (!rail || vertices_.empty() || !vertexResource_) {
+        return;
+    }
+
+    float totalLen = rail->GetTotalLength();
+    if (totalLen <= 0.001f) {
+        return;
+    }
+
+    // レールを 0.5m 間隔でサンプリング（XZ平面）
+    std::vector<Vector3> railPts;
+    const float step = 0.5f;
+    for (float d = 0.0f; d <= totalLen; d += step) {
+        railPts.push_back(rail->GetPosition(rail->GetTFromDistance(d)));
+    }
+    railPts.push_back(rail->GetPosition(rail->GetTFromDistance(totalLen)));
+
+    Matrix4x4 worldMat = MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+    const float innerR = roadHalfWidth * 0.72f;
+    const float outerR = roadHalfWidth * 1.35f;
+    const float blendSpan = (std::max)(0.05f, outerR - innerR);
+
+    for (auto& v : vertices_) {
+        Vector3 localPos = { v.position.x, v.position.y, v.position.z };
+        Vector3 wPos = vector3Transform(localPos, worldMat);
+
+        // スカート底部や地平線延長頂点などには道テクスチャを適用しない
+        if (v.extendInfo.z > 0.5f || wPos.y < -3.0f) {
+            continue;
+        }
+
+        float minDistSq = 1e12f;
+        for (const auto& rp : railPts) {
+            float dx = wPos.x - rp.x;
+            float dz = wPos.z - rp.z;
+            float dSq = dx * dx + dz * dz;
+            if (dSq < minDistSq) {
+                minDistSq = dSq;
+            }
+        }
+
+        float dist = std::sqrt(minDistSq);
+        if (dist <= outerR) {
+            float attr = std::clamp(1.0f - (dist - innerR) / blendSpan, 0.0f, 1.0f);
+            v.roadAttr = (std::max)(v.roadAttr, attr);
+        }
+    }
+
+    // 頂点バッファをGPUへ再アップロード
+    void* vbData = nullptr;
+    vertexResource_->Map(0, nullptr, &vbData);
+    memcpy(vbData, vertices_.data(), sizeof(VertexData) * vertices_.size());
+    vertexResource_->Unmap(0, nullptr);
 }

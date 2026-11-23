@@ -23,6 +23,7 @@ public:
     /// <param name="textureFilePath">テクスチャファイルのパス</param>
     void CreatePlaneFromTex(const std::string& modelName, const std::string& textureFilePath);
     void CreateBoxModel(const std::string& modelName);
+    void CreatePropPlaneModel(const std::string& modelName);
 
     /// <summary>
     /// 地形グリッドモデルを頂点データから動的生成して登録する
