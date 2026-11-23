@@ -47,8 +47,9 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     // カメラからの実距離フォグ + 遠景延長ウェイトで地平線・遠景を空の色へ馴染ませる
     float dist = distance(gMaterial.cameraPos, input.worldPosition);
-    float distFog = smoothstep(32.0f, 110.0f, dist);
-    float extFog  = smoothstep(0.35f, 1.0f, saturate(input.extendWeight)) * 0.55f;
+    float distFog = smoothstep(42.0f, 125.0f, dist);
+    float farMask = smoothstep(30.0f, 75.0f, dist);
+    float extFog  = smoothstep(0.35f, 1.0f, saturate(input.extendWeight)) * 0.45f * farMask;
     float fogFactor = saturate(max(distFog * 0.85f, extFog));
     float3 horizonFogColor = float3(0.58f, 0.86f, 0.85f);
     lit = lerp(lit, horizonFogColor, fogFactor);

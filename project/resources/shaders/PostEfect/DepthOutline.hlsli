@@ -65,9 +65,9 @@ float3 ApplyDepthOutline(
     float lapY = abs((dU + dD) - 2.0f * centerDist);
     float edge = max(lapX, lapY);
 
-    // 距離に応じた正規化としきい値、および遠景フェード（山や地平線の黒線・黒帯を防ぐ）
+    // 距離に応じた正規化としきい値、および遠景フェード（山や地平線・奥の地形端の黒線・ギザギザを防ぐ）
     float distScale = max(0.5f, centerDist * 0.08f);
-    float farAtten = saturate(1.0f - (centerDist - 20.0f) / 35.0f);
+    float farAtten = saturate(1.0f - (centerDist - 14.0f) / 14.0f);
     float weight = smoothstep(0.35f, 1.0f, edge / distScale) * farAtten;
     return (1.0f - weight) * sceneColor;
 }

@@ -109,13 +109,13 @@ StageBackground::Config StageBackground::CreateDefaultConfig()
     horizonGround.style       = Style::HorizonGround;
     horizonGround.skirtDepth  = 45.0f;
     horizonGround.distance    = 170.0f;
-    horizonGround.bottomY     = -4.5f;
+    horizonGround.bottomY     = -5.0f;
     horizonGround.uvScaleU    = 18.0f;
     horizonGround.texturePath = "resources/terrain/grass_vivid.png";
-    horizonGround.color       = { 0.45f, 0.80f, 0.45f, 1.0f };
+    horizonGround.color       = { 0.40f, 0.78f, 0.36f, 1.0f };
     cfg.layers.push_back(horizonGround);
 
-    // Layer 1: 手前の緑の丘（横視点で地形端の向こう側を隠す）
+    // Layer 1: 手前の緑の丘（配置物に被らない距離で横視点の遠景を隠す）
     LayerConfig nearHill;
     nearHill.style       = Style::HorizonMountain;
     nearHill.distance    = 68.0f;

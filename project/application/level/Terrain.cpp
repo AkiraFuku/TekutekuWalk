@@ -483,40 +483,33 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             }
         }
 
-        // 外周頂点ごとの押し出し方向を計算
-        // ステージ内側に入り込んでステージを埋めるのを防ぐため、
-        // ステージ中心からの放射方向と同じ側を向いている外周エッジのみ延長対象にする
+        // 外周頂点ごとの押し出し方向（外向き法線 oe.outDir の平均）と張り出し距離を計算
         std::unordered_map<uint32_t, Vector3> smoothOutDir;
-        auto calcRadialOut = [&](float px, float pz) -> Vector3 {
-            float rx = px - centerBX;
-            float rz = pz - centerBZ;
-            float rSq = rx * rx + rz * rz;
-            if (rSq > 1e-6f) {
-                float inv = 1.0f / std::sqrt(rSq);
-                return { rx * inv, 0.0f, rz * inv };
-            }
-            return { 0.0f, 0.0f, 1.0f };
-        };
-
+        std::unordered_map<uint32_t, float> vertexOutDist;
+        std::unordered_map<uint32_t, std::vector<uint32_t>> outerNeighbors;
         for (auto& oe : openEdges) {
             bool candidateOuter = (oe.compId == largestCompId || isOnBBoxEdge(vertices_[oe.a], vertices_[oe.b]));
             if (!candidateOuter) continue;
 
+            oe.isOuter = true;
+            outerNeighbors[oe.a].push_back(oe.b);
+            outerNeighbors[oe.b].push_back(oe.a);
+
+            smoothOutDir[oe.a].x += oe.outDir.x;
+            smoothOutDir[oe.a].z += oe.outDir.z;
+            smoothOutDir[oe.b].x += oe.outDir.x;
+            smoothOutDir[oe.b].z += oe.outDir.z;
+
+            // 外向きは広く(20m)遠景へ繋ぎ、凹みの内側など他コースに近い側は控えめ(5m)にして被りを防ぐ
             const auto& pa = vertices_[oe.a].position;
             const auto& pb = vertices_[oe.b].position;
-            Vector3 radMid = calcRadialOut((pa.x + pb.x) * 0.5f, (pa.z + pb.z) * 0.5f);
-            float dotRad = oe.outDir.x * radMid.x + oe.outDir.z * radMid.z;
-
-            // 外向き法線が中心からの放射方向と逆向き（凹みの内側など）なら延長しない
-            if (dotRad > 0.15f) {
-                oe.isOuter = true;
-                Vector3 rA = calcRadialOut(pa.x, pa.z);
-                Vector3 rB = calcRadialOut(pb.x, pb.z);
-                smoothOutDir[oe.a].x += rA.x;
-                smoothOutDir[oe.a].z += rA.z;
-                smoothOutDir[oe.b].x += rB.x;
-                smoothOutDir[oe.b].z += rB.z;
-            }
+            float rx = (pa.x + pb.x) * 0.5f - centerBX;
+            float rz = (pa.z + pb.z) * 0.5f - centerBZ;
+            float rSq = rx * rx + rz * rz;
+            float dotRad = (rSq > 1e-6f) ? ((oe.outDir.x * rx + oe.outDir.z * rz) / std::sqrt(rSq)) : 1.0f;
+            float edgeDist = (dotRad > 0.15f) ? 20.0f : 5.0f;
+            vertexOutDist[oe.a] = (std::max)(vertexOutDist[oe.a], edgeDist);
+            vertexOutDist[oe.b] = (std::max)(vertexOutDist[oe.b], edgeDist);
         }
         for (auto& [vIdx, dir] : smoothOutDir) {
             float lSq = dir.x * dir.x + dir.z * dir.z;
@@ -525,7 +518,87 @@ void Terrain::BuildMesh(const LevelObjectData& data)
                 dir = { dir.x * inv, 0.0f, dir.z * inv };
             } else {
                 const auto& vp = vertices_[vIdx].position;
-                dir = calcRadialOut(vp.x, vp.z);
+                float rx = vp.x - centerBX;
+                float rz = vp.z - centerBZ;
+                float rSq = rx * rx + rz * rz;
+                dir = (rSq > 1e-6f) ? Vector3{ rx / std::sqrt(rSq), 0.0f, rz / std::sqrt(rSq) } : Vector3{ 0.0f, 0.0f, 1.0f };
+            }
+        }
+
+        const float floorY = minBY - 0.1f;
+
+        // 外周頂点グラフ上で座標(XZ・Y)をラプラシアンスムージングし、端のギザギザをなだらかにする
+        {
+            constexpr int kPosSmoothIters = 3;
+            constexpr float kPosAlpha = 0.45f;
+            float invSizeX = 1.0f / (std::max)(1.0f, sizeX_);
+            float invSizeZ = 1.0f / (std::max)(1.0f, sizeY_);
+
+            for (int iter = 0; iter < kPosSmoothIters; ++iter) {
+                std::unordered_map<uint32_t, Vector4> nextPos;
+                nextPos.reserve(outerNeighbors.size());
+                for (const auto& [vIdx, neighbors] : outerNeighbors) {
+                    if (neighbors.empty()) continue;
+                    float sx = 0.0f, sy = 0.0f, sz = 0.0f;
+                    for (uint32_t nb : neighbors) {
+                        sx += vertices_[nb].position.x;
+                        sy += vertices_[nb].position.y;
+                        sz += vertices_[nb].position.z;
+                    }
+                    float invN = 1.0f / static_cast<float>(neighbors.size());
+                    const auto& cur = vertices_[vIdx].position;
+                    nextPos[vIdx] = {
+                        cur.x + (sx * invN - cur.x) * kPosAlpha,
+                        (std::max)(floorY, cur.y + (sy * invN - cur.y) * kPosAlpha),
+                        cur.z + (sz * invN - cur.z) * kPosAlpha,
+                        1.0f
+                    };
+                }
+                for (const auto& [vIdx, p] : nextPos) {
+                    vertices_[vIdx].position = p;
+                    vertices_[vIdx].texCoord = { (p.x + halfX) * invSizeX, (p.z + halfZ) * invSizeZ };
+                }
+            }
+
+            // 押し出し方向と張り出し距離も外周頂点グラフ上で平滑化し、スロープの急変を防ぐ
+            constexpr int kAttrSmoothIters = 4;
+            constexpr float kAttrAlpha = 0.5f;
+            for (int iter = 0; iter < kAttrSmoothIters; ++iter) {
+                std::unordered_map<uint32_t, Vector3> nextDir;
+                std::unordered_map<uint32_t, float> nextDist;
+                nextDir.reserve(outerNeighbors.size());
+                nextDist.reserve(outerNeighbors.size());
+
+                for (const auto& [vIdx, neighbors] : outerNeighbors) {
+                    if (neighbors.empty()) continue;
+                    float dx = 0.0f, dz = 0.0f, sumDist = 0.0f;
+                    for (uint32_t nb : neighbors) {
+                        dx += smoothOutDir[nb].x;
+                        dz += smoothOutDir[nb].z;
+                        sumDist += vertexOutDist[nb];
+                    }
+                    float invN = 1.0f / static_cast<float>(neighbors.size());
+                    Vector3 curDir = smoothOutDir[vIdx];
+                    Vector3 blendedDir = {
+                        curDir.x + (dx * invN - curDir.x) * kAttrAlpha,
+                        0.0f,
+                        curDir.z + (dz * invN - curDir.z) * kAttrAlpha
+                    };
+                    float lSq = blendedDir.x * blendedDir.x + blendedDir.z * blendedDir.z;
+                    if (lSq > 1e-6f) {
+                        float invL = 1.0f / std::sqrt(lSq);
+                        blendedDir.x *= invL;
+                        blendedDir.z *= invL;
+                    } else {
+                        blendedDir = curDir;
+                    }
+                    nextDir[vIdx] = blendedDir;
+                    nextDist[vIdx] = vertexOutDist[vIdx] + (sumDist * invN - vertexOutDist[vIdx]) * kAttrAlpha;
+                }
+                for (const auto& [vIdx, d] : nextDir) {
+                    smoothOutDir[vIdx] = d;
+                    vertexOutDist[vIdx] = nextDist[vIdx];
+                }
             }
         }
 
@@ -534,7 +607,7 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             const VertexData vA = vertices_[oe.a];
             const VertexData vB = vertices_[oe.b];
 
-            // ── 開放辺：崖スカート壁を生成（ステージ上を突き抜ける延長クワッドは生成しない） ──
+            // ── 開放辺：外周は3分割の丸い草原スロープ、内側の穴・段差は崖スカート壁を生成 ──
             Vector3 edgeVec = {
                 vB.position.x - vA.position.x,
                 vB.position.y - vA.position.y,
@@ -542,43 +615,123 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             };
             Vector3 outN = oe.outDir;
 
-            float vSpanA = (std::max)(0.2f, (vA.position.y - kSkirtBottomY) * 0.15f);
-            float vSpanB = (std::max)(0.2f, (vB.position.y - kSkirtBottomY) * 0.15f);
-            float uEdge = std::sqrt(edgeVec.x * edgeVec.x + edgeVec.z * edgeVec.z) * 0.15f;
-
             uint32_t baseV = static_cast<uint32_t>(vertices_.size());
-            VertexData topA = vA;
-            topA.normal = outN;
-            topA.texCoord = { 0.0f, 0.0f };
-            topA.roadAttr = 0.0f;
-            topA.extendInfo = { 0.0f, 0.0f, 0.0f };
 
-            VertexData topB = vB;
-            topB.normal = outN;
-            topB.texCoord = { uEdge, 0.0f };
-            topB.roadAttr = 0.0f;
-            topB.extendInfo = { 0.0f, 0.0f, 0.0f };
+            if (oe.isOuter) {
+                auto getSmoothDir = [&](uint32_t vIdx) -> Vector3 {
+                    auto it = smoothOutDir.find(vIdx);
+                    return (it != smoothOutDir.end()) ? it->second : outN;
+                };
+                auto getOutDist = [&](uint32_t vIdx) -> float {
+                    auto it = vertexOutDist.find(vIdx);
+                    return (it != vertexOutDist.end()) ? it->second : 12.0f;
+                };
+                Vector3 dirA = getSmoothDir(oe.a);
+                Vector3 dirB = getSmoothDir(oe.b);
+                float distA = getOutDist(oe.a);
+                float distB = getOutDist(oe.b);
 
-            VertexData botA = topA;
-            botA.position.y = kSkirtBottomY;
-            botA.texCoord = { 0.0f, vSpanA };
+                auto normalizeVec3 = [](const Vector3& v) -> Vector3 {
+                    float lenSq = v.x * v.x + v.y * v.y + v.z * v.z;
+                    if (lenSq > 1e-6f) {
+                        float inv = 1.0f / std::sqrt(lenSq);
+                        return { v.x * inv, v.y * inv, v.z * inv };
+                    }
+                    return { 0.0f, 1.0f, 0.0f };
+                };
+                Vector3 slopeN = normalizeVec3({ outN.x * 0.35f, 0.93f, outN.z * 0.35f });
+                float invSizeX = 1.0f / (std::max)(1.0f, sizeX_);
+                float invSizeZ = 1.0f / (std::max)(1.0f, sizeY_);
 
-            VertexData botB = topB;
-            botB.position.y = kSkirtBottomY;
-            botB.texCoord = { uEdge, vSpanB };
+                constexpr float kTSteps[4] = { 0.0f, 0.35f, 0.70f, 1.0f };
+                for (int s = 0; s < 4; ++s) {
+                    float t = kTSteps[s];
+                    float smoothY = t * t * (3.0f - 2.0f * t); // 端は水平に丸く、底も滑らかに着地
 
-            vertices_.push_back(topA);
-            vertices_.push_back(topB);
-            vertices_.push_back(botA);
-            vertices_.push_back(botB);
+                    auto makeRingVert = [&](const VertexData& src, const Vector3& dir, float dist) -> VertexData {
+                        VertexData rv = src;
+                        rv.position.x = src.position.x + dir.x * (dist * t);
+                        rv.position.z = src.position.z + dir.z * (dist * t);
+                        rv.position.y = src.position.y + (floorY - src.position.y) * smoothY;
+                        rv.texCoord   = { (rv.position.x + halfX) * invSizeX, (rv.position.z + halfZ) * invSizeZ };
+                        if (s == 0) {
+                            rv.normal = src.normal;
+                        } else if (s == 3) {
+                            rv.normal = { 0.0f, 1.0f, 0.0f };
+                        } else {
+                            float w = (s == 1) ? 0.5f : 0.35f;
+                            Vector3 targetN = (s == 1) ? slopeN : Vector3{ 0.0f, 1.0f, 0.0f };
+                            Vector3 baseN   = (s == 1) ? src.normal : slopeN;
+                            rv.normal = normalizeVec3({
+                                baseN.x * (1.0f - w) + targetN.x * w,
+                                baseN.y * (1.0f - w) + targetN.y * w,
+                                baseN.z * (1.0f - w) + targetN.z * w
+                            });
+                        }
+                        rv.roadAttr   = 0.0f;
+                        rv.extendInfo = { 0.0f, 0.0f, 0.0f };
+                        return rv;
+                    };
 
-            indices_.push_back(baseV + 0);
-            indices_.push_back(baseV + 2);
-            indices_.push_back(baseV + 1);
+                    vertices_.push_back(makeRingVert(vA, dirA, distA));
+                    vertices_.push_back(makeRingVert(vB, dirB, distB));
+                }
 
-            indices_.push_back(baseV + 1);
-            indices_.push_back(baseV + 2);
-            indices_.push_back(baseV + 3);
+                for (int s = 0; s < 3; ++s) {
+                    uint32_t r0A = baseV + static_cast<uint32_t>(s * 2 + 0);
+                    uint32_t r0B = baseV + static_cast<uint32_t>(s * 2 + 1);
+                    uint32_t r1A = baseV + static_cast<uint32_t>((s + 1) * 2 + 0);
+                    uint32_t r1B = baseV + static_cast<uint32_t>((s + 1) * 2 + 1);
+
+                    indices_.push_back(r0A);
+                    indices_.push_back(r1A);
+                    indices_.push_back(r0B);
+
+                    indices_.push_back(r0B);
+                    indices_.push_back(r1A);
+                    indices_.push_back(r1B);
+                }
+            } else {
+                VertexData topA = vA;
+                VertexData topB = vB;
+                VertexData botA = vA;
+                VertexData botB = vB;
+
+                float vSpanA = (std::max)(0.2f, (vA.position.y - kSkirtBottomY) * 0.15f);
+                float vSpanB = (std::max)(0.2f, (vB.position.y - kSkirtBottomY) * 0.15f);
+                float uEdge = std::sqrt(edgeVec.x * edgeVec.x + edgeVec.z * edgeVec.z) * 0.15f;
+
+                topA.normal = outN;
+                topA.texCoord = { 0.0f, 0.0f };
+                topA.roadAttr = 0.0f;
+                topA.extendInfo = { 0.0f, 0.0f, 0.0f };
+
+                topB.normal = outN;
+                topB.texCoord = { uEdge, 0.0f };
+                topB.roadAttr = 0.0f;
+                topB.extendInfo = { 0.0f, 0.0f, 0.0f };
+
+                botA = topA;
+                botA.position.y = kSkirtBottomY;
+                botA.texCoord = { 0.0f, vSpanA };
+
+                botB = topB;
+                botB.position.y = kSkirtBottomY;
+                botB.texCoord = { uEdge, vSpanB };
+
+                vertices_.push_back(topA);
+                vertices_.push_back(topB);
+                vertices_.push_back(botA);
+                vertices_.push_back(botB);
+
+                indices_.push_back(baseV + 0);
+                indices_.push_back(baseV + 2);
+                indices_.push_back(baseV + 1);
+
+                indices_.push_back(baseV + 1);
+                indices_.push_back(baseV + 2);
+                indices_.push_back(baseV + 3);
+            }
         }
 
         // ── 谷底・穴の下から地平線まで途切れないよう、地形最低点のすぐ下にベース草原フロアを追加 ──
