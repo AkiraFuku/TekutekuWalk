@@ -557,6 +557,7 @@ void GameScene::Initialize() {
     cameraController = std::make_unique<CameraController>();
     cameraController->Initialize(cameraMap_["Main"].get());
     cameraController->SetTarget(player.get());
+    cameraController->SetEnemies(&enemies_);
 
     // ステージレールおよびカメラ設定の同期
     cameraController->SetStageRail(stageManager_->GetStageRail());

@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 class Object3d;
 struct Move {
@@ -12,6 +13,7 @@ struct Move {
 };
 class Camera;
 class Player;
+class Enemy;
 class RailMover;
 class RailPath;
 
@@ -36,6 +38,24 @@ struct CameraConfig {
 		Vector3 targetOffsetGoal = { 0.0f, 0.0f, -6.0f };
 		Vector3 clearOffset = { 0.0f, 1.0f, -5.0f };
 	} clearPhase;
+
+	struct EnemyFraming {
+		bool enabled = true;               ///< 近くの敵をカメラに収める機能の有効/無効
+		float detectRange = 12.0f;         ///< 敵を検出するプレイヤーからの水平距離
+		float detectRangeY = 10.0f;        ///< 敵を検出するプレイヤーからの垂直距離
+		float blendStartRatio = 0.6f;      ///< 境界フェードを開始する距離割合 (0.0〜0.99)
+		float focusWeight = 0.35f;         ///< 注視点を敵側へ寄せる割合 (水平方向)
+		float focusWeightY = 0.5f;         ///< 注視点を敵側へ寄せる割合 (Y軸・高さ方向)
+		float camYFollowRatio = 0.4f;      ///< 注視点Yシフトに対するカメラ高さの追従割合
+		float minCamOffsetY = -0.5f;       ///< 敵が下にいる際のカメラYオフセット下限
+		float extraHeightRatio = 0.25f;    ///< 追加ズーム距離に対するカメラ高さの連動割合
+		float paddingHorizontal = 4.0f;    ///< 画面左右の余白マージン
+		float paddingVertical = 3.0f;      ///< 画面上下の余白マージン
+		float maxExtraDistance = 8.0f;     ///< 追加で引くカメラ距離の上限
+		float focusSmoothSpeed = 0.03f;    ///< 注視点寄せの補間率 (XZ方向)
+		float focusSmoothSpeedY = 0.10f;   ///< 注視点・カメラ高さの補間率 (Y方向)
+		float zoomSmoothSpeed = 0.03f;     ///< ズーム距離の補間率
+	} enemyFraming;
 };
 
 class CameraController {
@@ -71,6 +91,7 @@ public:
 	CameraConfig& GetConfig() { return config_; }
 
 	void SetTarget(Player* target) { target_ = target; }
+	void SetEnemies(const std::vector<std::unique_ptr<Enemy>>* enemies) { enemies_ = enemies; }
 	void SetMoveArea(const Rect area) { moveArea_ = area; }
 
     void SetRailPath(const RailPath* path) ;
@@ -114,6 +135,7 @@ private:
 	CameraConfig config_;
 
 	Player* target_ = nullptr;
+	const std::vector<std::unique_ptr<Enemy>>* enemies_ = nullptr;
     Object3d* target = nullptr;
     std::unique_ptr<RailMover> railMover_;
 	Rect moveArea_ = {0.0f, 100.0f, 0.0f, 100.0f};
@@ -124,6 +146,9 @@ private:
 	bool isFocusInitialized_ = false;
 	float smoothedFocusY_ = 0.0f;
 	bool isYInitialized_ = false;
+	float currentExtraDistance_ = 0.0f;
+	Vector3 currentEnemyFocusOffset_ = {0.0f, 0.0f, 0.0f};
+	float currentEnemyCamOffsetY_ = 0.0f;
 	Vector3 desetination_;
 	static inline const float kInterpolationRate = 0.1f;                 //
 	static inline const float kVelocityBias = 30.0f;                     //

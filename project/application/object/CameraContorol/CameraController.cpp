@@ -1,8 +1,11 @@
 #include "CameraController.h"
 #include "Player.h"  
+#include "Enemy.h"
 #include "MathFunction.h"  
 #include "Camera.h"
 #include "transform.h"
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include "RailMover.h"
 #include "RailPath.h"
@@ -68,6 +71,25 @@ void CameraController::LoadConfig(const std::string& filePath)
             };
         }
     }
+
+    if (j.contains("enemyFraming")) {
+        const auto& je = j["enemyFraming"];
+        config_.enemyFraming.enabled = je.value("enabled", config_.enemyFraming.enabled);
+        config_.enemyFraming.detectRange = je.value("detectRange", config_.enemyFraming.detectRange);
+        config_.enemyFraming.detectRangeY = je.value("detectRangeY", config_.enemyFraming.detectRangeY);
+        config_.enemyFraming.blendStartRatio = je.value("blendStartRatio", config_.enemyFraming.blendStartRatio);
+        config_.enemyFraming.focusWeight = je.value("focusWeight", config_.enemyFraming.focusWeight);
+        config_.enemyFraming.focusWeightY = je.value("focusWeightY", config_.enemyFraming.focusWeightY);
+        config_.enemyFraming.camYFollowRatio = je.value("camYFollowRatio", config_.enemyFraming.camYFollowRatio);
+        config_.enemyFraming.minCamOffsetY = je.value("minCamOffsetY", config_.enemyFraming.minCamOffsetY);
+        config_.enemyFraming.extraHeightRatio = je.value("extraHeightRatio", config_.enemyFraming.extraHeightRatio);
+        config_.enemyFraming.paddingHorizontal = je.value("paddingHorizontal", config_.enemyFraming.paddingHorizontal);
+        config_.enemyFraming.paddingVertical = je.value("paddingVertical", config_.enemyFraming.paddingVertical);
+        config_.enemyFraming.maxExtraDistance = je.value("maxExtraDistance", config_.enemyFraming.maxExtraDistance);
+        config_.enemyFraming.focusSmoothSpeed = je.value("focusSmoothSpeed", config_.enemyFraming.focusSmoothSpeed);
+        config_.enemyFraming.focusSmoothSpeedY = je.value("focusSmoothSpeedY", config_.enemyFraming.focusSmoothSpeedY);
+        config_.enemyFraming.zoomSmoothSpeed = je.value("zoomSmoothSpeed", config_.enemyFraming.zoomSmoothSpeed);
+    }
 }
 
 void CameraController::SaveConfig(const std::string& filePath)
@@ -91,6 +113,24 @@ void CameraController::SaveConfig(const std::string& filePath)
     j["clearPhase"] = {
         { "targetOffsetGoal", { config_.clearPhase.targetOffsetGoal.x, config_.clearPhase.targetOffsetGoal.y, config_.clearPhase.targetOffsetGoal.z } },
         { "clearOffset", { config_.clearPhase.clearOffset.x, config_.clearPhase.clearOffset.y, config_.clearPhase.clearOffset.z } }
+    };
+
+    j["enemyFraming"] = {
+        { "enabled", config_.enemyFraming.enabled },
+        { "detectRange", config_.enemyFraming.detectRange },
+        { "detectRangeY", config_.enemyFraming.detectRangeY },
+        { "blendStartRatio", config_.enemyFraming.blendStartRatio },
+        { "focusWeight", config_.enemyFraming.focusWeight },
+        { "focusWeightY", config_.enemyFraming.focusWeightY },
+        { "camYFollowRatio", config_.enemyFraming.camYFollowRatio },
+        { "minCamOffsetY", config_.enemyFraming.minCamOffsetY },
+        { "extraHeightRatio", config_.enemyFraming.extraHeightRatio },
+        { "paddingHorizontal", config_.enemyFraming.paddingHorizontal },
+        { "paddingVertical", config_.enemyFraming.paddingVertical },
+        { "maxExtraDistance", config_.enemyFraming.maxExtraDistance },
+        { "focusSmoothSpeed", config_.enemyFraming.focusSmoothSpeed },
+        { "focusSmoothSpeedY", config_.enemyFraming.focusSmoothSpeedY },
+        { "zoomSmoothSpeed", config_.enemyFraming.zoomSmoothSpeed }
     };
 
     JsonManager::GetInstance()->Save(filePath, j);
@@ -159,6 +199,26 @@ void CameraController::Update() {
         ImGui::DragFloat("LookAt Height", &config_.autoOffset.lookAtHeight, 0.1f, 0.0f, 10.0f);
         ImGui::DragFloat("Smooth Speed", &config_.autoOffset.smoothSpeed, 0.01f, 0.01f, 1.0f);
         ImGui::Checkbox("Flip Side", &config_.autoOffset.flipSide);
+
+        ImGui::Separator();
+        ImGui::Text("--- Enemy Framing ---");
+        ImGui::Checkbox("Enable Enemy Framing", &config_.enemyFraming.enabled);
+        if (config_.enemyFraming.enabled) {
+            ImGui::DragFloat("Detect Range (XZ)", &config_.enemyFraming.detectRange, 0.5f, 1.0f, 50.0f);
+            ImGui::DragFloat("Detect Range (Y)", &config_.enemyFraming.detectRangeY, 0.5f, 1.0f, 50.0f);
+            ImGui::SliderFloat("Blend Start Ratio", &config_.enemyFraming.blendStartRatio, 0.0f, 0.99f);
+            ImGui::SliderFloat("Focus Weight (XZ)", &config_.enemyFraming.focusWeight, 0.0f, 0.5f);
+            ImGui::SliderFloat("Focus Weight (Y)", &config_.enemyFraming.focusWeightY, 0.0f, 1.0f);
+            ImGui::SliderFloat("Cam Y Follow Ratio", &config_.enemyFraming.camYFollowRatio, 0.0f, 1.0f);
+            ImGui::DragFloat("Min Cam Offset Y", &config_.enemyFraming.minCamOffsetY, 0.1f, -5.0f, 0.0f);
+            ImGui::SliderFloat("Extra Height Ratio", &config_.enemyFraming.extraHeightRatio, -0.5f, 1.0f);
+            ImGui::DragFloat("Padding H", &config_.enemyFraming.paddingHorizontal, 0.2f, 0.0f, 20.0f);
+            ImGui::DragFloat("Padding V", &config_.enemyFraming.paddingVertical, 0.2f, 0.0f, 20.0f);
+            ImGui::DragFloat("Max Extra Distance", &config_.enemyFraming.maxExtraDistance, 0.5f, 0.0f, 30.0f);
+            ImGui::DragFloat("Focus Smooth Speed (XZ)", &config_.enemyFraming.focusSmoothSpeed, 0.005f, 0.005f, 1.0f);
+            ImGui::DragFloat("Focus Smooth Speed (Y)", &config_.enemyFraming.focusSmoothSpeedY, 0.005f, 0.005f, 1.0f);
+            ImGui::DragFloat("Zoom Smooth Speed", &config_.enemyFraming.zoomSmoothSpeed, 0.005f, 0.005f, 1.0f);
+        }
     }
 
     if (ImGui::DragFloat("Draw Distance (FarClip)", &config_.rendering.drawDistance, 1.0f, 20.0f, 500.0f)) {
@@ -199,6 +259,9 @@ void CameraController::Reset() {
     camera_->SetTranslate(targetWorldTransform.translate + targetOffset_);
     isFocusInitialized_ = false;
     isYInitialized_ = false;
+    currentExtraDistance_ = 0.0f;
+    currentEnemyFocusOffset_ = { 0.0f, 0.0f, 0.0f };
+    currentEnemyCamOffsetY_ = 0.0f;
 }
 
 void CameraController::RotateCamera() {
@@ -238,9 +301,99 @@ void CameraController::AutoOffsetCamera()
         isYInitialized_ = true;
     } else {
         float dy = playerPos.y - smoothedFocusY_;
-        float yRate = (std::abs(dy) > 1.5f) ? 0.10f : 0.04f;
+        float yRate = (std::abs(dy) > 1.5f) ? 0.16f : 0.08f;
         smoothedFocusY_ += dy * yRate;
     }
+
+    // 近くの敵をカメラに収めるための注視点オフセット・カメラ高さ・追加距離を算出
+    float targetExtraDistance = 0.0f;
+    Vector3 targetEnemyFocusOffset = { 0.0f, 0.0f, 0.0f };
+    float targetEnemyCamOffsetY = 0.0f;
+
+    if (config_.enemyFraming.enabled && enemies_ && !enemies_->empty()) {
+        Vector3 minPos = playerPos;
+        Vector3 maxPos = playerPos;
+        float maxWeight = 0.0f;
+        float detectRangeXZ = (std::max)(config_.enemyFraming.detectRange, 0.01f);
+        float detectRangeY = (std::max)(config_.enemyFraming.detectRangeY, 0.01f);
+        float blendStart = std::clamp(config_.enemyFraming.blendStartRatio, 0.0f, 0.99f);
+        float fadeSpanNorm = (std::max)(1.0f - blendStart, 0.001f);
+
+        for (const auto& enemy : *enemies_) {
+            if (!enemy || enemy->IsDead()) {
+                continue;
+            }
+            Vector3 enemyPos = enemy->GetWorldPosition();
+            Vector3 diff = enemyPos - playerPos;
+            float distXZ = std::hypot(diff.x, diff.z);
+            float distY = std::abs(diff.y);
+            float normDist = std::hypot(distXZ / detectRangeXZ, distY / detectRangeY);
+
+            if (normDist <= 1.0f) {
+                // 境界付近で0、近づくにつれて滑らかに1へ変化するSmoothstep重み
+                float t = std::clamp((1.0f - normDist) / fadeSpanNorm, 0.0f, 1.0f);
+                float weight = t * t * (3.0f - 2.0f * t);
+                maxWeight = (std::max)(maxWeight, weight);
+
+                Vector3 effectiveEnemyPos = Lerp(playerPos, enemyPos, weight);
+                minPos.x = (std::min)(minPos.x, effectiveEnemyPos.x);
+                minPos.y = (std::min)(minPos.y, effectiveEnemyPos.y);
+                minPos.z = (std::min)(minPos.z, effectiveEnemyPos.z);
+                maxPos.x = (std::max)(maxPos.x, effectiveEnemyPos.x);
+                maxPos.y = (std::max)(maxPos.y, effectiveEnemyPos.y);
+                maxPos.z = (std::max)(maxPos.z, effectiveEnemyPos.z);
+            }
+        }
+
+        if (maxWeight > 0.0f) {
+            Vector3 boundingCenter = (minPos + maxPos) * 0.5f;
+            targetEnemyFocusOffset.x = (boundingCenter.x - playerPos.x) * config_.enemyFraming.focusWeight;
+            targetEnemyFocusOffset.z = (boundingCenter.z - playerPos.z) * config_.enemyFraming.focusWeight;
+            targetEnemyFocusOffset.y = (boundingCenter.y - smoothedFocusY_) * config_.enemyFraming.focusWeightY;
+
+            // カメラ位置のY追従は注視点より控えめにし、下方向への潜り込みを制限（自然なチルトを実現）
+            targetEnemyCamOffsetY = (std::max)(
+                targetEnemyFocusOffset.y * config_.enemyFraming.camYFollowRatio,
+                config_.enemyFraming.minCamOffsetY * maxWeight
+            );
+
+            float actualFocusX = playerPos.x + targetEnemyFocusOffset.x;
+            float actualFocusZ = playerPos.z + targetEnemyFocusOffset.z;
+            float actualFocusY = smoothedFocusY_ + targetEnemyFocusOffset.y + config_.autoOffset.lookAtHeight;
+
+            // 注視点から最も遠い端までの片側スパンを算出（重み付けによる偏りも考慮）
+            float halfSpanH = (std::max)(
+                std::hypot(actualFocusX - minPos.x, actualFocusZ - minPos.z),
+                std::hypot(maxPos.x - actualFocusX, maxPos.z - actualFocusZ)
+            ) + config_.enemyFraming.paddingHorizontal * 0.5f * maxWeight;
+
+            float halfSpanV = (std::max)(
+                std::abs(actualFocusY - minPos.y),
+                std::abs(maxPos.y - actualFocusY)
+            ) + config_.enemyFraming.paddingVertical * 0.5f * maxWeight;
+
+            float halfFovY = camera_->GetFovY() * 0.5f;
+            float aspect = camera_->GetAspectRatio();
+            float tanHalfFovY = std::tan(halfFovY);
+            float tanHalfFovX = tanHalfFovY * aspect;
+
+            float reqDistH = (tanHalfFovX > 1e-4f) ? (halfSpanH / tanHalfFovX) : config_.autoOffset.distance;
+            float reqDistV = (tanHalfFovY > 1e-4f) ? (halfSpanV / tanHalfFovY) : config_.autoOffset.distance;
+            float requiredDist = (std::max)(reqDistH, reqDistV);
+
+            if (requiredDist > config_.autoOffset.distance) {
+                targetExtraDistance = (std::min)(requiredDist - config_.autoOffset.distance, config_.enemyFraming.maxExtraDistance);
+            }
+        }
+    }
+
+    currentExtraDistance_ = Lerp(currentExtraDistance_, targetExtraDistance, config_.enemyFraming.zoomSmoothSpeed);
+    currentEnemyFocusOffset_.x = Lerp(currentEnemyFocusOffset_.x, targetEnemyFocusOffset.x, config_.enemyFraming.focusSmoothSpeed);
+    currentEnemyFocusOffset_.z = Lerp(currentEnemyFocusOffset_.z, targetEnemyFocusOffset.z, config_.enemyFraming.focusSmoothSpeed);
+    currentEnemyFocusOffset_.y = Lerp(currentEnemyFocusOffset_.y, targetEnemyFocusOffset.y, config_.enemyFraming.focusSmoothSpeedY);
+    currentEnemyCamOffsetY_ = Lerp(currentEnemyCamOffsetY_, targetEnemyCamOffsetY, config_.enemyFraming.focusSmoothSpeedY);
+    float effectiveDistance = config_.autoOffset.distance + currentExtraDistance_;
+    float effectiveHeight = config_.autoOffset.height + currentExtraDistance_ * config_.enemyFraming.extraHeightRatio + currentEnemyCamOffsetY_;
 
     Vector3 focusBasePos = { playerPos.x, smoothedFocusY_, playerPos.z };
     Vector3 railFwd = { 0.0f, 0.0f, 1.0f };
@@ -251,8 +404,8 @@ void CameraController::AutoOffsetCamera()
     if (rail && rail->GetPointCount() >= 2) {
         if (!rail->IsLoop() && rail->GetTotalLength() > 0.0f) {
             // カメラの視野角(FOV)とアスペクト比、距離から画面端に映るレール上の半幅を算出
-            float d = config_.autoOffset.distance;
-            float h = config_.autoOffset.height;
+            float d = effectiveDistance;
+            float h = effectiveHeight;
             float hLook = config_.autoOffset.lookAtHeight;
             float dh = h - hLook;
             float lookDist = std::sqrt(d * d + dh * dh);
@@ -304,10 +457,16 @@ void CameraController::AutoOffsetCamera()
         right = right * -1.0f;
     }
 
-    // 目標カメラ位置と注視点: クランプ済み基準位置 + 進行方向のわずかな先読み + オフセット
+    // 目標カメラ位置と注視点: クランプ済み基準位置 + 敵フレーミングオフセット + 進行方向のわずかな先読み + オフセット
     Vector3 lookAhead = railFwd * 0.6f;
-    Vector3 targetCamPos = focusBasePos + lookAhead * 0.5f + right * config_.autoOffset.distance + up * config_.autoOffset.height;
-    Vector3 targetFocusPos = focusBasePos + lookAhead + up * config_.autoOffset.lookAtHeight;
+    Vector3 framedCamBasePos = {
+        focusBasePos.x + currentEnemyFocusOffset_.x,
+        focusBasePos.y,
+        focusBasePos.z + currentEnemyFocusOffset_.z
+    };
+    Vector3 framedFocusBasePos = focusBasePos + currentEnemyFocusOffset_;
+    Vector3 targetCamPos = framedCamBasePos + lookAhead * 0.5f + right * effectiveDistance + up * effectiveHeight;
+    Vector3 targetFocusPos = framedFocusBasePos + lookAhead + up * config_.autoOffset.lookAtHeight;
 
     Vector3 currentCamPos = camera_->GetTranslate();
     if (!isFocusInitialized_ || Length(currentCamPos) < 1e-4f) {
