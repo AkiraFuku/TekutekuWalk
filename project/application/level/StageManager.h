@@ -153,8 +153,8 @@ private:
     // ─── ステージ定義カメラ設定 ───────────────────────────────────────
     float stageCameraDrawDistance_ = 500.0f;
     std::string stageCameraMode_   = "AUTO_OFFSET";
-    float stageCameraDistance_     = 9.5f;
-    float stageCameraHeight_       = 3.5f;
+    float stageCameraDistance_     = 7.5f;
+    float stageCameraHeight_       = 2.5f;
 
     // ─── デバッグ描画フラグ ───────────────────────────────────────────
     bool isDebugDrawEnabled_ = false;

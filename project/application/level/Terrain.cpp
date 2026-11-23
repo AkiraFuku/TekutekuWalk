@@ -534,45 +534,7 @@ void Terrain::BuildMesh(const LevelObjectData& data)
             const VertexData vA = vertices_[oe.a];
             const VertexData vB = vertices_[oe.b];
 
-            if (oe.isOuter) {
-                // ── 外周境界：頂点シェーダーで地平線まで押し出す草原クワッドを生成 ──
-                Vector3 dirA = smoothOutDir[oe.a];
-                Vector3 dirB = smoothOutDir[oe.b];
-
-                VertexData nearA = vA;
-                nearA.normal     = { 0.0f, 1.0f, 0.0f };
-                nearA.roadAttr   = 0.0f;
-                nearA.extendInfo = { dirA.x, dirA.z, 0.0f };
-
-                VertexData nearB = vB;
-                nearB.normal     = { 0.0f, 1.0f, 0.0f };
-                nearB.roadAttr   = 0.0f;
-                nearB.extendInfo = { dirB.x, dirB.z, 0.0f };
-
-                // far頂点は初期位置をnearと同じにし、extendWeight=1.0fでシェーダー側で伸ばす
-                VertexData farA = nearA;
-                farA.extendInfo.z = 1.0f;
-
-                VertexData farB = nearB;
-                farB.extendInfo.z = 1.0f;
-
-                uint32_t baseV = static_cast<uint32_t>(vertices_.size());
-                vertices_.push_back(nearA);
-                vertices_.push_back(nearB);
-                vertices_.push_back(farA);
-                vertices_.push_back(farB);
-
-                indices_.push_back(baseV + 0);
-                indices_.push_back(baseV + 2);
-                indices_.push_back(baseV + 1);
-
-                indices_.push_back(baseV + 1);
-                indices_.push_back(baseV + 2);
-                indices_.push_back(baseV + 3);
-                continue;
-            }
-
-            // ── 内部の穴エッジ：崖スカート壁を生成 ──
+            // ── 開放辺：崖スカート壁を生成（ステージ上を突き抜ける延長クワッドは生成しない） ──
             Vector3 edgeVec = {
                 vB.position.x - vA.position.x,
                 vB.position.y - vA.position.y,
@@ -686,8 +648,9 @@ void Terrain::BuildMesh(const LevelObjectData& data)
     // マテリアルバッファ
     materialResource_ = DXCommon::GetInstance()->CreateBufferResource(sizeof(MaterialData));
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
-    materialData_->color  = { 1.0f, 1.0f, 1.0f, 1.0f };
-    materialData_->uvTile = uvTile_;
+    materialData_->color     = { 1.0f, 1.0f, 1.0f, 1.0f };
+    materialData_->uvTile    = uvTile_;
+    materialData_->cameraPos = { 0.0f, 0.0f, 0.0f };
 
     // WVP 定数バッファ
     wvpResource_ = DXCommon::GetInstance()->CreateBufferResource(sizeof(TransformationMatrix));
@@ -705,11 +668,15 @@ void Terrain::Update()
         wvp = Multiply(world, Makeidentity4x4());
     }
 
+    if (materialData_ && camera_) {
+        materialData_->cameraPos = camera_->GetTranslate();
+    }
+
     if (wvpData_) {
         wvpData_->WVP   = wvp;
         wvpData_->World = world;
         wvpData_->WorldInverseTranspose = Transpose(Inverse(world));
-        wvpData_->horizonExtendDist = 380.0f;
+        wvpData_->horizonExtendDist = 75.0f;
         wvpData_->horizonDropY      = 0.0f;
         wvpData_->sizeX             = sizeX_;
         wvpData_->sizeY             = sizeY_;

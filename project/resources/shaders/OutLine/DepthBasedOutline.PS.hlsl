@@ -40,6 +40,13 @@ static const float2 kIndex3x3[3][3] =
 
 
 
+float SampleViewZ(float2 texcoord)
+{
+    float ndcDepth = gTextureDepth.Sample(gSamplerPoint, texcoord);
+    float4 viewSpace = mul(float4(0.0f, 0.0f, ndcDepth, 1.0f), gMaterial.ProjectionInverse);
+    return abs(-viewSpace.z * rcp(viewSpace.w));
+}
+
 struct PixelShaderOutput
 {
     float4 color : SV_TARGET0;
@@ -55,30 +62,23 @@ VertexShaderOutput input)
     PixelShaderOutput output;
     output.color.rgb = float3(0.0f, 0.0f, 0.0f);
     output.color.a = 1.0f;
-    float2 difference = float2(0.0f, 0.0f);
-    float centerNdc = gTextureDepth.Sample(gSamplerPoint, input.texcoord);
-    float4 centerView = mul(float4(0.0f, 0.0f, centerNdc, 1.0f), gMaterial.ProjectionInverse);
-    float centerDist = abs(-centerView.z * rcp(centerView.w));
+    float centerDist = SampleViewZ(input.texcoord);
 
-    for (int x = 0; x < 3; ++x)
-    {
-        for (int y = 0; y < 3; ++y)
-        {
-            float2 texcoord = input.texcoord + kIndex3x3[x][y] * uvStepSize;
-            float ndcDepth = gTextureDepth.Sample(gSamplerPoint, texcoord);
-            float4 viewSpace = mul(float4(0.0f, 0.0f, ndcDepth, 1.0f),gMaterial.ProjectionInverse);
-            float viewZ = -viewSpace.z * rcp(viewSpace.w);
-            difference.x += viewZ * kPrewittHorizontalKarnel[x][y];
-            difference.y += viewZ * kPrewittVerticalKernel[x][y];
-        }
-    }
- 
-    // 遠景の地面の傾きによる黒潰れを防ぐため、距離に応じた正規化と遠景フェードを適用
-    float distScale = max(1.0f, centerDist * 0.12f);
-    float farAtten = saturate(1.0f - (centerDist - 40.0f) / 100.0f);
-    float weight = length(difference) / distScale;
-    weight = saturate(weight) * farAtten;
-    output.color.rgb = (1.0f-weight)*gTexture.Sample(gSampler, input.texcoord).rgb;
+    // 上下左右の2次微分（ラプラシアン）で平らな斜面の連続的な深度勾配を無視し、輪郭境界のみ検出する
+    float dL = SampleViewZ(input.texcoord + float2(-uvStepSize.x, 0.0f));
+    float dR = SampleViewZ(input.texcoord + float2( uvStepSize.x, 0.0f));
+    float dU = SampleViewZ(input.texcoord + float2(0.0f, -uvStepSize.y));
+    float dD = SampleViewZ(input.texcoord + float2(0.0f,  uvStepSize.y));
+
+    float lapX = abs((dL + dR) - 2.0f * centerDist);
+    float lapY = abs((dU + dD) - 2.0f * centerDist);
+    float edge = max(lapX, lapY);
+
+    // 距離に応じた正規化としきい値、および遠景フェード（山や地平線の黒線を防ぐ）
+    float distScale = max(0.5f, centerDist * 0.08f);
+    float farAtten = saturate(1.0f - (centerDist - 20.0f) / 35.0f);
+    float weight = smoothstep(0.35f, 1.0f, edge / distScale) * farAtten;
+    output.color.rgb = (1.0f - weight) * gTexture.Sample(gSampler, input.texcoord).rgb;
     
     return output;
 }

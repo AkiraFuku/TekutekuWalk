@@ -18,7 +18,7 @@ void PrefabManager::Initialize()
         def.modelName = "box";
         def.modelDir = "resources";
         def.texturePath = "resources/checker/checker_gray.png"; // グレーチェック柄
-        def.defaultScale = { 2.0f, 1.4f, 2.0f };
+        def.defaultScale = { 3.2f, 2.2f, 3.2f };
         def.isOneway = false;
         def.collisionEnabled = true;
         RegisterPrefab(def);
@@ -35,7 +35,7 @@ void PrefabManager::Initialize()
         def.modelName = "box";
         def.modelDir = "resources";
         def.texturePath = "resources/checker/checker_yellow.png"; // 黄色チェック柄
-        def.defaultScale = { 2.4f, 0.25f, 1.8f };
+        def.defaultScale = { 3.6f, 0.4f, 2.6f };
         def.isOneway = true;
         def.collisionEnabled = true;
         def.defaultProperties["is_oneway"] = "true";
@@ -49,7 +49,7 @@ void PrefabManager::Initialize()
         def.modelName = "box";
         def.modelDir = "resources";
         def.texturePath = "resources/checker/checker_blue.png"; // 水色チェック柄
-        def.defaultScale = { 3.2f, 1.0f, 2.4f };
+        def.defaultScale = { 4.8f, 1.5f, 3.6f };
         def.isOneway = false;
         def.collisionEnabled = true;
         RegisterPrefab(def);
@@ -62,7 +62,7 @@ void PrefabManager::Initialize()
         def.modelName = "box";
         def.modelDir = "resources";
         def.texturePath = "resources/checker/checker_green.png"; // 黄緑チェック柄
-        def.defaultScale = { 2.2f, 0.5f, 1.8f };
+        def.defaultScale = { 3.4f, 0.8f, 2.6f };
         def.isOneway = false;
         def.collisionEnabled = true;
         RegisterPrefab(def);
@@ -75,7 +75,7 @@ void PrefabManager::Initialize()
         def.modelName = "box";
         def.modelDir = "resources";
         def.texturePath = "resources/checker/checker_pink.png"; // ピンクチェック柄
-        def.defaultScale = { 2.2f, 2.2f, 2.2f };
+        def.defaultScale = { 3.6f, 3.6f, 3.6f };
         def.isOneway = false;
         def.collisionEnabled = false; // 当たり判定なし
         RegisterPrefab(def);
@@ -93,12 +93,12 @@ void PrefabManager::Initialize()
         def.collisionEnabled = false;
         RegisterPrefab(def);
     };
-    registerProp("prop_fence",         "resources/props/fence.png",         { 2.2f, 1.3f, 1.0f });
-    registerProp("prop_grass",         "resources/props/grass_tuft.png",    { 1.3f, 0.95f, 1.0f });
-    registerProp("prop_clover",        "resources/props/clover.png",        { 1.1f, 1.1f, 1.0f });
-    registerProp("prop_flower_pink",   "resources/props/flower_pink.png",   { 1.1f, 1.1f, 1.0f });
-    registerProp("prop_flower_white",  "resources/props/flower_white.png",  { 1.0f, 1.0f, 1.0f });
-    registerProp("prop_flower_purple", "resources/props/flower_purple.png", { 1.2f, 1.2f, 1.0f });
+    registerProp("prop_fence",         "resources/props/fence.png",         { 3.2f, 1.9f, 1.0f });
+    registerProp("prop_grass",         "resources/props/grass_tuft.png",    { 2.1f, 1.6f, 1.0f });
+    registerProp("prop_clover",        "resources/props/clover.png",        { 1.8f, 1.8f, 1.0f });
+    registerProp("prop_flower_pink",   "resources/props/flower_pink.png",   { 1.8f, 1.8f, 1.0f });
+    registerProp("prop_flower_white",  "resources/props/flower_white.png",  { 1.7f, 1.7f, 1.0f });
+    registerProp("prop_flower_purple", "resources/props/flower_purple.png", { 1.9f, 1.9f, 1.0f });
 }
 
 void PrefabManager::RegisterPrefab(const BlockPrefabDefinition& def)

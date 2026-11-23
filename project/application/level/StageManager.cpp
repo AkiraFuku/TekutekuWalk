@@ -35,8 +35,8 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     goalPos_            = { 0.0f, 0.0f, 0.0f };
     goalRailPos_        = { 0.0f, 0.0f };
     stageCameraDrawDistance_ = 500.0f;
-    stageCameraDistance_ = 9.5f;
-    stageCameraHeight_   = 3.5f;
+    stageCameraDistance_ = 7.5f;
+    stageCameraHeight_   = 2.5f;
 
     camera_     = camera;
     loadedPath_ = jsonPath;
@@ -52,7 +52,7 @@ void StageManager::Load(const std::string& jsonPath, Camera* camera, SpawnEnemyF
     // ステージレールがあれば道テクスチャを適用＆奥側背景ポリゴンメッシュを生成
     if (stageRail_) {
         if (terrain_) {
-            terrain_->ApplyRailRoad(stageRail_.get(), 1.65f);
+            terrain_->ApplyRailRoad(stageRail_.get(), 2.5f);
         }
         stageBackground_ = std::make_unique<StageBackground>();
         stageBackground_->Initialize(stageRail_.get(), camera, backgroundConfig_);
@@ -255,8 +255,8 @@ void StageManager::ProcessObject(const LevelObjectData& data, Camera* camera, Sp
             return def;
         };
         stageCameraDrawDistance_ = getFloat("draw_distance", 500.0f);
-        stageCameraDistance_     = getFloat("camera_distance", 9.5f);
-        stageCameraHeight_       = getFloat("camera_height", 3.5f);
+        stageCameraDistance_     = getFloat("camera_distance", 7.5f);
+        stageCameraHeight_       = getFloat("camera_height", 2.5f);
         auto itMode = data.properties.find("camera_mode");
         if (itMode != data.properties.end()) {
             stageCameraMode_ = itMode->second;
@@ -525,7 +525,7 @@ void StageManager::PopulateDefaultProps(Camera* camera)
     const char* checkerCols[] = { "pink", "yellow", "blue" };
 
     uint32_t idx = 0;
-    for (float dist = 2.0f; dist < totalLen - 2.0f; dist += 3.8f) {
+    for (float dist = 2.0f; dist < totalLen - 2.0f; dist += 4.8f) {
         float t = stageRail_->GetTFromDistance(dist);
         Vector3 railPos = stageRail_->GetPosition(t);
         Vector3 fwd = stageRail_->GetDirection(t);
@@ -542,17 +542,10 @@ void StageManager::PopulateDefaultProps(Camera* camera)
         float hitY = 0.0f;
         float ny = 1.0f;
 
-        // 1. コース奥側と手前側に白い柵を仮置き（穴や急斜面を避け、地形高さに接地）
+        // 1. コース奥側のみに白い柵を配置（手前側はクリアフェーズ等でカメラに被るため配置しない）
         if (hash01(idx * 13 + 1) > 0.25f) {
-            float fx = railPos.x + farDir.x * 2.5f;
-            float fz = railPos.z + farDir.z * 2.5f;
-            if (sampleTerrainSurface(fx, fz, hitY, ny)) {
-                spawnProp("prop_fence", { fx, hitY, fz }, faceRotY);
-            }
-        }
-        if (hash01(idx * 13 + 2) > 0.45f) {
-            float fx = railPos.x - farDir.x * 2.4f;
-            float fz = railPos.z - farDir.z * 2.4f;
+            float fx = railPos.x + farDir.x * 3.8f;
+            float fz = railPos.z + farDir.z * 3.8f;
             if (sampleTerrainSurface(fx, fz, hitY, ny)) {
                 spawnProp("prop_fence", { fx, hitY, fz }, faceRotY);
             }
@@ -560,33 +553,33 @@ void StageManager::PopulateDefaultProps(Camera* camera)
 
         // 2. ギザギザ草・クローバー・花を奥側と手前側に散りばめる
         float rGrass = hash01(idx * 13 + 3);
-        float offsetFar = 3.2f + rGrass * 8.0f;
+        float offsetFar = 4.8f + rGrass * 11.2f;
         {
             float gx = railPos.x + farDir.x * offsetFar;
             float gz = railPos.z + farDir.z * offsetFar;
             if (sampleTerrainSurface(gx, gz, hitY, ny)) {
-                spawnProp((idx % 2 == 0) ? "prop_grass" : "prop_clover", { gx, hitY, gz }, faceRotY, 0.85f + rGrass * 0.45f);
+                spawnProp((idx % 2 == 0) ? "prop_grass" : "prop_clover", { gx, hitY, gz }, faceRotY, 1.1f + rGrass * 0.45f);
             }
         }
 
         float rFlower = hash01(idx * 13 + 4);
         if (rFlower > 0.30f) {
-            float fDist = (rFlower > 0.65f) ? -(1.8f + rFlower * 1.4f) : (2.8f + rFlower * 5.0f);
+            float fDist = (rFlower > 0.65f) ? -(2.8f + rFlower * 1.7f) : (4.2f + rFlower * 7.0f);
             float flx = railPos.x + farDir.x * fDist;
             float flz = railPos.z + farDir.z * fDist;
             if (sampleTerrainSurface(flx, flz, hitY, ny)) {
-                spawnProp(flowerIds[idx % 3], { flx, hitY, flz }, faceRotY, 0.8f + rFlower * 0.4f);
+                spawnProp(flowerIds[idx % 3], { flx, hitY, flz }, faceRotY, 1.0f + rFlower * 0.45f);
             }
         }
 
         // 3. 奥側の草原にチェック柄装飾キューブを点在させる
         if (idx % 3 == 1) {
-            float cubeDist = 6.5f + hash01(idx * 13 + 5) * 7.5f;
-            float cubeScale = 1.6f + hash01(idx * 13 + 6) * 1.0f;
+            float cubeDist = 9.0f + hash01(idx * 13 + 5) * 11.0f;
+            float cubeScale = 1.5f + hash01(idx * 13 + 6) * 0.9f;
             float cx = railPos.x + farDir.x * cubeDist;
             float cz = railPos.z + farDir.z * cubeDist;
             if (sampleTerrainSurface(cx, cz, hitY, ny)) {
-                spawnProp("deco_cube", { cx, hitY + cubeScale * 0.5f, cz }, faceRotY, cubeScale, checkerCols[idx % 3]);
+                spawnProp("deco_cube", { cx, hitY + cubeScale * 1.8f, cz }, faceRotY, cubeScale, checkerCols[idx % 3]);
             }
         }
 

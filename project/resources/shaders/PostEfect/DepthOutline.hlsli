@@ -24,6 +24,17 @@ static const float2 kIndex3x3[3][3] =
     { { -1.0f, 1.0f },  { 0.0f, 1.0f },  { 1.0f, 1.0f } }
 };
 
+float SampleOutlineViewZ(
+    Texture2D<float> depthTex,
+    SamplerState pointSampler,
+    float2 texcoord,
+    float4x4 projectionInverse)
+{
+    float ndcDepth = depthTex.Sample(pointSampler, texcoord);
+    float4 viewSpace = mul(float4(0.0f, 0.0f, ndcDepth, 1.0f), projectionInverse);
+    return abs(-viewSpace.z * rcp(viewSpace.w));
+}
+
 /**
  * 深度ベースのアウトライン処理を適用する関数
  * @param sceneColor        元のシーンカラー (gTexture.Sample などの結果)
@@ -42,25 +53,22 @@ float3 ApplyDepthOutline(
     SamplerState pointSampler,
     float4x4 projectionInverse)
 {
-    float2 difference = float2(0.0f, 0.0f);
+    float centerDist = SampleOutlineViewZ(depthTex, pointSampler, uv, projectionInverse);
 
-    for (int x = 0; x < 3; ++x)
-    {
-        for (int y = 0; y < 3; ++y)
-        {
-            float2 texcoord = uv + kIndex3x3[x][y] * uvStepSize;
-            float ndcDepth = depthTex.Sample(pointSampler, texcoord);
-            
-            // NDC深度からビュー空間のZ座標を復元
-            float4 viewSpace = mul(float4(0.0f, 0.0f, ndcDepth, 1.0f), projectionInverse);
-            float viewZ = -viewSpace.z * rcp(viewSpace.w);
-            
-            difference.x += viewZ * kPrewittHorizontalKernel[x][y];
-            difference.y += viewZ * kPrewittVerticalKernel[x][y];
-        }
-    }
+    // 上下左右の2次微分（ラプラシアン）で斜面の連続的な深度勾配を無視し、輪郭境界のみ検出する
+    float dL = SampleOutlineViewZ(depthTex, pointSampler, uv + float2(-uvStepSize.x, 0.0f), projectionInverse);
+    float dR = SampleOutlineViewZ(depthTex, pointSampler, uv + float2( uvStepSize.x, 0.0f), projectionInverse);
+    float dU = SampleOutlineViewZ(depthTex, pointSampler, uv + float2(0.0f, -uvStepSize.y), projectionInverse);
+    float dD = SampleOutlineViewZ(depthTex, pointSampler, uv + float2(0.0f,  uvStepSize.y), projectionInverse);
 
-    float weight = saturate(length(difference));
+    float lapX = abs((dL + dR) - 2.0f * centerDist);
+    float lapY = abs((dU + dD) - 2.0f * centerDist);
+    float edge = max(lapX, lapY);
+
+    // 距離に応じた正規化としきい値、および遠景フェード（山や地平線の黒線・黒帯を防ぐ）
+    float distScale = max(0.5f, centerDist * 0.08f);
+    float farAtten = saturate(1.0f - (centerDist - 20.0f) / 35.0f);
+    float weight = smoothstep(0.35f, 1.0f, edge / distScale) * farAtten;
     return (1.0f - weight) * sceneColor;
 }
 

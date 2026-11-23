@@ -42,9 +42,9 @@ VertexShaderOutput main(VertexShaderInput input)
         localPos.xz += offsetXZ;
         localPos.y  += gTransformationMatrix.horizonDropY * w;
 
-        // 押し出した距離分だけ UV を連続延長してテクスチャの引き伸ばしを防ぐ
-        uv.x += offsetXZ.x / max(1.0f, gTransformationMatrix.sizeX);
-        uv.y += offsetXZ.y / max(1.0f, gTransformationMatrix.sizeY);
+        // 押し出し後の位置から UV を一貫して計算し、斜め方向の引き伸ばしを防ぐ
+        uv.x = (localPos.x + gTransformationMatrix.sizeX * 0.5f) / max(1.0f, gTransformationMatrix.sizeX);
+        uv.y = (localPos.z + gTransformationMatrix.sizeY * 0.5f) / max(1.0f, gTransformationMatrix.sizeY);
 
         // 遠景の草原は法線を上向きに揃えて暗い影を防ぐ
         normal = normalize(lerp(normal, float3(0.0f, 1.0f, 0.0f), w));

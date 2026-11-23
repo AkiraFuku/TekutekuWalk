@@ -104,40 +104,51 @@ StageBackground::Config StageBackground::CreateDefaultConfig()
     cfg.marginStart  = 14.0f;
     cfg.marginEnd    = 14.0f;
 
-    // Layer 0: 中景の青緑の山並み（外周リング・滑らかな稜線）
-    LayerConfig midMountain;
-    midMountain.style       = Style::HorizonMountain;
-    midMountain.distance    = 160.0f;
-    midMountain.bottomY     = -40.0f;
-    midMountain.baseHeight  = 58.0f;
-    midMountain.amplitude   = 7.0f;
-    midMountain.frequency   = 7.0f;  // 1周あたりの山の数
-    midMountain.phase       = 0.5f;
-    midMountain.uvScaleU    = 12.0f;
-    midMountain.texturePath = "resources/white.png";
-    midMountain.color       = { 0.34f, 0.78f, 0.65f, 1.0f };
-    cfg.layers.push_back(midMountain);
+    // Layer 0: 遠景の草原地面リング（プレイヤーや手前ステージに被らないよう45m以遠・低位置に配置）
+    LayerConfig horizonGround;
+    horizonGround.style       = Style::HorizonGround;
+    horizonGround.skirtDepth  = 45.0f;
+    horizonGround.distance    = 170.0f;
+    horizonGround.bottomY     = -4.5f;
+    horizonGround.uvScaleU    = 18.0f;
+    horizonGround.texturePath = "resources/terrain/grass_vivid.png";
+    horizonGround.color       = { 0.45f, 0.80f, 0.45f, 1.0f };
+    cfg.layers.push_back(horizonGround);
 
-    // Layer 1: 遠景の淡い水色の山並み（空気遠近法・外周リング）
+    // Layer 1: 手前の緑の丘（横視点で地形端の向こう側を隠す）
+    LayerConfig nearHill;
+    nearHill.style       = Style::HorizonMountain;
+    nearHill.distance    = 68.0f;
+    nearHill.bottomY     = -10.0f;
+    nearHill.baseHeight  = 18.0f;
+    nearHill.amplitude   = 3.5f;
+    nearHill.frequency   = 8.0f;  // 1周あたりの山の数
+    nearHill.phase       = 0.5f;
+    nearHill.uvScaleU    = 12.0f;
+    nearHill.texturePath = "resources/terrain/grass_vivid.png";
+    nearHill.color       = { 0.36f, 0.78f, 0.32f, 1.0f };
+    cfg.layers.push_back(nearHill);
+
+    // Layer 2: 遠景の青緑・淡い水色の山並み（空気遠近法・外周リング）
     LayerConfig farMountain;
     farMountain.style       = Style::HorizonMountain;
-    farMountain.distance    = 205.0f;
-    farMountain.bottomY     = -40.0f;
-    farMountain.baseHeight  = 66.0f;
-    farMountain.amplitude   = 8.0f;
+    farMountain.distance    = 120.0f;
+    farMountain.bottomY     = -18.0f;
+    farMountain.baseHeight  = 32.0f;
+    farMountain.amplitude   = 6.0f;
     farMountain.frequency   = 5.0f;
     farMountain.phase       = 2.1f;
     farMountain.uvScaleU    = 12.0f;
     farMountain.texturePath = "resources/white.png";
-    farMountain.color       = { 0.56f, 0.86f, 0.94f, 1.0f };
+    farMountain.color       = { 0.52f, 0.84f, 0.88f, 1.0f };
     cfg.layers.push_back(farMountain);
 
-    // Layer 2: 青空＋白い雲パノラマ帯（山並みの奥を囲む明るい水色の空）
+    // Layer 3: 青空＋白い雲パノラマ帯（山並みの奥を囲む明るい水色の空）
     LayerConfig sky;
     sky.style       = Style::HorizonSky;
-    sky.distance    = 245.0f;
-    sky.bottomY     = -45.0f;
-    sky.baseHeight  = 160.0f;
+    sky.distance    = 180.0f;
+    sky.bottomY     = -25.0f;
+    sky.baseHeight  = 130.0f;
     sky.uvScaleU    = 6.0f;
     sky.texturePath = "resources/terrain/sky_clouds.png";
     sky.color       = { 1.00f, 1.00f, 1.00f, 1.0f };

@@ -42,7 +42,7 @@ public:
     struct MaterialData {
         Vector4 color;
         float   uvTile;
-        Vector3 padding;
+        Vector3 cameraPos;
     };
 
     struct TransformationMatrix {

@@ -21,9 +21,9 @@ class RailPath;
 struct CameraConfig {
 	int mode = 0; ///< 0: AutoOffset, 1: RailCamera
 	struct AutoOffset {
-		float distance = 9.5f;      ///< レールからの水平外側オフセット距離
-		float height = 3.5f;        ///< レールからの高さオフセット
-		float lookAtHeight = 1.05f; ///< 注視点の高さオフセット
+		float distance = 7.5f;      ///< レールからの水平外側オフセット距離
+		float height = 2.5f;        ///< レールからの高さオフセット
+		float lookAtHeight = 1.15f; ///< 注視点の高さオフセット
 		float smoothSpeed = 0.14f;  ///< カメラ位置の追従補間率
 		bool flipSide = false;      ///< オフセット向き反転
 	} autoOffset;
