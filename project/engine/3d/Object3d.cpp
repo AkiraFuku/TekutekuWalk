@@ -128,6 +128,7 @@ void Object3d::SetModel(const std::string& filePath)
 {
     model_ = ModelManager::GetInstance()->findModel(filePath);
     customTextureIndex_ = std::nullopt; // モデル変更時は個別テクスチャをリセット
+    enableLightingOverride_ = std::nullopt;
 }
 
 void Object3d::SetTexture(const std::string& textureFilePath)
@@ -144,8 +145,9 @@ void Object3d::SetModelColor(const Vector4& color)
         instanceMaterialResource_ = DXCommon::GetInstance()->CreateBufferResource(size);
         instanceMaterialResource_->Map(0, nullptr, reinterpret_cast<void**>(&instanceMaterialData_));
         if (instanceMaterialData_) {
+            bool lighting = enableLightingOverride_.value_or(model_ ? model_->GetEnableLighting() : true);
             instanceMaterialData_->color = color;
-            instanceMaterialData_->enableLighting = 0;
+            instanceMaterialData_->enableLighting = lighting ? 1 : 0;
             instanceMaterialData_->environment = 0;
             instanceMaterialData_->diffuseType = Model::HarfLambert;
             instanceMaterialData_->specularType = Model::BlinnPhong;
@@ -157,6 +159,27 @@ void Object3d::SetModelColor(const Vector4& color)
     if (instanceMaterialData_) {
         instanceMaterialData_->color = color;
     }
+}
+
+void Object3d::SetEnableLighting(bool enable)
+{
+    enableLightingOverride_ = enable;
+    if (instanceMaterialData_) {
+        instanceMaterialData_->enableLighting = enable ? 1 : 0;
+    } else if (model_) {
+        model_->SetEnableLighting(enable);
+    }
+}
+
+bool Object3d::GetEnableLighting() const
+{
+    if (enableLightingOverride_.has_value()) {
+        return enableLightingOverride_.value();
+    }
+    if (model_) {
+        return model_->GetEnableLighting();
+    }
+    return true;
 }
 
 

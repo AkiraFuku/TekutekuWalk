@@ -5,6 +5,9 @@
     "height": 2.5,
     "lookAtHeight": 1.15,
     "smoothSpeed": 0.14,
+    "smoothSpeedY": 0.28,
+    "camFollowSpeedY": 0.45,
+    "maxLagY": 1.5,
     "flipSide": false
   },
   "rendering": {

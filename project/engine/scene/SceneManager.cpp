@@ -41,6 +41,7 @@ void SceneManager::Update() {
     if (nextScene_) {
         if (scene_) {
             scene_->Finalize();
+            LightManager::GetInstance()->ClearLights();
             ParticleManager::GetInstance()->ReleaseAllParticleGroupSets();
             GpuParticleManager::GetInstance()->ResetParticles();
             GpuParticleManager::GetInstance()->SetCamera(nullptr);

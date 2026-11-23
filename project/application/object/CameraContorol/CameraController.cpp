@@ -46,6 +46,9 @@ void CameraController::LoadConfig(const std::string& filePath)
         config_.autoOffset.height = ja.value("height", config_.autoOffset.height);
         config_.autoOffset.lookAtHeight = ja.value("lookAtHeight", config_.autoOffset.lookAtHeight);
         config_.autoOffset.smoothSpeed = ja.value("smoothSpeed", config_.autoOffset.smoothSpeed);
+        config_.autoOffset.smoothSpeedY = ja.value("smoothSpeedY", config_.autoOffset.smoothSpeedY);
+        config_.autoOffset.camFollowSpeedY = ja.value("camFollowSpeedY", config_.autoOffset.camFollowSpeedY);
+        config_.autoOffset.maxLagY = ja.value("maxLagY", config_.autoOffset.maxLagY);
         config_.autoOffset.flipSide = ja.value("flipSide", config_.autoOffset.flipSide);
     }
 
@@ -103,6 +106,9 @@ void CameraController::SaveConfig(const std::string& filePath)
         { "height", config_.autoOffset.height },
         { "lookAtHeight", config_.autoOffset.lookAtHeight },
         { "smoothSpeed", config_.autoOffset.smoothSpeed },
+        { "smoothSpeedY", config_.autoOffset.smoothSpeedY },
+        { "camFollowSpeedY", config_.autoOffset.camFollowSpeedY },
+        { "maxLagY", config_.autoOffset.maxLagY },
         { "flipSide", config_.autoOffset.flipSide }
     };
 
@@ -198,6 +204,9 @@ void CameraController::Update() {
         ImGui::DragFloat("Offset Height", &config_.autoOffset.height, 0.2f, -20.0f, 50.0f);
         ImGui::DragFloat("LookAt Height", &config_.autoOffset.lookAtHeight, 0.1f, 0.0f, 10.0f);
         ImGui::DragFloat("Smooth Speed", &config_.autoOffset.smoothSpeed, 0.01f, 0.01f, 1.0f);
+        ImGui::DragFloat("Smooth Speed Y", &config_.autoOffset.smoothSpeedY, 0.01f, 0.01f, 1.0f);
+        ImGui::DragFloat("Cam Follow Speed Y", &config_.autoOffset.camFollowSpeedY, 0.01f, 0.01f, 1.0f);
+        ImGui::DragFloat("Max Lag Y", &config_.autoOffset.maxLagY, 0.1f, 0.1f, 10.0f);
         ImGui::Checkbox("Flip Side", &config_.autoOffset.flipSide);
 
         ImGui::Separator();
@@ -301,8 +310,12 @@ void CameraController::AutoOffsetCamera()
         isYInitialized_ = true;
     } else {
         float dy = playerPos.y - smoothedFocusY_;
-        float yRate = (std::abs(dy) > 1.5f) ? 0.16f : 0.08f;
-        smoothedFocusY_ += dy * yRate;
+        float adaptiveRate = (std::abs(dy) > 1.0f)
+            ? (std::min)(config_.autoOffset.smoothSpeedY * 1.8f, 0.85f)
+            : config_.autoOffset.smoothSpeedY;
+        smoothedFocusY_ += dy * adaptiveRate;
+        float maxLag = (std::max)(config_.autoOffset.maxLagY, 0.1f);
+        smoothedFocusY_ = std::clamp(smoothedFocusY_, playerPos.y - maxLag, playerPos.y + maxLag);
     }
 
     // 近くの敵をカメラに収めるための注視点オフセット・カメラ高さ・追加距離を算出
@@ -475,8 +488,14 @@ void CameraController::AutoOffsetCamera()
         isFocusInitialized_ = true;
     }
 
-    Vector3 newCamPos = Lerp(currentCamPos, targetCamPos, config_.autoOffset.smoothSpeed);
-    currentFocusPos_ = Lerp(currentFocusPos_, targetFocusPos, config_.autoOffset.smoothSpeed);
+    Vector3 newCamPos;
+    newCamPos.x = Lerp(currentCamPos.x, targetCamPos.x, config_.autoOffset.smoothSpeed);
+    newCamPos.z = Lerp(currentCamPos.z, targetCamPos.z, config_.autoOffset.smoothSpeed);
+    newCamPos.y = Lerp(currentCamPos.y, targetCamPos.y, config_.autoOffset.camFollowSpeedY);
+
+    currentFocusPos_.x = Lerp(currentFocusPos_.x, targetFocusPos.x, config_.autoOffset.smoothSpeed);
+    currentFocusPos_.z = Lerp(currentFocusPos_.z, targetFocusPos.z, config_.autoOffset.smoothSpeed);
+    currentFocusPos_.y = Lerp(currentFocusPos_.y, targetFocusPos.y, config_.autoOffset.camFollowSpeedY);
     camera_->SetTranslate(newCamPos);
 }
 

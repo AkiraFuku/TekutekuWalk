@@ -95,6 +95,8 @@ public:
 
 
     void SetModelColor(const Vector4& color);
+    void SetEnableLighting(bool enable);
+    bool GetEnableLighting() const;
     Vector4 GetModelInstanceColor() const {
         if (instanceColor_.has_value()) {
             return instanceColor_.value();
@@ -209,6 +211,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> instanceMaterialResource_;
     Model::Material* instanceMaterialData_ = nullptr;
     std::optional<Vector4> instanceColor_ = std::nullopt;
+    std::optional<bool> enableLightingOverride_ = std::nullopt;
 
     //WVP行列リソース
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;

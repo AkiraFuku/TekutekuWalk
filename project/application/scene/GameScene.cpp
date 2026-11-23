@@ -74,6 +74,7 @@ void GameScene::Initialize() {
         };
         std::vector<uint32_t> sInds = { 0, 1, 2,  2, 1, 3 };
         auto sModel = Model::CreateFromMeshData(sVerts, sInds, "resources/props/circle_shadow.png");
+        sModel->SetEnableLighting(false);
         ModelManager::GetInstance()->RegisterModel("shadow_plane", std::move(sModel));
     }
 

@@ -121,11 +121,11 @@ float4 Environment(float3 V, float3 N)
 }
 float3 Lighting(float3 V, float3 N, VertexShaderOutput input)
 {
-    // 半球環境光（空からの水色＋地面からの緑の照り返しで黒潰れを防ぎ鮮やかに保つ）
-    float3 skyAmbient    = float3(0.58f, 0.88f, 1.00f);
-    float3 groundAmbient = float3(0.36f, 0.60f, 0.28f);
+    // 半球環境光（黒潰れを防ぎつつ自然な色味を保つ）
+    float3 skyAmbient    = float3(0.85f, 0.90f, 0.98f);
+    float3 groundAmbient = float3(0.45f, 0.48f, 0.45f);
     float hemiFactor     = N.y * 0.5f + 0.5f;
-    float3 finalLighting = gMaterial.Color.rgb * lerp(groundAmbient, skyAmbient, hemiFactor) * 0.52f;
+    float3 finalLighting = gMaterial.Color.rgb * lerp(groundAmbient, skyAmbient, hemiFactor) * 0.45f;
 
     // Directional Light
     for (int i = 0; i < gLightCounts.numDirectionalLights; ++i)

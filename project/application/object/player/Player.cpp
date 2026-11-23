@@ -336,6 +336,7 @@ void Player::Initialize() {
   object_->Initialize();
   object_->SetModel(config_.paths.modelFile);
   object_->SetTexture(config_.paths.texture);
+  object_->SetEnableLighting(true);
 
   // 汎用サブパーツシステムで手足を自動検出＆バインド
   object_->AutoDetectSubParts();
@@ -351,6 +352,7 @@ void Player::Initialize() {
   weaponObject_->Initialize();
   weaponObject_->SetModel("PlayerMachineGunBox");
   weaponObject_->SetTexture("resources/white.png");
+  weaponObject_->SetEnableLighting(true);
   weaponObject_->SetModelColor({0.25f, 0.28f, 0.32f, 1.0f});
   weaponObject_->SetScale({0.18f, 0.20f, 0.55f});
   /*   animation = std::make_unique<Animation>();

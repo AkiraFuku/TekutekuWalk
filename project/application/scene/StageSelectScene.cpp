@@ -24,7 +24,7 @@ void StageSelectScene::Initialize()
     ChangeActiveCamera(cameraMap_["Main"].get());
 
     // ライト初期化
-    LightManager::GetInstance()->AddDirectionalLight({ 0.0f, -1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, 1.0f);
+    LightManager::GetInstance()->AddDirectionalLight({ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, -1.0f, 1.0f }, 1.05f);
 
     // テクスチャ事前読み込み
     TextureManager::GetInstance()->LoadTexture("resources/Stagemap/863603.png");

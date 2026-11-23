@@ -55,6 +55,7 @@ void ClearScene::Initialize()
     backdropObject_->Initialize();
     backdropObject_->SetModel("ClearBackdropBox");
     backdropObject_->SetTexture("resources/white.png");
+    backdropObject_->SetEnableLighting(false);
     backdropObject_->SetModelColor(backdropColor_);
     backdropObject_->SetScale({ 55.0f, 35.0f, 0.5f });
     backdropObject_->SetTranslate({ 0.0f, 0.0f, 12.0f });

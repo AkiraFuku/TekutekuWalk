@@ -26,7 +26,10 @@ struct CameraConfig {
 		float distance = 7.5f;      ///< レールからの水平外側オフセット距離
 		float height = 2.5f;        ///< レールからの高さオフセット
 		float lookAtHeight = 1.15f; ///< 注視点の高さオフセット
-		float smoothSpeed = 0.14f;  ///< カメラ位置の追従補間率
+		float smoothSpeed = 0.14f;  ///< カメラ位置の水平追従補間率
+		float smoothSpeedY = 0.28f; ///< 注視点Y軸の追従補間率
+		float camFollowSpeedY = 0.45f; ///< カメラY軸の最終追従補間率
+		float maxLagY = 1.5f;       ///< プレイヤーY位置からの最大遅延幅
 		bool flipSide = false;      ///< オフセット向き反転
 	} autoOffset;
 

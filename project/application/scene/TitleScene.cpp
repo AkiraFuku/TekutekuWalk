@@ -39,8 +39,8 @@ void TitleScene::Initialize() {
   TextureManager::GetInstance()->LoadTexture(
       "resources/Title/tekutekuTitle.png");
 
-  LightManager::GetInstance()->AddDirectionalLight({0.0f, -1.0f, 0.0f},
-                                                   {1.0f, 1.0f, 1.0f}, 1.0f);
+  LightManager::GetInstance()->AddDirectionalLight({1.0f, 1.0f, 1.0f, 1.0f},
+                                                   {0.35f, -0.85f, 0.40f}, 1.05f);
 
   skyBox = std::make_unique<SkyBox>();
   skyBox->Initialize();

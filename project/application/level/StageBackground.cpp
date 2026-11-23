@@ -290,6 +290,7 @@ void StageBackground::Initialize(const RailPath* rail, Camera* camera, const Con
         obj->Initialize();
         obj->SetCamera(camera);
         obj->SetModel(modelName);
+        obj->SetEnableLighting(false);
         obj->SetModelColor(layer.color);
         if (followCam && camera_) {
             Vector3 camPos = camera_->GetTranslate();

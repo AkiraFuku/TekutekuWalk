@@ -202,7 +202,7 @@ void Model::CreateMaterialResource() {
         Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
 
     materialData_->color = Vector4{ 1.0f,1.0f,1.0f,1.0f };
-    materialData_->enableLighting = false;
+    materialData_->enableLighting = true;
     uvTransform_ = {};
     Matrix4x4 uvMatrix = MakeUVTransformMatrix(uvTransform_);
     materialData_->uvTransform = uvMatrix;
