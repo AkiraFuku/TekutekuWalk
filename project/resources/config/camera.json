@@ -8,6 +8,9 @@
     "smoothSpeedY": 0.28,
     "camFollowSpeedY": 0.45,
     "maxLagY": 1.5,
+    "clampCamY": true,
+    "minCamY": 1.5,
+    "maxCamY": 15.0,
     "flipSide": false
   },
   "rendering": {
@@ -24,5 +27,17 @@
       1.0,
       -5.0
     ]
+  },
+  "landingFraming": {
+    "enabled": true,
+    "minHeightThreshold": 0.6,
+    "focusDownRatio": 0.45,
+    "maxFocusDown": 3.0,
+    "camDownRatio": 0.4,
+    "maxCamDown": 2.5,
+    "maxExtraDistance": 3.0,
+    "paddingBottom": 1.0,
+    "smoothSpeed": 0.14,
+    "zoomSmoothSpeed": 0.04
   }
 }

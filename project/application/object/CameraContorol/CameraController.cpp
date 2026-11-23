@@ -49,6 +49,9 @@ void CameraController::LoadConfig(const std::string& filePath)
         config_.autoOffset.smoothSpeedY = ja.value("smoothSpeedY", config_.autoOffset.smoothSpeedY);
         config_.autoOffset.camFollowSpeedY = ja.value("camFollowSpeedY", config_.autoOffset.camFollowSpeedY);
         config_.autoOffset.maxLagY = ja.value("maxLagY", config_.autoOffset.maxLagY);
+        config_.autoOffset.clampCamY = ja.value("clampCamY", config_.autoOffset.clampCamY);
+        config_.autoOffset.minCamY = ja.value("minCamY", config_.autoOffset.minCamY);
+        config_.autoOffset.maxCamY = ja.value("maxCamY", config_.autoOffset.maxCamY);
         config_.autoOffset.flipSide = ja.value("flipSide", config_.autoOffset.flipSide);
     }
 
@@ -93,6 +96,20 @@ void CameraController::LoadConfig(const std::string& filePath)
         config_.enemyFraming.focusSmoothSpeedY = je.value("focusSmoothSpeedY", config_.enemyFraming.focusSmoothSpeedY);
         config_.enemyFraming.zoomSmoothSpeed = je.value("zoomSmoothSpeed", config_.enemyFraming.zoomSmoothSpeed);
     }
+
+    if (j.contains("landingFraming")) {
+        const auto& jl = j["landingFraming"];
+        config_.landingFraming.enabled = jl.value("enabled", config_.landingFraming.enabled);
+        config_.landingFraming.minHeightThreshold = jl.value("minHeightThreshold", config_.landingFraming.minHeightThreshold);
+        config_.landingFraming.focusDownRatio = jl.value("focusDownRatio", config_.landingFraming.focusDownRatio);
+        config_.landingFraming.maxFocusDown = jl.value("maxFocusDown", config_.landingFraming.maxFocusDown);
+        config_.landingFraming.camDownRatio = jl.value("camDownRatio", config_.landingFraming.camDownRatio);
+        config_.landingFraming.maxCamDown = jl.value("maxCamDown", config_.landingFraming.maxCamDown);
+        config_.landingFraming.maxExtraDistance = jl.value("maxExtraDistance", config_.landingFraming.maxExtraDistance);
+        config_.landingFraming.paddingBottom = jl.value("paddingBottom", config_.landingFraming.paddingBottom);
+        config_.landingFraming.smoothSpeed = jl.value("smoothSpeed", config_.landingFraming.smoothSpeed);
+        config_.landingFraming.zoomSmoothSpeed = jl.value("zoomSmoothSpeed", config_.landingFraming.zoomSmoothSpeed);
+    }
 }
 
 void CameraController::SaveConfig(const std::string& filePath)
@@ -109,6 +126,9 @@ void CameraController::SaveConfig(const std::string& filePath)
         { "smoothSpeedY", config_.autoOffset.smoothSpeedY },
         { "camFollowSpeedY", config_.autoOffset.camFollowSpeedY },
         { "maxLagY", config_.autoOffset.maxLagY },
+        { "clampCamY", config_.autoOffset.clampCamY },
+        { "minCamY", config_.autoOffset.minCamY },
+        { "maxCamY", config_.autoOffset.maxCamY },
         { "flipSide", config_.autoOffset.flipSide }
     };
 
@@ -137,6 +157,19 @@ void CameraController::SaveConfig(const std::string& filePath)
         { "focusSmoothSpeed", config_.enemyFraming.focusSmoothSpeed },
         { "focusSmoothSpeedY", config_.enemyFraming.focusSmoothSpeedY },
         { "zoomSmoothSpeed", config_.enemyFraming.zoomSmoothSpeed }
+    };
+
+    j["landingFraming"] = {
+        { "enabled", config_.landingFraming.enabled },
+        { "minHeightThreshold", config_.landingFraming.minHeightThreshold },
+        { "focusDownRatio", config_.landingFraming.focusDownRatio },
+        { "maxFocusDown", config_.landingFraming.maxFocusDown },
+        { "camDownRatio", config_.landingFraming.camDownRatio },
+        { "maxCamDown", config_.landingFraming.maxCamDown },
+        { "maxExtraDistance", config_.landingFraming.maxExtraDistance },
+        { "paddingBottom", config_.landingFraming.paddingBottom },
+        { "smoothSpeed", config_.landingFraming.smoothSpeed },
+        { "zoomSmoothSpeed", config_.landingFraming.zoomSmoothSpeed }
     };
 
     JsonManager::GetInstance()->Save(filePath, j);
@@ -207,6 +240,11 @@ void CameraController::Update() {
         ImGui::DragFloat("Smooth Speed Y", &config_.autoOffset.smoothSpeedY, 0.01f, 0.01f, 1.0f);
         ImGui::DragFloat("Cam Follow Speed Y", &config_.autoOffset.camFollowSpeedY, 0.01f, 0.01f, 1.0f);
         ImGui::DragFloat("Max Lag Y", &config_.autoOffset.maxLagY, 0.1f, 0.1f, 10.0f);
+        ImGui::Checkbox("Clamp Cam Y", &config_.autoOffset.clampCamY);
+        if (config_.autoOffset.clampCamY) {
+            ImGui::DragFloat("Min Cam Y", &config_.autoOffset.minCamY, 0.1f, -20.0f, 50.0f);
+            ImGui::DragFloat("Max Cam Y", &config_.autoOffset.maxCamY, 0.1f, -20.0f, 100.0f);
+        }
         ImGui::Checkbox("Flip Side", &config_.autoOffset.flipSide);
 
         ImGui::Separator();
@@ -227,6 +265,21 @@ void CameraController::Update() {
             ImGui::DragFloat("Focus Smooth Speed (XZ)", &config_.enemyFraming.focusSmoothSpeed, 0.005f, 0.005f, 1.0f);
             ImGui::DragFloat("Focus Smooth Speed (Y)", &config_.enemyFraming.focusSmoothSpeedY, 0.005f, 0.005f, 1.0f);
             ImGui::DragFloat("Zoom Smooth Speed", &config_.enemyFraming.zoomSmoothSpeed, 0.005f, 0.005f, 1.0f);
+        }
+
+        ImGui::Separator();
+        ImGui::Text("--- Landing Framing ---");
+        ImGui::Checkbox("Enable Landing Framing", &config_.landingFraming.enabled);
+        if (config_.landingFraming.enabled) {
+            ImGui::DragFloat("Min Height Threshold", &config_.landingFraming.minHeightThreshold, 0.1f, 0.0f, 5.0f);
+            ImGui::SliderFloat("Focus Down Ratio", &config_.landingFraming.focusDownRatio, 0.0f, 1.0f);
+            ImGui::DragFloat("Max Focus Down", &config_.landingFraming.maxFocusDown, 0.1f, 0.0f, 10.0f);
+            ImGui::SliderFloat("Cam Down Ratio", &config_.landingFraming.camDownRatio, 0.0f, 1.0f);
+            ImGui::DragFloat("Max Cam Down", &config_.landingFraming.maxCamDown, 0.1f, 0.0f, 10.0f);
+            ImGui::DragFloat("Max Extra Dist (Landing)", &config_.landingFraming.maxExtraDistance, 0.2f, 0.0f, 20.0f);
+            ImGui::DragFloat("Padding Bottom", &config_.landingFraming.paddingBottom, 0.1f, 0.0f, 10.0f);
+            ImGui::DragFloat("Landing Smooth Speed", &config_.landingFraming.smoothSpeed, 0.01f, 0.01f, 1.0f);
+            ImGui::DragFloat("Landing Zoom Speed", &config_.landingFraming.zoomSmoothSpeed, 0.005f, 0.005f, 1.0f);
         }
     }
 
@@ -271,6 +324,9 @@ void CameraController::Reset() {
     currentExtraDistance_ = 0.0f;
     currentEnemyFocusOffset_ = { 0.0f, 0.0f, 0.0f };
     currentEnemyCamOffsetY_ = 0.0f;
+    currentLandingFocusOffsetY_ = 0.0f;
+    currentLandingCamOffsetY_ = 0.0f;
+    currentLandingExtraDist_ = 0.0f;
 }
 
 void CameraController::RotateCamera() {
@@ -324,13 +380,15 @@ void CameraController::AutoOffsetCamera()
     float targetEnemyCamOffsetY = 0.0f;
 
     if (config_.enemyFraming.enabled && enemies_ && !enemies_->empty()) {
-        Vector3 minPos = playerPos;
-        Vector3 maxPos = playerPos;
-        float maxWeight = 0.0f;
         float detectRangeXZ = (std::max)(config_.enemyFraming.detectRange, 0.01f);
         float detectRangeY = (std::max)(config_.enemyFraming.detectRangeY, 0.01f);
         float blendStart = std::clamp(config_.enemyFraming.blendStartRatio, 0.0f, 0.99f);
         float fadeSpanNorm = (std::max)(1.0f - blendStart, 0.001f);
+
+        // 検出範囲内の敵から最も近い1体を優先ターゲットとして選択
+        const Enemy* nearestEnemy = nullptr;
+        float minNormDist = 1.0f;
+        Vector3 nearestEnemyPos = { 0.0f, 0.0f, 0.0f };
 
         for (const auto& enemy : *enemies_) {
             if (!enemy || enemy->IsDead()) {
@@ -342,23 +400,30 @@ void CameraController::AutoOffsetCamera()
             float distY = std::abs(diff.y);
             float normDist = std::hypot(distXZ / detectRangeXZ, distY / detectRangeY);
 
-            if (normDist <= 1.0f) {
-                // 境界付近で0、近づくにつれて滑らかに1へ変化するSmoothstep重み
-                float t = std::clamp((1.0f - normDist) / fadeSpanNorm, 0.0f, 1.0f);
-                float weight = t * t * (3.0f - 2.0f * t);
-                maxWeight = (std::max)(maxWeight, weight);
-
-                Vector3 effectiveEnemyPos = Lerp(playerPos, enemyPos, weight);
-                minPos.x = (std::min)(minPos.x, effectiveEnemyPos.x);
-                minPos.y = (std::min)(minPos.y, effectiveEnemyPos.y);
-                minPos.z = (std::min)(minPos.z, effectiveEnemyPos.z);
-                maxPos.x = (std::max)(maxPos.x, effectiveEnemyPos.x);
-                maxPos.y = (std::max)(maxPos.y, effectiveEnemyPos.y);
-                maxPos.z = (std::max)(maxPos.z, effectiveEnemyPos.z);
+            if (normDist <= 1.0f && normDist < minNormDist) {
+                minNormDist = normDist;
+                nearestEnemy = enemy.get();
+                nearestEnemyPos = enemyPos;
             }
         }
 
-        if (maxWeight > 0.0f) {
+        if (nearestEnemy != nullptr) {
+            // 境界付近で0、近づくにつれて滑らかに1へ変化するSmoothstep重み
+            float t = std::clamp((1.0f - minNormDist) / fadeSpanNorm, 0.0f, 1.0f);
+            float maxWeight = t * t * (3.0f - 2.0f * t);
+
+            Vector3 effectiveEnemyPos = Lerp(playerPos, nearestEnemyPos, maxWeight);
+            Vector3 minPos = {
+                (std::min)(playerPos.x, effectiveEnemyPos.x),
+                (std::min)(playerPos.y, effectiveEnemyPos.y),
+                (std::min)(playerPos.z, effectiveEnemyPos.z)
+            };
+            Vector3 maxPos = {
+                (std::max)(playerPos.x, effectiveEnemyPos.x),
+                (std::max)(playerPos.y, effectiveEnemyPos.y),
+                (std::max)(playerPos.z, effectiveEnemyPos.z)
+            };
+
             Vector3 boundingCenter = (minPos + maxPos) * 0.5f;
             targetEnemyFocusOffset.x = (boundingCenter.x - playerPos.x) * config_.enemyFraming.focusWeight;
             targetEnemyFocusOffset.z = (boundingCenter.z - playerPos.z) * config_.enemyFraming.focusWeight;
@@ -405,8 +470,48 @@ void CameraController::AutoOffsetCamera()
     currentEnemyFocusOffset_.z = Lerp(currentEnemyFocusOffset_.z, targetEnemyFocusOffset.z, config_.enemyFraming.focusSmoothSpeed);
     currentEnemyFocusOffset_.y = Lerp(currentEnemyFocusOffset_.y, targetEnemyFocusOffset.y, config_.enemyFraming.focusSmoothSpeedY);
     currentEnemyCamOffsetY_ = Lerp(currentEnemyCamOffsetY_, targetEnemyCamOffsetY, config_.enemyFraming.focusSmoothSpeedY);
-    float effectiveDistance = config_.autoOffset.distance + currentExtraDistance_;
-    float effectiveHeight = config_.autoOffset.height + currentExtraDistance_ * config_.enemyFraming.extraHeightRatio + currentEnemyCamOffsetY_;
+
+    // 空中時にプレイヤー真下の着地点（地面・足場）が画面内に収まるよう注視点・高さ・引き距離を調整
+    float targetLandingFocusOffsetY = 0.0f;
+    float targetLandingCamOffsetY = 0.0f;
+    float targetLandingExtraDist = 0.0f;
+    if (config_.landingFraming.enabled && !target_->IsGrounded() && target_->HasGroundBelow()) {
+        float groundY = target_->GetGroundBelowY();
+        float playerBottomY = playerPos.y - target_->GetConfig().collider.heightOffset;
+        float heightAboveGround = (std::max)(0.0f, playerBottomY - groundY);
+
+        if (heightAboveGround > config_.landingFraming.minHeightThreshold) {
+            targetLandingFocusOffsetY = -(std::min)(
+                heightAboveGround * config_.landingFraming.focusDownRatio,
+                config_.landingFraming.maxFocusDown
+            );
+            targetLandingCamOffsetY = -(std::min)(
+                heightAboveGround * config_.landingFraming.camDownRatio,
+                config_.landingFraming.maxCamDown
+            );
+
+            float actualFocusY = smoothedFocusY_ + targetLandingFocusOffsetY + config_.autoOffset.lookAtHeight;
+            float topY = playerPos.y + 0.8f;
+            float bottomY = groundY - config_.landingFraming.paddingBottom;
+            float halfSpanV = (std::max)(std::abs(topY - actualFocusY), std::abs(actualFocusY - bottomY));
+
+            float tanHalfFovY = std::tan(camera_->GetFovY() * 0.5f);
+            float requiredDist = (tanHalfFovY > 1e-4f) ? (halfSpanV / tanHalfFovY) : config_.autoOffset.distance;
+            if (requiredDist > config_.autoOffset.distance) {
+                targetLandingExtraDist = (std::min)(
+                    requiredDist - config_.autoOffset.distance,
+                    config_.landingFraming.maxExtraDistance
+                );
+            }
+        }
+    }
+
+    currentLandingFocusOffsetY_ = Lerp(currentLandingFocusOffsetY_, targetLandingFocusOffsetY, config_.landingFraming.smoothSpeed);
+    currentLandingCamOffsetY_ = Lerp(currentLandingCamOffsetY_, targetLandingCamOffsetY, config_.landingFraming.smoothSpeed);
+    currentLandingExtraDist_ = Lerp(currentLandingExtraDist_, targetLandingExtraDist, config_.landingFraming.zoomSmoothSpeed);
+
+    float effectiveDistance = config_.autoOffset.distance + (std::max)(currentExtraDistance_, currentLandingExtraDist_);
+    float effectiveHeight = config_.autoOffset.height + currentExtraDistance_ * config_.enemyFraming.extraHeightRatio + currentEnemyCamOffsetY_ + currentLandingCamOffsetY_;
 
     Vector3 focusBasePos = { playerPos.x, smoothedFocusY_, playerPos.z };
     Vector3 railFwd = { 0.0f, 0.0f, 1.0f };
@@ -479,7 +584,12 @@ void CameraController::AutoOffsetCamera()
     };
     Vector3 framedFocusBasePos = focusBasePos + currentEnemyFocusOffset_;
     Vector3 targetCamPos = framedCamBasePos + lookAhead * 0.5f + right * effectiveDistance + up * effectiveHeight;
-    Vector3 targetFocusPos = framedFocusBasePos + lookAhead + up * config_.autoOffset.lookAtHeight;
+    if (config_.autoOffset.clampCamY) {
+        float minY = config_.autoOffset.minCamY;
+        float maxY = (std::max)(minY, config_.autoOffset.maxCamY);
+        targetCamPos.y = std::clamp(targetCamPos.y, minY, maxY);
+    }
+    Vector3 targetFocusPos = framedFocusBasePos + lookAhead + up * (config_.autoOffset.lookAtHeight + currentLandingFocusOffsetY_);
 
     Vector3 currentCamPos = camera_->GetTranslate();
     if (!isFocusInitialized_ || Length(currentCamPos) < 1e-4f) {

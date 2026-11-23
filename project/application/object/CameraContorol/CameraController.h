@@ -30,6 +30,9 @@ struct CameraConfig {
 		float smoothSpeedY = 0.28f; ///< 注視点Y軸の追従補間率
 		float camFollowSpeedY = 0.45f; ///< カメラY軸の最終追従補間率
 		float maxLagY = 1.5f;       ///< プレイヤーY位置からの最大遅延幅
+		bool clampCamY = true;      ///< カメラ高さの上下限クランプ有効/無効
+		float minCamY = 1.5f;       ///< カメラの最低高さ (m)
+		float maxCamY = 15.0f;      ///< カメラの最高高さ (m)
 		bool flipSide = false;      ///< オフセット向き反転
 	} autoOffset;
 
@@ -52,13 +55,26 @@ struct CameraConfig {
 		float camYFollowRatio = 0.4f;      ///< 注視点Yシフトに対するカメラ高さの追従割合
 		float minCamOffsetY = -0.5f;       ///< 敵が下にいる際のカメラYオフセット下限
 		float extraHeightRatio = 0.25f;    ///< 追加ズーム距離に対するカメラ高さの連動割合
-		float paddingHorizontal = 4.0f;    ///< 画面左右の余白マージン
-		float paddingVertical = 3.0f;      ///< 画面上下の余白マージン
-		float maxExtraDistance = 8.0f;     ///< 追加で引くカメラ距離の上限
+		float paddingHorizontal = 2.2f;    ///< 画面左右の余白マージン
+		float paddingVertical = 2.0f;      ///< 画面上下の余白マージン
+		float maxExtraDistance = 3.5f;     ///< 追加で引くカメラ距離の上限
 		float focusSmoothSpeed = 0.03f;    ///< 注視点寄せの補間率 (XZ方向)
 		float focusSmoothSpeedY = 0.10f;   ///< 注視点・カメラ高さの補間率 (Y方向)
-		float zoomSmoothSpeed = 0.03f;     ///< ズーム距離の補間率
+		float zoomSmoothSpeed = 0.025f;    ///< ズーム距離の補間率
 	} enemyFraming;
+
+	struct LandingFraming {
+		bool enabled = true;               ///< 空中で着地点をカメラに収める機能の有効/無効
+		float minHeightThreshold = 0.6f;   ///< 着地点フレーミングを開始する対地高度
+		float focusDownRatio = 0.45f;      ///< 高度に応じて注視点を下げる割合
+		float maxFocusDown = 3.0f;         ///< 注視点を下げる最大量
+		float camDownRatio = 0.40f;        ///< カメラ位置自体も下方向へ下げる割合
+		float maxCamDown = 2.5f;           ///< カメラを下げる最大量
+		float maxExtraDistance = 3.0f;     ///< 着地点を収めるための追加引き距離上限
+		float paddingBottom = 1.0f;        ///< 着地点の下側余白マージン
+		float smoothSpeed = 0.14f;         ///< 注視点・高さの補間率
+		float zoomSmoothSpeed = 0.04f;     ///< 着地点ズーム距離の補間率
+	} landingFraming;
 };
 
 class CameraController {
@@ -152,6 +168,9 @@ private:
 	float currentExtraDistance_ = 0.0f;
 	Vector3 currentEnemyFocusOffset_ = {0.0f, 0.0f, 0.0f};
 	float currentEnemyCamOffsetY_ = 0.0f;
+	float currentLandingFocusOffsetY_ = 0.0f;
+	float currentLandingCamOffsetY_ = 0.0f;
+	float currentLandingExtraDist_ = 0.0f;
 	Vector3 desetination_;
 	static inline const float kInterpolationRate = 0.1f;                 //
 	static inline const float kVelocityBias = 30.0f;                     //

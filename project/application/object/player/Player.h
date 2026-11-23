@@ -309,6 +309,8 @@ public:
     return isActive_;
   }
   bool IsGrounded() const { return isGrounded_; }
+  bool HasGroundBelow() const { return rayHitParam_.groundY > -1e30f; }
+  float GetGroundBelowY() const { return rayHitParam_.groundY; }
   bool IsRayHit() const { return GameObject::IsRayHit(); }
 
   const Triangle &GetRayHitTriangle() const {
