@@ -4,18 +4,14 @@
 #pragma comment(lib,"winmm.lib")
 #include <memory>
 #include "Vector2.h"
-class WinApp
+#include "Singleton.h"
+class WinApp : public Singleton<WinApp>
 {
 
 public:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
-    // シングルトンインスタンスの取得
-    static WinApp* GetInstance();
-public:
-     friend struct std::default_delete<WinApp>;
-    // コピーコンストラクタと代入演算子を禁止（シングルトン保証）
-    WinApp(const WinApp&) = delete;
-    WinApp& operator=(const WinApp&) = delete;
+    friend class Singleton<WinApp>;
+    friend struct std::default_delete<WinApp>;
     //初期化
     void Initialize();
     //更新
@@ -44,14 +40,11 @@ public:
     bool ProcessMessage();
     static bool ShouldHideCursor();
     void RefreshCursor();
-private: // プライベートメソッド
-    // コンストラクタとデストラクタを隠蔽
+protected:
     WinApp() = default;
-    ~WinApp() = default;
+    ~WinApp() override = default;
 
 private: // メンバ変数
-    // シングルトンインスタンス
-    static std::unique_ptr<WinApp> instance;
     HWND hwnd = nullptr;
     WNDCLASS wc{};
     //　ウィンドウ名

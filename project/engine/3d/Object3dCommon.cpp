@@ -2,24 +2,11 @@
 #include "Logger.h"
 #include "PSOManager.h"
 
-// 静的メンバ変数の初期化
-std::unique_ptr<Object3dCommon> Object3dCommon::instance = nullptr;
-Object3dCommon* Object3dCommon::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public Object3dCommon {
-            Helper() : Object3dCommon() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
-
 void Object3dCommon::Finalize() {
     // CameraManager の終了処理
     CameraManager::GetInstance()->Finalize();
 
-    instance.reset(); // 解放
+    Singleton<Object3dCommon>::Finalize(); // 解放
 }
 void Object3dCommon::Initialize()
 {

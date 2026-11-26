@@ -3,19 +3,7 @@
 
 #include "DirectXTex.h"
 
-std::unique_ptr<SrvManager> SrvManager::instance = nullptr;
 const uint32_t SrvManager::kMaxSRVCount = 512;
-// インスタンス取得の実装
-SrvManager *SrvManager::GetInstance() {
-  if (instance == nullptr) {
-    // privateコンストラクタを呼び出せるヘルパー構造体
-    struct Helper : public SrvManager {
-      Helper() : SrvManager() {}
-    };
-    instance = std::make_unique<Helper>();
-  }
-  return instance.get();
-} // 静的メンバ変数の初期化
 void SrvManager::Initialize() {
 
   descriptorHeap_ = DXCommon::GetInstance()->CreateDescriptorHeap(
@@ -23,10 +11,6 @@ void SrvManager::Initialize() {
   descriptorSize_ =
       DXCommon::GetInstance()->GetDevice()->GetDescriptorHandleIncrementSize(
           D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-}
-void SrvManager::Finalize() {
-  // インスタンスを破棄（デストラクタが呼ばれ、ComPtrも解放される）
-  instance.reset();
 }
 void SrvManager::PreDraw() {
   ID3D12DescriptorHeap *descritptorHeaps[] = {descriptorHeap_.Get()};

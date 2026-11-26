@@ -5,11 +5,14 @@
 #include<d3d12.h>
 #include"DirectXTex.h"
 #include"d3dx12.h"
+#include "Singleton.h"
 
 class DXCommon;
 
-class TextureManager
+class TextureManager : public Singleton<TextureManager>
 {
+    friend class Singleton<TextureManager>;
+    friend struct std::default_delete<TextureManager>;
 private:
 
     //テクスチャデータ構造体
@@ -23,23 +26,17 @@ private:
         Microsoft::WRL::ComPtr<ID3D12Resource>intermediateResource;
     };
 
-    TextureManager() = default;
-    ~TextureManager() = default;
-    TextureManager(TextureManager&) = delete;
-    TextureManager& operator=(TextureManager&) = delete;
     std::unordered_map<std::string, TextureData> textureDates;
 
     
     
 
     static uint32_t kSRVIndexTop;
+protected:
+    TextureManager() = default;
+    ~TextureManager() override = default;
 public:
-    static std::unique_ptr<TextureManager> instance;
-    friend struct std::default_delete<TextureManager>;
-
     void Initialize();
-    static TextureManager* GetInstance();
-    void Finalize();
     //テクスチャ読込・登録
     void LoadTexture(const std::string& filePath);
     //中間リソース解放

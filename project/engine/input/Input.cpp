@@ -5,23 +5,8 @@
 #include <memory>
 #include "WinApp.h"
 
-
-// 静的メンバ変数の初期化
-std::unique_ptr<Input> Input::instance = nullptr;
-
-Input* Input::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public Input {
-            Helper() : Input() {
-            }
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
 void Input::Finalize() {
-    instance.reset();
+    Singleton<Input>::Finalize();
 }
 void Input::Initialize() {
 

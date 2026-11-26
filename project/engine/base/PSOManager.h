@@ -8,6 +8,7 @@
 #include <vector>
 #include <d3dx12.h> // CD3DX12 構造体のために推奨
 #include <dxcapi.h> // IDxcBlobのために推奨
+#include "Singleton.h"
 
 
 // 追加：シェーダーの種類を定義
@@ -68,9 +69,9 @@ struct PsoSet {
     Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
 };
 
-class PSOManager {
+class PSOManager : public Singleton<PSOManager> {
 public:
-    static PSOManager* GetInstance();
+    friend class Singleton<PSOManager>;
     friend struct std::default_delete<PSOManager>;
     void Initialize();
     void Finalize();
@@ -80,10 +81,11 @@ public:
 
     D3D12_STATIC_SAMPLER_DESC StaticSamplers();
 
-private:
+protected:
     PSOManager() = default;
-    ~PSOManager() = default;
+    ~PSOManager() override = default;
 
+private:
     void CreatePso(const std::string& name, BlendMode blend, FillMode fill, Toporogy type);
     D3D12_BLEND_DESC CreateBlendDesc(BlendMode mode);
     void EnsureShaders(const std::string& name, ShaderSet& outSet);
@@ -115,7 +117,6 @@ private:
         }
     };
 
-    static std::unique_ptr<PSOManager> instance_;
     std::unordered_map<std::string, PsoConfig> psoConfigs_;
     std::unordered_map<CacheKey, PsoSet, KeyHasher> psoCache_;
     std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12RootSignature>> rootSigCache_;

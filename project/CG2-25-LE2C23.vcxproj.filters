@@ -653,6 +653,9 @@
     <ClInclude Include="engine\base\DXCommon.h">
       <Filter>engine\base</Filter>
     </ClInclude>
+    <ClInclude Include="engine\base\Singleton.h">
+      <Filter>engine\base</Filter>
+    </ClInclude>
     <ClInclude Include="engine\audio\Audio.h">
       <Filter>engine\audio</Filter>
     </ClInclude>
@@ -684,6 +687,9 @@
       <Filter>externals\imgui</Filter>
     </ClInclude>
     <ClInclude Include="engine\math\MathFunction.h">
+      <Filter>engine\math</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\math\GameMath.h">
       <Filter>engine\math</Filter>
     </ClInclude>
     <ClInclude Include="engine\2d\Vector4.h">

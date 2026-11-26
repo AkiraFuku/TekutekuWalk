@@ -15,19 +15,6 @@
 
 using namespace Microsoft::WRL;
 
-std::unique_ptr<Audio> Audio::instance = nullptr;
-
-Audio* Audio::GetInstance()
-{
-    if (instance == nullptr) {
-        struct Helper : public Audio {
-            Helper() : Audio() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
-
 void Audio::Initialize()
 {
     HRESULT result;
@@ -69,6 +56,7 @@ void Audio::Finalize()
     soundDatas_.clear();
     categoryVolumes_.clear();
     MFShutdown();
+    Singleton<Audio>::Finalize();
 }
 
 void Audio::Update()

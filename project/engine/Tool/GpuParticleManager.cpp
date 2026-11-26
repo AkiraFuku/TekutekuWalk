@@ -76,18 +76,6 @@ void ReleaseGroupGpuResources(GpuParticleManager::GpuParticleGroup& group) {
 }
 } // namespace
 
-std::unique_ptr<GpuParticleManager> GpuParticleManager::instance_ = nullptr;
-
-GpuParticleManager* GpuParticleManager::GetInstance() {
-    if (instance_ == nullptr) {
-        struct Helper : public GpuParticleManager {
-            Helper() : GpuParticleManager() {}
-        };
-        instance_ = std::make_unique<Helper>();
-    }
-    return instance_.get();
-}
-
 void GpuParticleManager::Initialize() {
     RegisterPsos();
     CreateSharedResources();
@@ -113,7 +101,7 @@ void GpuParticleManager::Finalize() {
     }
     primitiveResources_.clear();
 
-    instance_.reset();
+    Singleton<GpuParticleManager>::Finalize();
 }
 
 void GpuParticleManager::RegisterPsos() {

@@ -3,18 +3,17 @@
 #include <unordered_map>
 #include <memory>
 #include "externals/Json/json.hpp"
+#include "Singleton.h"
 
 /// <summary>
 /// JSONファイルの読み込み・保存・キャッシュ管理を行うシングルトンクラス
 /// </summary>
-class JsonManager
+class JsonManager : public Singleton<JsonManager>
 {
 public:
     using json = nlohmann::json;
 
-    // シングルトンインスタンスの取得
-    static JsonManager* GetInstance();
-    static std::unique_ptr<JsonManager> instance;
+    friend class Singleton<JsonManager>;
     friend struct std::default_delete<JsonManager>;
 
     void Initialize();
@@ -79,12 +78,11 @@ public:
     /// </summary>
     void ClearAll();
 
-private:
+protected:
     JsonManager() = default;
-    ~JsonManager() = default;
-    JsonManager(const JsonManager&) = delete;
-    JsonManager& operator=(const JsonManager&) = delete;
+    ~JsonManager() override = default;
 
+private:
     // キャッシュされたJSONデータの連想配列
     std::unordered_map<std::string, json> jsonCache_;
 

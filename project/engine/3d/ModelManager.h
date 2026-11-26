@@ -3,18 +3,18 @@
 #include <Model.h>
 #include <memory>
 #include "DXCommon.h"
-class ModelManager
+#include "Singleton.h"
+class ModelManager : public Singleton<ModelManager>
 {
+    friend class Singleton<ModelManager>;
+    friend struct std::default_delete<ModelManager>;
 public:
     void Initialize();
-    static ModelManager* GetInstance();
     void Finalize();
     //Modelロード
     void LoadModel(const std::string& directoryPath,const std::string& filePath);
     //Model検索
     std::shared_ptr<Model> findModel(const std::string& filePath);
-    static std::unique_ptr<ModelManager> instance;
-    friend struct std::default_delete<ModelManager>;
     void CreateSphereModel(const std::string& modelName, uint32_t subdivision = 16);
     /// <summary>
     /// 板ポリゴンをテクスチャから生成する
@@ -41,14 +41,11 @@ public:
     void RegisterModel(const std::string& modelName, std::shared_ptr<Model> model);
 
 
-private:
-  
-
+protected:
     ModelManager() = default;
-    ~ModelManager() = default;
-    ModelManager(ModelManager&) = delete;
-    ModelManager& operator=(ModelManager&) = delete;
+    ~ModelManager() override = default;
 
+private:
     std::map<std::string, std::shared_ptr<Model>> models;
 };
 

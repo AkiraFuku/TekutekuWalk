@@ -4,26 +4,22 @@
 #include <cstdint>
 
 #include <memory>
-class SpriteCommon
-{
-public:
-  // シングルトン化
-    static SpriteCommon* GetInstance();
-    void Finalize();
+#include "Singleton.h"
 
+class SpriteCommon : public Singleton<SpriteCommon>
+{
+    friend class Singleton<SpriteCommon>;
+    friend struct std::default_delete<SpriteCommon>;
+public:
     void Initialize();
 
    
     void SpriteCommonDraw();
 
-    static std::unique_ptr<SpriteCommon> instance;
-      friend struct std::default_delete<SpriteCommon>;
-private:
-    // シングルトンパターン
+protected:
     SpriteCommon() = default;
-    ~SpriteCommon() = default;
-    SpriteCommon(const SpriteCommon&) = delete;
-    SpriteCommon& operator=(const SpriteCommon&) = delete;
+    ~SpriteCommon() override = default;
+private:
     HRESULT hr_;
 
     

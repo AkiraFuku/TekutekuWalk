@@ -2,18 +2,6 @@
 #include "WinApp.h"
 #include <algorithm> // std::clamp 用
 
-std::unique_ptr<Fade> Fade::instance_ = nullptr;
-
-Fade* Fade::GetInstance() {
-    if (instance_ == nullptr) {
-        struct Helper : public Fade {
-            Helper() : Fade() {}
-        };
-        instance_ = std::make_unique<Helper>();
-    }
-    return instance_.get();
-}
-
 void Fade::Initialize()
 {
     // 1. フェード専用PSOの登録

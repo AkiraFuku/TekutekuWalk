@@ -6,8 +6,9 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include "Sprite.h"
+#include "Singleton.h"
 
-class Fade {
+class Fade : public Singleton<Fade> {
 public:
     enum class Status {
         None,   // フェードしていない
@@ -15,9 +16,7 @@ public:
         FadeOut // フェードアウト中 (0 -> 1)
     };
 
-    static Fade* GetInstance();
-    Fade(const Fade&) = delete;
-    Fade& operator=(const Fade&) = delete;
+    friend class Singleton<Fade>;
     friend struct std::default_delete<Fade>;
 
     void Initialize();
@@ -32,11 +31,11 @@ public:
     // フェード状態を取得
     Status GetStatus() const { return status_; }
 
-private:
+protected:
     Fade() = default;
-    ~Fade() = default;
+    ~Fade() override = default;
 
-    static std::unique_ptr<Fade> instance_;
+private:
     std::unique_ptr<Sprite> sprite_;
 
     // フェード用PSOを登録する

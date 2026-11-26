@@ -10,18 +10,7 @@
 #include "SrvManager.h"
 
 const float DXCommon::kDeltaTime = 1.0f / 60.0f;
-std::unique_ptr<DXCommon> DXCommon::instance = nullptr;
 
-DXCommon* DXCommon::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public DXCommon {
-            Helper() : DXCommon() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}// 静的メンバ変数の初期化
 void DXCommon::Initialize()
 {
     InitializeFixFPS();
@@ -44,7 +33,7 @@ void DXCommon::Initialize()
 
 void DXCommon::Finalize()
 {
-    instance.reset();
+    Singleton<DXCommon>::Finalize();
 }
 
 void DXCommon::PreDraw()

@@ -11,18 +11,6 @@
 #ifdef USE_IMGUI
 #include "imgui.h"
 #endif // USE_IMGUI
-// インスタンス定義
-std::unique_ptr<OffScreen> OffScreen::instance = nullptr;
-
-OffScreen* OffScreen::GetInstance() {
-    if (instance == nullptr) {
-        struct Helper : public OffScreen {
-            Helper() : OffScreen() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
 
 void OffScreen::Initialize() {
 

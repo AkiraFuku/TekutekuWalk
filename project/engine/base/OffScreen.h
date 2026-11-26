@@ -6,6 +6,7 @@
 #include "Vector4.h"
 #include "Vector2.h"
 #include "PSOManager.h"
+#include "Singleton.h"
 
 
 struct BlurParam
@@ -47,9 +48,11 @@ inline PostEffectFlag operator~(PostEffectFlag a) {
 }
 
 class Camera;
-class OffScreen
+class OffScreen : public Singleton<OffScreen>
 {
 public:
+    friend class Singleton<OffScreen>;
+    friend struct std::default_delete<OffScreen>;
 
     struct MaskMaterial
     {
@@ -57,14 +60,7 @@ public:
         uint32_t maskTextureSrvIndex;
     };
 
-    static OffScreen* GetInstance();
-
-    OffScreen(const OffScreen&) = delete;
-    OffScreen& operator=(const OffScreen&) = delete;
-    friend struct std::default_delete<OffScreen>;
-
     void Initialize();
-    void Finalize();
     void Update();
     void Draw();
 
@@ -145,12 +141,11 @@ public:
         return dissolveParamData_ ? dissolveParamData_->threshold : 0.0f;
     }
 
-private:
+protected:
     OffScreen() = default;
-    ~OffScreen() = default;
+    ~OffScreen() override = default;
 
-    static std::unique_ptr<OffScreen> instance;
-
+private:
     Camera* camera_;
 
     // 現在有効なポストエフェクトのフラグ (デフォルトは通常表示)

@@ -14,9 +14,10 @@
 #include <functional>
 #include <string>
 #include <variant>
+#include "Singleton.h"
 
 
-class ParticleManager
+class ParticleManager : public Singleton<ParticleManager>
 {
 public:
 
@@ -153,12 +154,9 @@ public:
     // セットのisActiveを設定する
     void SetParticleGroupSetActive(const std::string& setName, bool active);
 
-    static ParticleManager* GetInstance();
-
     // setName のセット内の groupName グループにパーティクルを発生させる
     void Emit(const std::string& setName, const std::string& groupName, const Vector3& position, uint32_t count);
 
-    void Finalize();
     void SetCamera(Camera* camera) {
         camera_ = camera;
     }
@@ -171,20 +169,19 @@ public:
     // 最上位コンテナ（外部から参照したい場合に公開）
     std::unordered_map<std::string, ParticleGroupSet> particleGroupSets;
 
+    friend class Singleton<ParticleManager>;
     friend struct std::default_delete<ParticleManager>;
-    static std::unique_ptr<ParticleManager> instance;
 
     std::vector<ParticleManager::VertexData> PrimitiveVertexPlane();
     std::vector<ParticleManager::VertexData> PrimitiveVertexRing();
     std::vector<ParticleManager::VertexData> PrimitiveVertexCylinder();
     Particle MakeParticle(std::mt19937& randomEngine, const Vector3& translate);
 
-private:
+protected:
     ParticleManager() = default;
-    ~ParticleManager() = default;
-    ParticleManager(ParticleManager&) = delete;
-    ParticleManager& operator=(ParticleManager&) = delete;
+    ~ParticleManager() override = default;
 
+private:
     static uint32_t kMaxNumInstance;
 
     // 実際にGPUリソースを生成する内部ヘルパー

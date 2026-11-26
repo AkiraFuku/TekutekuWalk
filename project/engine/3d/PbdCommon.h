@@ -5,12 +5,13 @@
 #include <memory>
 #include "Camera.h"
 #include "CameraManager.h"
+#include "Singleton.h"
 
-class PbdCommon {
+class PbdCommon : public Singleton<PbdCommon> {
+    friend class Singleton<PbdCommon>;
+    friend struct std::default_delete<PbdCommon>;
 public:
-    static PbdCommon* GetInstance();
     void Initialize();
-    void Finalize();
 
     void PbdCommonDraw();
 
@@ -33,16 +34,11 @@ public:
         return graphicsPipelineState_.Get();
     }
 
-    friend struct std::default_delete<PbdCommon>;
+protected:
+    PbdCommon() = default;
+    ~PbdCommon() override = default;
 
 private:
-    PbdCommon() = default;
-    ~PbdCommon() = default;
-    PbdCommon(const PbdCommon&) = delete;
-    PbdCommon& operator=(const PbdCommon&) = delete;
-
-    static std::unique_ptr<PbdCommon> instance_;
-
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState_;
 };
