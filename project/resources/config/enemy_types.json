@@ -21,6 +21,15 @@
     "jumpAcceleration": 16.0,
     "gravityScaleFloating": 0.1,
     "gravityScaleNormal": 0.6,
-    "hoverLimitHeight": 0.2
+    "hoverLimitHeight": 0.2,
+    "detectRadius": 9.0,
+    "telegraphDuration": 0.65,
+    "shakePosAmplitude": 0.12,
+    "shakeRotAmplitude": 0.25,
+    "shakeFrequency": 45.0,
+    "attackSpeed": 12.0,
+    "attackDuration": 1.8,
+    "attackJumpAcceleration": 11.0,
+    "attackCooldown": 2.0
   }
 }
