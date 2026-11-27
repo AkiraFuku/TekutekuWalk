@@ -61,6 +61,12 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
         }
     }
 
+    // 2.5 ジャンプ長押し（ホバージャンプ判定用）
+    if (input->PushPadDown(0, XINPUT_GAMEPAD_A) || input->PushedKeyDown(DIK_SPACE))
+    {
+        commands.push_back(std::make_unique<JumpHoldCommand>());
+    }
+
     // 近接攻撃コマンド (マウス左クリック または ゲームパッド Bボタン)
     if (input->TriggerMouseDown(0) || input->TriggerPadDown(0, XINPUT_GAMEPAD_B)) {
         commands.push_back(std::make_unique<AttackCommand>());

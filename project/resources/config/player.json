@@ -10,7 +10,7 @@
     "walkSpeed": 7.5,
     "dashSpeed": 15.0,
     "gravity": -50.0,
-    "jumpAcceleration": 24.0,
+    "jumpAcceleration": 17.0,
     "coyoteDuration": 0.12,
     "jumpBufferDuration": 0.15,
     "maxSlopeCos": 0.65,
@@ -62,9 +62,11 @@
     "invincibilityAfter": 0.15
   },
   "hover": {
-    "maxDuration": 2.5,
-    "fallSpeed": -0.5,
-    "initialBoostY": 1.0
+    "maxDuration": 2.0,
+    "ascendSpeed": 4.5,
+    "maxTotalHeight": 5.76,
+    "holdTriggerDuration": 0.15,
+    "triggerMaxVelY": 3.0
   },
   "guard": {
     "maxDuration": 3.0,
@@ -78,6 +80,13 @@
     "rushDuration": 0.22,
     "recoveryDuration": 0.10,
     "rushSpeedMultiplier": 0.0,
+    "invincibilityAfter": 0.2
+  },
+  "dashAttack": {
+    "windupDuration": 0.03,
+    "rushDuration": 0.24,
+    "recoveryDuration": 0.10,
+    "rushSpeed": 24.0,
     "invincibilityAfter": 0.2
   },
   "rapidFire": {

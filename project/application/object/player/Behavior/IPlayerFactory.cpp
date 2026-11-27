@@ -21,11 +21,13 @@ std::unique_ptr<IPlayerAction> NormalPlayerFactory::CreateShootAction() {
 }
 std::unique_ptr<IPlayerBehavior> NormalPlayerFactory::CreateBehavior(BehaviorType type) {
     switch (type) {
-    case BehaviorType::Jump:   return std::make_unique<BehaviorJump>();
-    case BehaviorType::Attack: return std::make_unique<BehaviorAttack>();
-    case BehaviorType::Slide:  return std::make_unique<BehaviorSlide>();
+    case BehaviorType::Jump:       return std::make_unique<BehaviorJump>();
+    case BehaviorType::Hover:      return std::make_unique<BehaviorHover>();
+    case BehaviorType::Attack:     return std::make_unique<BehaviorAttack>();
+    case BehaviorType::DashAttack: return std::make_unique<BehaviorDashAttack>();
+    case BehaviorType::Slide:      return std::make_unique<BehaviorSlide>();
     case BehaviorType::Root:
-    default:                   return std::make_unique<BehaviorRoot>();
+    default:                       return std::make_unique<BehaviorRoot>();
     }
 }
 

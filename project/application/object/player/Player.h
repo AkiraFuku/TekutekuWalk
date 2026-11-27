@@ -25,7 +25,7 @@ struct PlayerConfig {
     float walkSpeed = 7.5f;               // 通常歩き速度 (m/s)
     float dashSpeed = 15.0f;              // ダッシュ走り速度 (m/s)
     float gravity = -50.0f;               // 重力加速度 (m/s^2)
-    float jumpAcceleration = 24.0f;       // ジャンプ初速度
+    float jumpAcceleration = 17.0f;       // ジャンプ初速度 (従来24.0の半分の高さ)
     float coyoteDuration = 0.12f;         // 崖落ち後ジャンプ猶予時間 (秒)
     float jumpBufferDuration = 0.15f;     // 着地前ジャンプ先行入力猶予時間 (秒)
     float maxSlopeCos = 0.65f;            // 登れる最大傾斜（cos約49度）
@@ -77,9 +77,11 @@ struct PlayerConfig {
   } slide;
 
   struct Hover {
-    float maxDuration = 2.5f;   // 最大ホバー時間 (秒)
-    float fallSpeed = -0.5f;    // ホバー中の降下速度 (m/s)
-    float initialBoostY = 1.0f; // ホバー開始時浮上力 (m/s)
+    float maxDuration = 2.0f;          // ホバー最大合計持続時間 (秒)
+    float ascendSpeed = 4.5f;          // 緩やかな上昇速度 (m/s)
+    float maxTotalHeight = 5.76f;      // ジャンプと合わせた最大上昇高度 (m)
+    float holdTriggerDuration = 0.15f; // ホバー発動に必要な長押し時間 (秒)
+    float triggerMaxVelY = 3.0f;       // ホバー移行を許可する最大Y速度 (m/s)
   } hover;
 
   struct Guard {
@@ -99,6 +101,14 @@ struct PlayerConfig {
               // 体当たりせずその場でヒットボックス発生）
     float invincibilityAfter = 0.20f; // 攻撃終了後無敵余韻 (秒)
   } attackAction;
+
+  struct DashAttack {
+    float windupDuration = 0.03f;     // ダッシュ攻撃の予備動作時間 (秒)
+    float rushDuration = 0.24f;       // 突進打撃AABBヒットボックス持続時間 (秒)
+    float recoveryDuration = 0.10f;   // フォロースルー硬直時間 (秒)
+    float rushSpeed = 24.0f;          // ダッシュ攻撃時の突進速度 (m/s)
+    float invincibilityAfter = 0.20f; // 終了後無敵余韻 (秒)
+  } dashAttack;
 
   struct RapidFire {
     float fireInterval = 0.09f;     // 連射間隔 (秒: 0.09 ≒ 秒間11発)
@@ -244,8 +254,28 @@ public:
   }
   bool IsShootOverheated() const { return isShootOverheated_; }
   bool IsLandingStaggered() const { return landingRecoveryTimer_ > 0.0f; }
+  void CancelLandingStagger() { landingRecoveryTimer_ = 0.0f; }
   float GetLandingRecoveryTimer() const { return landingRecoveryTimer_; }
   bool IsShootingStance() const { return shootSlowdownTimer_ > 0.0f; }
+
+  // ホバージャンプ制御＆UI連携
+  float GetJumpStartY() const { return jumpStartY_; }
+  void SetJumpStartY(float y) { jumpStartY_ = y; }
+  void SetHovering(bool hovering) { isHovering_ = hovering; }
+  bool IsHovering() const { return isHovering_; }
+  void ConsumeHoverEnergy(float deltaTime);
+  void ResetHoverEnergy() { hoverEnergy_ = 1.0f; }
+  float GetHoverEnergyRatio() const {
+    return std::clamp(hoverEnergy_, 0.0f, 1.0f);
+  }
+  bool IsHoverConditionMet() const;
+  bool IsHoverIconActive() const {
+    return isHovering_ || IsHoverConditionMet();
+  }
+
+  // ダッシュ攻撃制御
+  void SetDashAttackActive(bool active) { isDashAttackActive_ = active; }
+  bool IsDashAttackActive() const { return isDashAttackActive_; }
 
   float GetRailProgress() const;
   float GetCurrentDistance() const;
@@ -291,9 +321,14 @@ public:
     if (!IsAttacking()) {
       return 1.0f;
     }
-    const float totalDuration = config_.attackAction.windupDuration +
-                                config_.attackAction.rushDuration +
-                                config_.attackAction.recoveryDuration;
+    const float totalDuration =
+        isDashAttackActive_
+            ? (config_.dashAttack.windupDuration +
+               config_.dashAttack.rushDuration +
+               config_.dashAttack.recoveryDuration)
+            : (config_.attackAction.windupDuration +
+               config_.attackAction.rushDuration +
+               config_.attackAction.recoveryDuration);
     if (totalDuration <= 0.0f) {
       return 1.0f;
     }
@@ -393,6 +428,10 @@ private:
   // コヨーテタイム & 先行入力用タイマー
   float coyoteTimer_ = 0.0f;
   float jumpBufferTimer_ = 0.0f;
+  float jumpStartY_ = 0.0f;           // ジャンプ開始時のY座標（ホバー高度上限計算用）
+  float hoverEnergy_ = 1.0f;          // ホバーゲージ残量 (0.0～1.0)
+  bool isHovering_ = false;           // ホバージャンプ中フラグ
+  bool isDashAttackActive_ = false;   // ダッシュ派生攻撃中フラグ
   float shootCooldownTimer_ = 0.0f;   // 連射クールダウンタイマー
   float shootSlowdownTimer_ = 0.0f;   // 連射反動中の腰だめ歩行タイマー
   float shootRecoilTimer_ = 0.0f;     // 発砲1発ごとのリコイル振動タイマー

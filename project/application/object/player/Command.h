@@ -5,6 +5,7 @@
 enum class CommandType {
     Move,
     Jump,
+    JumpHold,
     Attack,
     Shoot,
     Dash,
@@ -29,6 +30,11 @@ private:
 class JumpCommand : public ICommand {
 public:
     CommandType GetType() const override { return CommandType::Jump; }
+};
+
+class JumpHoldCommand : public ICommand {
+public:
+    CommandType GetType() const override { return CommandType::JumpHold; }
 };
 
 class AttackCommand : public ICommand {

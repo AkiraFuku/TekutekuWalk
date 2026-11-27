@@ -125,6 +125,10 @@ private:
         size_t btnTexIndexGamepad = 1;
         bool isBtnGamepad = false;
 
+        size_t iconTexIndexDefault = 0;
+        size_t iconTexIndexAlt = 0;
+        bool isIconAlt = false;
+
         Vector2 centerOffset = { 0.0f, 50.0f };
         float scale = 1.0f;
     };
@@ -161,8 +165,10 @@ private:
 
     bool wasMoving_ = false;            // 前フレームの移動状態
     bool wasAirborne_ = false;          // 前フレームの空中状態
+    bool wasHoverIconActive_ = false;   // 前フレームのホバーアイコン状態
     bool wasDashStepping_ = false;      // 前フレームのステップ状態
     bool wasMeleeAttacking_ = false;    // 前フレームの近接攻撃モーション状態
+    bool wasDashAttackIcon_ = false;    // 前フレームのダッシュ攻撃アイコン状態
     float prevShootEnergyRatio_ = 1.0f; // 前フレームのマシンガンエネルギー残量
     bool wasShootOverheated_ = false;   // 前フレームのオーバーヒート状態
 

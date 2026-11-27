@@ -12,7 +12,9 @@ enum class PlayerFormType {
 enum class BehaviorType {
     Root,
     Jump,
+    Hover,
     Attack,
+    DashAttack,
     Slide,
 };
 

@@ -152,9 +152,14 @@ void Player::LoadConfig(const std::string &filePath) {
     const auto &jh = j["hover"];
     config_.hover.maxDuration =
         jh.value("maxDuration", config_.hover.maxDuration);
-    config_.hover.fallSpeed = jh.value("fallSpeed", config_.hover.fallSpeed);
-    config_.hover.initialBoostY =
-        jh.value("initialBoostY", config_.hover.initialBoostY);
+    config_.hover.ascendSpeed =
+        jh.value("ascendSpeed", config_.hover.ascendSpeed);
+    config_.hover.maxTotalHeight =
+        jh.value("maxTotalHeight", config_.hover.maxTotalHeight);
+    config_.hover.holdTriggerDuration =
+        jh.value("holdTriggerDuration", config_.hover.holdTriggerDuration);
+    config_.hover.triggerMaxVelY =
+        jh.value("triggerMaxVelY", config_.hover.triggerMaxVelY);
   }
 
   // Guard
@@ -184,6 +189,21 @@ void Player::LoadConfig(const std::string &filePath) {
         "rushSpeedMultiplier", config_.attackAction.rushSpeedMultiplier);
     config_.attackAction.invincibilityAfter =
         ja.value("invincibilityAfter", config_.attackAction.invincibilityAfter);
+  }
+
+  // DashAttack
+  if (j.contains("dashAttack")) {
+    const auto &jda = j["dashAttack"];
+    config_.dashAttack.windupDuration =
+        jda.value("windupDuration", config_.dashAttack.windupDuration);
+    config_.dashAttack.rushDuration =
+        jda.value("rushDuration", config_.dashAttack.rushDuration);
+    config_.dashAttack.recoveryDuration =
+        jda.value("recoveryDuration", config_.dashAttack.recoveryDuration);
+    config_.dashAttack.rushSpeed =
+        jda.value("rushSpeed", config_.dashAttack.rushSpeed);
+    config_.dashAttack.invincibilityAfter =
+        jda.value("invincibilityAfter", config_.dashAttack.invincibilityAfter);
   }
 
   // RapidFire
@@ -275,8 +295,10 @@ void Player::SaveConfig(const std::string &filePath) {
                 {"invincibilityAfter", config_.slide.invincibilityAfter}};
 
   j["hover"] = {{"maxDuration", config_.hover.maxDuration},
-                {"fallSpeed", config_.hover.fallSpeed},
-                {"initialBoostY", config_.hover.initialBoostY}};
+                {"ascendSpeed", config_.hover.ascendSpeed},
+                {"maxTotalHeight", config_.hover.maxTotalHeight},
+                {"holdTriggerDuration", config_.hover.holdTriggerDuration},
+                {"triggerMaxVelY", config_.hover.triggerMaxVelY}};
 
   j["guard"] = {{"maxDuration", config_.guard.maxDuration},
                 {"bashDuration", config_.guard.bashDuration},
@@ -290,6 +312,13 @@ void Player::SaveConfig(const std::string &filePath) {
       {"recoveryDuration", config_.attackAction.recoveryDuration},
       {"rushSpeedMultiplier", config_.attackAction.rushSpeedMultiplier},
       {"invincibilityAfter", config_.attackAction.invincibilityAfter}};
+
+  j["dashAttack"] = {
+      {"windupDuration", config_.dashAttack.windupDuration},
+      {"rushDuration", config_.dashAttack.rushDuration},
+      {"recoveryDuration", config_.dashAttack.recoveryDuration},
+      {"rushSpeed", config_.dashAttack.rushSpeed},
+      {"invincibilityAfter", config_.dashAttack.invincibilityAfter}};
 
   j["rapidFire"] = {{"fireInterval", config_.rapidFire.fireInterval},
                     {"bulletSpeed", config_.rapidFire.bulletSpeed},
@@ -477,8 +506,11 @@ void Player::Update() {
   UpdateGravity();
 
   // 3. 接地確定後に先行入力が残っていれば即座にジャンプを実行
-  if (isGrounded_ && jumpBufferTimer_ > 0.0f) {
-    TryExecuteBufferedJump();
+  if (isGrounded_) {
+    hoverEnergy_ = 1.0f;
+    if (jumpBufferTimer_ > 0.0f) {
+      TryExecuteBufferedJump();
+    }
   }
 
   // 4. 接地状態と移動入力から歩き・ダッシュ・待機の移動状態を決定
@@ -654,6 +686,7 @@ bool Player::TryExecuteBufferedJump() {
     return true;
   } else {
     // 通常ジャンプ実行！
+    jumpStartY_ = worldY_;
     velocity_.y = config_.movement.jumpAcceleration;
     isGrounded_ = false;
     isJumping_ = true;
@@ -675,6 +708,33 @@ bool Player::TryExecuteBufferedJump() {
 }
 
 void Player::Attack() {}
+
+void Player::ConsumeHoverEnergy(float deltaTime) {
+  if (config_.hover.maxDuration > 0.0f) {
+    hoverEnergy_ -= deltaTime / config_.hover.maxDuration;
+  } else {
+    hoverEnergy_ = 0.0f;
+  }
+  if (hoverEnergy_ < 0.0f) {
+    hoverEnergy_ = 0.0f;
+  }
+}
+
+bool Player::IsHoverConditionMet() const {
+  if (isGrounded_) {
+    return false;
+  }
+  if (hoverEnergy_ <= 0.0f) {
+    return false;
+  }
+  if ((worldY_ - jumpStartY_) >= config_.hover.maxTotalHeight) {
+    return false;
+  }
+  if (velocity_.y > config_.hover.triggerMaxVelY) {
+    return false;
+  }
+  return true;
+}
 
 float Player::GetRailProgress() const { return railMover_->GetProgress(); }
 float Player::GetCurrentDistance() const {
@@ -1387,13 +1447,17 @@ void Player::ImGuiDrawDebugInfo() {
                      &config_.slide.invincibilityAfter, 0.0f, 1.0f, "%.2f s");
 
   ImGui::Separator();
-  ImGui::Text("--- Hover Form Settings ---");
+  ImGui::Text("--- Hover Jump Settings ---");
   ImGui::SliderFloat("Hover Max Duration", &config_.hover.maxDuration, 0.5f,
                      6.0f, "%.2f s");
-  ImGui::SliderFloat("Hover Fall Speed", &config_.hover.fallSpeed, -5.0f, 0.0f,
-                     "%.2f m/s");
-  ImGui::SliderFloat("Hover Initial Boost Y", &config_.hover.initialBoostY,
-                     0.0f, 10.0f, "%.1f m/s");
+  ImGui::SliderFloat("Hover Ascend Speed", &config_.hover.ascendSpeed, 1.0f,
+                     12.0f, "%.2f m/s");
+  ImGui::SliderFloat("Hover Max Total Height", &config_.hover.maxTotalHeight,
+                     2.0f, 12.0f, "%.2f m");
+  ImGui::SliderFloat("Hover Hold Trigger", &config_.hover.holdTriggerDuration,
+                     0.05f, 0.6f, "%.2f s");
+  ImGui::SliderFloat("Hover Trigger Max VelY", &config_.hover.triggerMaxVelY,
+                     -10.0f, 15.0f, "%.1f m/s");
 
   ImGui::Separator();
   ImGui::Text("--- Guard Form Settings ---");

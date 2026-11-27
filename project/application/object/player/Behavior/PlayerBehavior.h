@@ -38,6 +38,22 @@ private:
     bool isStrikePhase_ = false;
 };
 
+// ダッシュ派生攻撃ビヘイビア（高速突進打撃）
+class BehaviorDashAttack : public IPlayerBehavior {
+public:
+    void Initialize(Player* player) override;
+    void Update(Player* player) override;
+    void Finalize(Player* player) override;
+    void HandleInput(Player* player, ICommand* command) override;
+    const char* GetName() const override { return "DashAttack"; }
+    bool IsAttacking() const override { return isStrikePhase_; }
+
+private:
+    float timer_ = 0.0f;
+    int attackDir_ = 1;
+    bool isStrikePhase_ = false;
+};
+
 class BehaviorJump : public IPlayerBehavior {
 public:
     void Initialize(Player* player) override;
@@ -45,6 +61,23 @@ public:
     void Finalize(Player* player) override;
     void HandleInput(Player* player, ICommand* command) override;
     const char* GetName() const override { return "Jump"; }
+
+private:
+    float jumpHoldTimer_ = 0.0f;
+    bool isJumpHeldThisFrame_ = false;
+};
+
+// ホバージャンプビヘイビア（緩やかな上昇＆UIゲージ消費）
+class BehaviorHover : public IPlayerBehavior {
+public:
+    void Initialize(Player* player) override;
+    void Update(Player* player) override;
+    void Finalize(Player* player) override;
+    void HandleInput(Player* player, ICommand* command) override;
+    const char* GetName() const override { return "Hover"; }
+
+private:
+    bool isJumpHeldThisFrame_ = true;
 };
 
 // スライディング・急制動ステップビヘイビア

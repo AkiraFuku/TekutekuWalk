@@ -5,6 +5,7 @@
 #include "Sprite.h"
 #include "TextureManager.h"
 #include <algorithm>
+#include <filesystem>
 #include <string>
 
 void PlayerHPUI::Initialize(Player *player) {
@@ -74,10 +75,18 @@ void PlayerHPUI::Initialize(Player *player) {
       "resources/UI/BtnKeyAD.png", "resources/UI/BtnPadLStick.png", 1.0f);
 
   wasAirborne_ = !player_->IsGround();
+  wasHoverIconActive_ = player_->IsHoverIconActive();
   InitializeWeaponSlot(
       jumpIcon_, {596.0f, 50.0f}, "resources/UI/JumpIcon.png",
       "resources/UI/BtnKeySpace.png", "resources/UI/BtnPadA.png",
-      wasAirborne_ ? 0.0f : 1.0f);
+      player_->GetHoverEnergyRatio());
+  jumpIcon_.iconTexIndexDefault = 0;
+  if (std::filesystem::exists("resources/UI/HoverIcon.png")) {
+    jumpIcon_.iconTexIndexAlt =
+        jumpIcon_.iconSprite->RegisterTexture("resources/UI/HoverIcon.png");
+  } else {
+    jumpIcon_.iconTexIndexAlt = jumpIcon_.iconTexIndexDefault;
+  }
 
   wasDashStepping_ = player_->IsDashStepActive();
   InitializeWeaponSlot(
@@ -86,10 +95,18 @@ void PlayerHPUI::Initialize(Player *player) {
       player_->GetDashStepRecoveryRatio());
 
   wasMeleeAttacking_ = player_->IsAttacking();
+  wasDashAttackIcon_ = player_->IsDashing() || player_->IsDashAttackActive();
   InitializeWeaponSlot(
       meleeIcon_, {788.0f, 50.0f}, "resources/UI/MeleeIcon.png",
       "resources/UI/BtnMouseLeft.png", "resources/UI/BtnPadB.png",
       player_->GetMeleeRecoveryRatio());
+  meleeIcon_.iconTexIndexDefault = 0;
+  if (std::filesystem::exists("resources/UI/DashAttackIcon.png")) {
+    meleeIcon_.iconTexIndexAlt =
+        meleeIcon_.iconSprite->RegisterTexture("resources/UI/DashAttackIcon.png");
+  } else {
+    meleeIcon_.iconTexIndexAlt = meleeIcon_.iconTexIndexDefault;
+  }
 
   prevShootEnergyRatio_ = player_->GetShootEnergyRatio();
   wasShootOverheated_ = player_->IsShootOverheated();
@@ -167,12 +184,23 @@ void PlayerHPUI::Update() {
   wasMoving_ = isMoving;
   UpdateWeaponSlot(moveIcon_, dt, 1.0f, false, movePop, false);
 
-  // ジャンプ（空中はグレー、着地で有効化＋ポップ）
+  // ジャンプ / ホバージャンプ（ホバー発動条件を満たすかホバー中は専用アイコンへ切替＆ゲージ消費）
   const bool isAirborne = !player_->IsGround();
-  const bool jumpPop = (wasAirborne_ != isAirborne);
+  const float hoverRatio =
+      std::clamp(player_->GetHoverEnergyRatio(), 0.0f, 1.0f);
+  const bool isHoverIcon = player_->IsHoverIconActive();
+  const bool hoverIconSwitched = (wasHoverIconActive_ != isHoverIcon);
+  if (hoverIconSwitched && jumpIcon_.iconSprite) {
+    jumpIcon_.isIconAlt = isHoverIcon;
+    jumpIcon_.iconSprite->SetTextureByIndex(
+        isHoverIcon ? jumpIcon_.iconTexIndexAlt
+                    : jumpIcon_.iconTexIndexDefault);
+  }
+  wasHoverIconActive_ = isHoverIcon;
+  const bool jumpPop = (wasAirborne_ != isAirborne) || hoverIconSwitched;
   wasAirborne_ = isAirborne;
-  UpdateWeaponSlot(jumpIcon_, dt, isAirborne ? 0.0f : 1.0f, isAirborne, jumpPop,
-                   false);
+  UpdateWeaponSlot(jumpIcon_, dt, hoverRatio, (hoverRatio <= 0.0f), jumpPop,
+                   true);
 
   // ダッシュ / ステップ（ステップ中は進捗に応じて貯まり、終了で有効化＋ポップ）
   const bool isDashStep = player_->IsDashStepActive();
@@ -182,11 +210,22 @@ void PlayerHPUI::Update() {
   wasDashStepping_ = isDashStep;
   UpdateWeaponSlot(dashIcon_, dt, dashRatio, isDashStep, dashPop, false);
 
-  // 近接攻撃（再度攻撃できるモーション終了タイミングで有効化）
+  // 近接攻撃 / ダッシュ攻撃（ダッシュ中はダッシュ攻撃アイコンへ切替）
   const bool isMeleeAttacking = player_->IsAttacking();
   const float meleeRatio =
       std::clamp(player_->GetMeleeRecoveryRatio(), 0.0f, 1.0f);
-  const bool meleePop = (wasMeleeAttacking_ != isMeleeAttacking);
+  const bool isDashAttackIcon =
+      player_->IsDashing() || player_->IsDashAttackActive();
+  const bool meleeIconSwitched = (wasDashAttackIcon_ != isDashAttackIcon);
+  if (meleeIconSwitched && meleeIcon_.iconSprite) {
+    meleeIcon_.isIconAlt = isDashAttackIcon;
+    meleeIcon_.iconSprite->SetTextureByIndex(
+        isDashAttackIcon ? meleeIcon_.iconTexIndexAlt
+                         : meleeIcon_.iconTexIndexDefault);
+  }
+  wasDashAttackIcon_ = isDashAttackIcon;
+  const bool meleePop =
+      (wasMeleeAttacking_ != isMeleeAttacking) || meleeIconSwitched;
   wasMeleeAttacking_ = isMeleeAttacking;
   UpdateWeaponSlot(meleeIcon_, dt, meleeRatio, isMeleeAttacking, meleePop,
                    false);
@@ -224,7 +263,7 @@ void PlayerHPUI::Draw() {
   }
 
   DrawWeaponSlot(moveIcon_, 1.0f);
-  DrawWeaponSlot(jumpIcon_, player_->IsGround() ? 1.0f : 0.0f);
+  DrawWeaponSlot(jumpIcon_, player_->GetHoverEnergyRatio());
   DrawWeaponSlot(dashIcon_, player_->GetDashStepRecoveryRatio());
   DrawWeaponSlot(meleeIcon_, player_->GetMeleeRecoveryRatio());
   DrawWeaponSlot(shootIcon_, player_->GetShootEnergyRatio());

@@ -27,7 +27,10 @@ void BehaviorRoot::HandleInput(Player *player, ICommand *command) {
   CommandType type = command->GetType();
 
   if (type == CommandType::Dash) {
-    if (!player->IsLandingStaggered() && !player->IsShootingStance()) {
+    if (!player->IsShootingStance()) {
+      if (player->IsLandingStaggered()) {
+        player->CancelLandingStagger();
+      }
       player->SetDashing(true);
     }
     return;
@@ -56,7 +59,10 @@ void BehaviorRoot::HandleInput(Player *player, ICommand *command) {
     return;
 
   if (type == CommandType::Slide) {
-    if (player->IsGround() && !player->IsLandingStaggered()) {
+    if (player->IsGround()) {
+      if (player->IsLandingStaggered()) {
+        player->CancelLandingStagger();
+      }
       state->ChangeBehavior(player,
                             factory->CreateBehavior(BehaviorType::Slide));
       return;
@@ -74,8 +80,9 @@ void BehaviorRoot::HandleInput(Player *player, ICommand *command) {
   }
 
   if (type == CommandType::Attack) {
-    state->ChangeBehavior(player,
-                          factory->CreateBehavior(BehaviorType::Attack));
+    BehaviorType nextAttack =
+        player->IsDashing() ? BehaviorType::DashAttack : BehaviorType::Attack;
+    state->ChangeBehavior(player, factory->CreateBehavior(nextAttack));
     return;
   }
 }
@@ -169,11 +176,100 @@ void BehaviorAttack::HandleInput(Player *player, ICommand *command) {
   (void)command;
 }
 
+// --- BehaviorDashAttack（ダッシュ派生：高速突進打撃） ---
+void BehaviorDashAttack::Initialize(Player *player) {
+  timer_ = 0.0f;
+  isStrikePhase_ = false;
+  attackDir_ = player->GetMoveDirection();
+  player->SetDashAttackActive(true);
+  player->SetAttackHitboxActive(false);
+  player->StartAttackAnimation();
+
+  auto state = player->GetState();
+  if (state) {
+    if (auto attackAction = state->GetAttackAction_()) {
+      attackAction->Execute(player);
+    }
+  }
+}
+
+void BehaviorDashAttack::Update(Player *player) {
+  auto state = player->GetState();
+  const auto &config = player->GetConfig().dashAttack;
+  float dt = player->GetDeltaTime();
+  timer_ += dt;
+
+  float windupEnd = config.windupDuration;
+  float strikeEnd = windupEnd + config.rushDuration;
+  float totalDuration = strikeEnd + config.recoveryDuration;
+
+  if (timer_ < windupEnd) {
+    isStrikePhase_ = false;
+    player->SetAttackHitboxActive(false);
+  } else if (timer_ < strikeEnd) {
+    if (!isStrikePhase_) {
+      isStrikePhase_ = true;
+      player->TriggerSquashStretch(0.18f, config.rushDuration);
+
+      Vector3 forward =
+          player->GetDirection() * (attackDir_ < 0 ? -1.0f : 1.0f);
+      float len = std::sqrt(forward.x * forward.x + forward.y * forward.y +
+                            forward.z * forward.z);
+      if (len > 1e-4f) {
+        forward = forward / len;
+      } else {
+        forward = {0.0f, 0.0f, 1.0f};
+      }
+      const auto &colCfg = player->GetConfig().collider;
+      Vector3 emitPos = player->GetWorldPosition() +
+                        forward * (colCfg.attackOffsetForward * 0.45f);
+      emitPos.y += colCfg.attackOffsetY;
+      GpuParticleManager::GetInstance()->Emit("PlayerMelee", emitPos, forward);
+    }
+    player->SetAttackHitboxActive(true);
+
+    float strikeProgress =
+        (timer_ - windupEnd) / (std::max)(config.rushDuration, 0.001f);
+    float speedFactor = 1.0f - strikeProgress * 0.5f;
+    player->MoveAtSpeed(static_cast<float>(attackDir_) * config.rushSpeed *
+                        speedFactor);
+  } else {
+    isStrikePhase_ = false;
+    player->SetAttackHitboxActive(false);
+  }
+
+  if (timer_ >= totalDuration) {
+    if (state) {
+      if (auto factory = state->GetFactory()) {
+        BehaviorType next =
+            player->IsGround() ? BehaviorType::Root : BehaviorType::Jump;
+        state->ChangeBehavior(player, factory->CreateBehavior(next));
+      }
+    }
+  }
+}
+
+void BehaviorDashAttack::Finalize(Player *player) {
+  isStrikePhase_ = false;
+  player->SetDashAttackActive(false);
+  player->SetAttackHitboxActive(false);
+  player->StopAttackAnimation();
+  player->TriggerInvincibility(
+      player->GetConfig().dashAttack.invincibilityAfter);
+}
+
+void BehaviorDashAttack::HandleInput(Player *player, ICommand *command) {
+  (void)player;
+  (void)command;
+}
+
 // --- BehaviorJump ---
 void BehaviorJump::Initialize(Player *player) {
   // Jump への遷移は Player::TryExecuteBufferedJump() 内でジャンプ初速設定後に行われるため、
   // Initialize での再度の Jump() 呼び出し（二重遷移・先行入力タイマー再チャージ）は行わない
   (void)player;
+  jumpHoldTimer_ = 0.0f;
+  isJumpHeldThisFrame_ = false;
 }
 
 void BehaviorJump::Update(Player *player) {
@@ -188,7 +284,27 @@ void BehaviorJump::Update(Player *player) {
                               factory->CreateBehavior(BehaviorType::Root));
       }
     }
+    return;
   }
+
+  if (isJumpHeldThisFrame_) {
+    jumpHoldTimer_ += player->GetDeltaTime();
+    const auto &hoverCfg = player->GetConfig().hover;
+    if (jumpHoldTimer_ >= hoverCfg.holdTriggerDuration &&
+        player->IsHoverConditionMet()) {
+      if (auto state = player->GetState()) {
+        if (auto factory = state->GetFactory()) {
+          isJumpHeldThisFrame_ = false;
+          state->ChangeBehavior(player,
+                                factory->CreateBehavior(BehaviorType::Hover));
+          return;
+        }
+      }
+    }
+  } else {
+    jumpHoldTimer_ = 0.0f;
+  }
+  isJumpHeldThisFrame_ = false;
 }
 
 void BehaviorJump::Finalize(Player *player) {}
@@ -202,8 +318,16 @@ void BehaviorJump::HandleInput(Player *player, ICommand *command) {
 
   CommandType type = command->GetType();
 
+  if (type == CommandType::JumpHold) {
+    isJumpHeldThisFrame_ = true;
+    return;
+  }
+
   if (type == CommandType::Dash) {
-    if (!player->IsLandingStaggered() && !player->IsShootingStance()) {
+    if (!player->IsShootingStance()) {
+      if (player->IsLandingStaggered()) {
+        player->CancelLandingStagger();
+      }
       player->SetDashing(true);
     }
     return;
@@ -232,11 +356,12 @@ void BehaviorJump::HandleInput(Player *player, ICommand *command) {
     return;
 
   if (type == CommandType::Slide) {
-    if (!player->IsLandingStaggered()) {
-      state->ChangeBehavior(player,
-                            factory->CreateBehavior(BehaviorType::Slide));
-      return;
+    if (player->IsLandingStaggered()) {
+      player->CancelLandingStagger();
     }
+    state->ChangeBehavior(player,
+                          factory->CreateBehavior(BehaviorType::Slide));
+    return;
   }
 
   // 空中滞空中でもジャンプボタンの先行入力を受け付ける
@@ -246,8 +371,117 @@ void BehaviorJump::HandleInput(Player *player, ICommand *command) {
   }
 
   if (type == CommandType::Attack) {
+    BehaviorType nextAttack =
+        player->IsDashing() ? BehaviorType::DashAttack : BehaviorType::Attack;
+    state->ChangeBehavior(player, factory->CreateBehavior(nextAttack));
+    return;
+  }
+}
+
+// --- BehaviorHover（ホバージャンプ：緩やかな上昇＆UIゲージ消費） ---
+void BehaviorHover::Initialize(Player *player) {
+  isJumpHeldThisFrame_ = true;
+  player->SetHovering(true);
+  player->SetGravityScale(0.0f);
+  Vector3 vel = player->GetVelocity();
+  vel.y = player->GetConfig().hover.ascendSpeed;
+  player->SetVelocity(vel);
+}
+
+void BehaviorHover::Update(Player *player) {
+  const float dt = player->GetDeltaTime();
+  player->ConsumeHoverEnergy(dt);
+
+  const auto &hoverCfg = player->GetConfig().hover;
+  const float gainedHeight = player->GetWorldY() - player->GetJumpStartY();
+  const bool reachedMaxHeight = (gainedHeight >= hoverCfg.maxTotalHeight);
+
+  if (!isJumpHeldThisFrame_ || player->GetHoverEnergyRatio() <= 0.0f ||
+      reachedMaxHeight || player->IsGround()) {
+    if (auto state = player->GetState()) {
+      if (auto factory = state->GetFactory()) {
+        BehaviorType next =
+            player->IsGround() ? BehaviorType::Root : BehaviorType::Jump;
+        state->ChangeBehavior(player, factory->CreateBehavior(next));
+        return;
+      }
+    }
+  }
+
+  Vector3 vel = player->GetVelocity();
+  vel.y = hoverCfg.ascendSpeed;
+  player->SetVelocity(vel);
+  isJumpHeldThisFrame_ = false;
+}
+
+void BehaviorHover::Finalize(Player *player) {
+  player->SetHovering(false);
+  player->SetGravityScale(1.0f);
+  Vector3 vel = player->GetVelocity();
+  if (vel.y > 0.0f) {
+    vel.y = 0.0f;
+    player->SetVelocity(vel);
+  }
+}
+
+void BehaviorHover::HandleInput(Player *player, ICommand *command) {
+  if (!command)
+    return;
+  auto state = player->GetState();
+  if (!state)
+    return;
+
+  CommandType type = command->GetType();
+
+  if (type == CommandType::JumpHold) {
+    isJumpHeldThisFrame_ = true;
+    return;
+  }
+
+  if (type == CommandType::Dash) {
+    if (!player->IsShootingStance()) {
+      if (player->IsLandingStaggered()) {
+        player->CancelLandingStagger();
+      }
+      player->SetDashing(true);
+    }
+    return;
+  }
+
+  if (type == CommandType::Move) {
+    auto moveCmd = static_cast<MoveCommand *>(command);
+    if (auto moveAction = state->GetMoveAction()) {
+      static_cast<NormalMoveAction *>(moveAction)
+          ->SetSpeed(moveCmd->GetSpeed());
+      moveAction->Execute(player);
+    }
+    return;
+  }
+
+  if (type == CommandType::Shoot) {
+    if (auto shootAction = state->GetShootAction()) {
+      shootAction->Execute(player);
+    }
+    return;
+  }
+
+  auto factory = state->GetFactory();
+  if (!factory)
+    return;
+
+  if (type == CommandType::Slide) {
+    if (player->IsLandingStaggered()) {
+      player->CancelLandingStagger();
+    }
     state->ChangeBehavior(player,
-                          factory->CreateBehavior(BehaviorType::Attack));
+                          factory->CreateBehavior(BehaviorType::Slide));
+    return;
+  }
+
+  if (type == CommandType::Attack) {
+    BehaviorType nextAttack =
+        player->IsDashing() ? BehaviorType::DashAttack : BehaviorType::Attack;
+    state->ChangeBehavior(player, factory->CreateBehavior(nextAttack));
     return;
   }
 }
@@ -292,5 +526,16 @@ void BehaviorSlide::HandleInput(Player *player, ICommand *command) {
   // スライディング中にジャンプ入力でキャンセル可能（スライディングジャンプ）
   if (command->GetType() == CommandType::Jump) {
     player->Jump();
+    return;
+  }
+  // スライディング中に攻撃入力でダッシュ派生攻撃へ
+  if (command->GetType() == CommandType::Attack) {
+    if (auto state = player->GetState()) {
+      if (auto factory = state->GetFactory()) {
+        player->SetDashing(true);
+        state->ChangeBehavior(
+            player, factory->CreateBehavior(BehaviorType::DashAttack));
+      }
+    }
   }
 }
