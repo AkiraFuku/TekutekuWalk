@@ -78,6 +78,9 @@ public:
     Vector3 GetWorldPosition() const override {
         return object_->GetTranslate();
     }
+    virtual Vector3 GetCameraFocusPosition() const {
+        return GetWorldPosition();
+    }
     void AddPosition(const Vector3& delta) override {
         if (object_) {
             object_->SetTranslate(object_->GetTranslate() + delta);

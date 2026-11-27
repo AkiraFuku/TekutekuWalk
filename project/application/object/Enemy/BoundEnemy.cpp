@@ -79,6 +79,14 @@ void BoundEnemy::Draw() {
     // ロボット自体は描画が必要ないため、スキップ
 }
 
+Vector3 BoundEnemy::GetCameraFocusPosition() const {
+    Vector3 pos = GetWorldPosition();
+    if (IsRayHit()) {
+        pos.y = GetGroundY() + GetConfig().movement.heightOffset;
+    }
+    return pos;
+}
+
 void EnemyBehaviorBounce::Initialize(Enemy* enemy)
 {
     currentAction_ = std::make_unique<JumpAction>();

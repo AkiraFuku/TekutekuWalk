@@ -394,7 +394,7 @@ void CameraController::AutoOffsetCamera()
             if (!enemy || enemy->IsDead()) {
                 continue;
             }
-            Vector3 enemyPos = enemy->GetWorldPosition();
+            Vector3 enemyPos = enemy->GetCameraFocusPosition();
             Vector3 diff = enemyPos - playerPos;
             float distXZ = std::hypot(diff.x, diff.z);
             float distY = std::abs(diff.y);

@@ -28,6 +28,7 @@ public:
     void Initialize() override;
     void Update() override;
     void Draw() override;
+    Vector3 GetCameraFocusPosition() const override;
 
 private:
     static inline BoundConfig s_config;
