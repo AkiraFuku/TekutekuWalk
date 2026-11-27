@@ -15,13 +15,30 @@ std::vector<std::unique_ptr<ICommand>> InputHandler::HandleInput()
         commands.push_back(std::make_unique<DashCommand>());
     }
 
+    // 現在の横移動入力方向を事前取得（ダッシュトリガーとの同時押し判定用）
+    int inputMoveDir = 0;
+    XINPUT_STATE preState;
+    if (input->GetJoyStick(0, preState)) {
+        float rawX = (float)preState.Gamepad.sThumbLX / 32767.0f;
+        if (rawX < -0.2f) {
+            inputMoveDir = -1;
+        } else if (rawX > 0.2f) {
+            inputMoveDir = 1;
+        }
+    }
+    if (input->PushedKeyDown(DIK_A) || input->PushedKeyDown(DIK_LEFT)) {
+        inputMoveDir = -1;
+    } else if (input->PushedKeyDown(DIK_D) || input->PushedKeyDown(DIK_RIGHT)) {
+        inputMoveDir = 1;
+    }
+
     // 高速ダッシュ（旧ダッシュアタックの攻撃判定なし版）入力の処理 (方向キー不要、Shift/RB/LB/Lスティック押し込みトリガー)
     if (input->TriggerKeyDown(DIK_LSHIFT) || input->TriggerKeyDown(DIK_RSHIFT) ||
         input->TriggerPadDown(0, XINPUT_GAMEPAD_RIGHT_SHOULDER) ||
         input->TriggerPadDown(0, XINPUT_GAMEPAD_LEFT_SHOULDER) ||
         input->TriggerPadDown(0, XINPUT_GAMEPAD_LEFT_THUMB))
     {
-        commands.push_back(std::make_unique<SlideCommand>());
+        commands.push_back(std::make_unique<SlideCommand>(inputMoveDir));
     }
 
     // 1. スティック移動の処理

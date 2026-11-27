@@ -54,5 +54,9 @@ public:
 
 class SlideCommand : public ICommand {
 public:
+    explicit SlideCommand(int inputDir = 0) : inputDir_(inputDir) {}
     CommandType GetType() const override { return CommandType::Slide; }
+    int GetInputDir() const { return inputDir_; }
+private:
+    int inputDir_ = 0;
 };

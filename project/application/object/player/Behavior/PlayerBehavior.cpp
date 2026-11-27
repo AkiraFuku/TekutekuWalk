@@ -63,8 +63,16 @@ void BehaviorRoot::HandleInput(Player *player, ICommand *command) {
       if (player->IsLandingStaggered()) {
         player->CancelLandingStagger();
       }
-      state->ChangeBehavior(player,
-                            factory->CreateBehavior(BehaviorType::Slide));
+      auto slideCmd = static_cast<SlideCommand *>(command);
+      int inputDir = slideCmd->GetInputDir();
+      if (inputDir == 0) {
+        state->ChangeBehavior(player,
+                              factory->CreateBehavior(BehaviorType::BackStep));
+      } else {
+        player->SetFacingDirection(inputDir);
+        state->ChangeBehavior(player,
+                              factory->CreateBehavior(BehaviorType::Slide));
+      }
       return;
     }
   }
@@ -577,6 +585,80 @@ void BehaviorSlide::HandleInput(Player *player, ICommand *command) {
     return;
   }
   // スライディング中に攻撃入力でダッシュ派生攻撃へ
+  if (command->GetType() == CommandType::Attack) {
+    if (auto state = player->GetState()) {
+      if (auto factory = state->GetFactory()) {
+        player->SetDashing(true);
+        state->ChangeBehavior(
+            player, factory->CreateBehavior(BehaviorType::DashAttack));
+      }
+    }
+  }
+}
+
+// --- BehaviorBackStep（向いている方向を維持したまま後方へ素早く回避） ---
+void BehaviorBackStep::Initialize(Player *player) {
+  timer_ = 0.0f;
+  effectTimer_ = 0.0f;
+  facingDir_ = player->GetMoveDirection();
+  stepDir_ = -facingDir_;
+  player->SetInvincible(true);
+  player->SetDashStepActive(true);
+
+  // 軽く後ろへ跳び退く
+  Vector3 vel = player->GetVelocity();
+  vel.y = player->GetConfig().backStep.jumpForce;
+  player->SetVelocity(vel);
+}
+
+void BehaviorBackStep::Update(Player *player) {
+  const auto &config = player->GetConfig().backStep;
+  float progress = (config.duration > 0.0f) ? (timer_ / config.duration) : 1.0f;
+  player->SetDashStepProgress(progress);
+  float speedFactor = (1.0f - progress * 0.55f);
+
+  player->MoveAtSpeed(float(stepDir_) * config.initialSpeed * speedFactor);
+  // 移動による自動反転を防ぎ、元の向きを維持して後ろ向きに下がる
+  player->SetFacingDirection(facingDir_);
+
+  const float dt = player->GetDeltaTime();
+  effectTimer_ += dt;
+  if (effectTimer_ >= 0.04f) {
+    effectTimer_ = 0.0f;
+    Vector3 frontDir = player->GetDirection() * (facingDir_ < 0 ? -1.0f : 1.0f);
+    float len = std::sqrt(frontDir.x * frontDir.x + frontDir.y * frontDir.y +
+                          frontDir.z * frontDir.z);
+    frontDir = (len > 1e-4f) ? (frontDir / len) : Vector3{0.0f, 0.0f, 1.0f};
+    Vector3 emitPos = player->GetWorldPosition() + Vector3{0.0f, -0.35f, 0.0f};
+    GpuParticleManager::GetInstance()->Emit("PlayerDash", emitPos, frontDir);
+  }
+
+  timer_ += dt;
+  if (timer_ >= config.duration) {
+    auto state = player->GetState();
+    if (state && state->GetFactory()) {
+      BehaviorType next =
+          player->IsGround() ? BehaviorType::Root : BehaviorType::Jump;
+      state->ChangeBehavior(player, state->GetFactory()->CreateBehavior(next));
+    }
+  }
+}
+
+void BehaviorBackStep::Finalize(Player *player) {
+  player->SetFacingDirection(facingDir_);
+  player->SetInvincible(false);
+  player->SetDashStepActive(false);
+  player->TriggerInvincibility(
+      player->GetConfig().backStep.invincibilityAfter);
+}
+
+void BehaviorBackStep::HandleInput(Player *player, ICommand *command) {
+  if (!command)
+    return;
+  if (command->GetType() == CommandType::Jump) {
+    player->Jump();
+    return;
+  }
   if (command->GetType() == CommandType::Attack) {
     if (auto state = player->GetState()) {
       if (auto factory = state->GetFactory()) {

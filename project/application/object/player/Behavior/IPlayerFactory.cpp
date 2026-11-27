@@ -26,6 +26,7 @@ std::unique_ptr<IPlayerBehavior> NormalPlayerFactory::CreateBehavior(BehaviorTyp
     case BehaviorType::Attack:     return std::make_unique<BehaviorAttack>();
     case BehaviorType::DashAttack: return std::make_unique<BehaviorDashAttack>();
     case BehaviorType::Slide:      return std::make_unique<BehaviorSlide>();
+    case BehaviorType::BackStep:   return std::make_unique<BehaviorBackStep>();
     case BehaviorType::Root:
     default:                       return std::make_unique<BehaviorRoot>();
     }

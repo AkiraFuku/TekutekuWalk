@@ -130,6 +130,9 @@ private:
         bool isIconAlt = false;
 
         Vector2 centerOffset = { 0.0f, 50.0f };
+        Vector2 btnMarkSizeKeyMouse = { 30.0f, 30.0f };
+        Vector2 btnMarkSizeGamepad = { 30.0f, 30.0f };
+        Vector2 btnMarkOffset = { 0.0f, -44.0f };
         float scale = 1.0f;
     };
 

@@ -1678,6 +1678,12 @@ Vector3 Player::GetDirection() const {
 int Player::GetMoveDirection() const {
   return int(railMover_->GetMoveDirection());
 }
+void Player::SetFacingDirection(int dir) {
+  if (railMover_) {
+    railMover_->SetMoveDirection((dir >= 0) ? RailMover::MoveDirection::Forward
+                                            : RailMover::MoveDirection::Backward);
+  }
+}
 
 const char *Player::GetStateName() const {
   return baseState_ ? baseState_->GetName() : "NoState";

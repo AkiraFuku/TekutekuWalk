@@ -80,6 +80,14 @@ void PlayerHPUI::Initialize(Player *player) {
       jumpIcon_, {596.0f, 50.0f}, "resources/UI/JumpIcon.png",
       "resources/UI/BtnKeySpace.png", "resources/UI/BtnPadA.png",
       player_->GetHoverEnergyRatio());
+  jumpIcon_.btnMarkSizeKeyMouse = {64.0f, 34.0f};
+  jumpIcon_.btnMarkOffset = {0.0f, -46.0f};
+  if (jumpIcon_.buttonMarkSprite && !jumpIcon_.isBtnGamepad) {
+    jumpIcon_.buttonMarkSprite->SetSize(jumpIcon_.btnMarkSizeKeyMouse);
+    jumpIcon_.buttonMarkSprite->SetPosition(
+        {position_.x + jumpIcon_.centerOffset.x + jumpIcon_.btnMarkOffset.x,
+         position_.y + jumpIcon_.centerOffset.y + jumpIcon_.btnMarkOffset.y});
+  }
   jumpIcon_.iconTexIndexDefault = 0;
   if (std::filesystem::exists("resources/UI/HoverIcon.png")) {
     jumpIcon_.iconTexIndexAlt =
@@ -276,6 +284,9 @@ void PlayerHPUI::InitializeWeaponSlot(WeaponIconSlot &slot,
                                       const std::string &gamepadBtnPath,
                                       float initialRatio) {
   slot.centerOffset = centerOffset;
+  slot.btnMarkSizeKeyMouse = weaponBtnMarkSize_;
+  slot.btnMarkSizeGamepad = weaponBtnMarkSize_;
+  slot.btnMarkOffset = weaponBtnMarkOffset_;
   slot.scale = 1.0f;
 
   const Vector2 iconCenter = {position_.x + slot.centerOffset.x,
@@ -316,14 +327,15 @@ void PlayerHPUI::InitializeWeaponSlot(WeaponIconSlot &slot,
       slot.buttonMarkSprite->RegisterTexture(gamepadBtnPath);
   slot.buttonMarkSprite->SetAnchorPoint(Anchor::Center);
   slot.buttonMarkSprite->SetPosition(
-      {iconCenter.x + weaponBtnMarkOffset_.x,
-       iconCenter.y + weaponBtnMarkOffset_.y});
-  slot.buttonMarkSprite->SetSize(weaponBtnMarkSize_);
+      {iconCenter.x + slot.btnMarkOffset.x,
+       iconCenter.y + slot.btnMarkOffset.y});
 
   slot.isBtnGamepad = Input::GetInstance()->IsUsingGamepad();
   slot.buttonMarkSprite->SetTextureByIndex(
       slot.isBtnGamepad ? slot.btnTexIndexGamepad : slot.btnTexIndexKeyMouse);
-  slot.buttonMarkSprite->SetSize(weaponBtnMarkSize_);
+  const Vector2 &initialBtnSize =
+      slot.isBtnGamepad ? slot.btnMarkSizeGamepad : slot.btnMarkSizeKeyMouse;
+  slot.buttonMarkSprite->SetSize(initialBtnSize);
 }
 
 void PlayerHPUI::UpdateWeaponSlot(WeaponIconSlot &slot, float dt, float ratio,
@@ -382,11 +394,13 @@ void PlayerHPUI::UpdateWeaponSlot(WeaponIconSlot &slot, float dt, float ratio,
           slot.isBtnGamepad ? slot.btnTexIndexGamepad
                             : slot.btnTexIndexKeyMouse);
     }
+    const Vector2 &targetBtnSize =
+        slot.isBtnGamepad ? slot.btnMarkSizeGamepad : slot.btnMarkSizeKeyMouse;
     slot.buttonMarkSprite->SetPosition(
-        {iconCenter.x + weaponBtnMarkOffset_.x * slot.scale,
-         iconCenter.y + weaponBtnMarkOffset_.y * slot.scale});
+        {iconCenter.x + slot.btnMarkOffset.x * slot.scale,
+         iconCenter.y + slot.btnMarkOffset.y * slot.scale});
     slot.buttonMarkSprite->SetSize(
-        {weaponBtnMarkSize_.x * slot.scale, weaponBtnMarkSize_.y * slot.scale});
+        {targetBtnSize.x * slot.scale, targetBtnSize.y * slot.scale});
     slot.buttonMarkSprite->SetColor(markColor);
     slot.buttonMarkSprite->Update();
   }

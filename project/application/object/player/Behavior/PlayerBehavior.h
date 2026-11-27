@@ -95,4 +95,20 @@ private:
     float timer_ = 0.0f;
     float effectTimer_ = 0.0f;
     int slideDir_ = 1;
+};
+
+// バックステップビヘイビア（向いている方向を維持したまま後方へ素早く回避）
+class BehaviorBackStep : public IPlayerBehavior {
+public:
+    void Initialize(Player* player) override;
+    void Update(Player* player) override;
+    void Finalize(Player* player) override;
+    void HandleInput(Player* player, ICommand* command) override;
+    const char* GetName() const override { return "BackStep"; }
+
+private:
+    float timer_ = 0.0f;
+    float effectTimer_ = 0.0f;
+    int facingDir_ = 1;
+    int stepDir_ = -1;
 };

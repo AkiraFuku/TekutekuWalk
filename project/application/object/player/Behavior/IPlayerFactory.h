@@ -16,6 +16,7 @@ enum class BehaviorType {
     Attack,
     DashAttack,
     Slide,
+    BackStep,
 };
 
 // 抽象ファクトリー

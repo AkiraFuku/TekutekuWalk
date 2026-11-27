@@ -76,6 +76,13 @@ struct PlayerConfig {
     float invincibilityAfter = 0.15f; // 終了後無敵余韻 (秒)
   } slide;
 
+  struct BackStep {
+    float duration = 0.28f;           // バックステップ持続時間 (秒)
+    float initialSpeed = 16.5f;       // バックステップ初速 (m/s)
+    float jumpForce = 6.5f;           // 軽く後ろへ跳び退くY初速 (m/s)
+    float invincibilityAfter = 0.15f; // 終了後無敵余韻 (秒)
+  } backStep;
+
   struct Hover {
     float maxDuration = 2.0f;          // ホバー最大合計持続時間 (秒)
     float ascendSpeed = 4.5f;          // 緩やかな上昇速度 (m/s)
@@ -307,6 +314,7 @@ public:
 
   Vector3 GetDirection() const;
   int GetMoveDirection() const;
+  void SetFacingDirection(int dir);
   void CheckGroundCollision();
   void UpdateGravity();
   void
