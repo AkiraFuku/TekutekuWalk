@@ -50,6 +50,7 @@ public:
 
 private:
     float timer_ = 0.0f;
+    float effectTimer_ = 0.0f;
     int attackDir_ = 1;
     bool isStrikePhase_ = false;
 };
@@ -78,6 +79,7 @@ public:
 
 private:
     bool isJumpHeldThisFrame_ = true;
+    float effectTimer_ = 0.0f;
 };
 
 // スライディング・急制動ステップビヘイビア
@@ -91,5 +93,6 @@ public:
 
 private:
     float timer_ = 0.0f;
+    float effectTimer_ = 0.0f;
     int slideDir_ = 1;
 };

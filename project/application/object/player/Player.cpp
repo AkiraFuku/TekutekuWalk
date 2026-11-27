@@ -2,6 +2,7 @@
 #include "EffectManager.h"
 #include "Enemy.h"
 #include "GameScene.h"
+#include "GpuParticleManager.h"
 #include "Input.h"
 #include "InputHandler.h"
 #include "JsonManager.h"
@@ -522,6 +523,22 @@ void Player::Update() {
     moveState_ = MoveState::Walk;
   }
 
+  // ダッシュ移動中のスラスターエフェクト発生
+  if (isGrounded_ && isMoving_ && isDashing_) {
+    dashEffectTimer_ -= deltaTime_;
+    if (dashEffectTimer_ <= 0.0f) {
+      dashEffectTimer_ = 0.05f;
+      Vector3 backDir = GetDirection() * (frameMoveDir_ < 0 ? 1.0f : -1.0f);
+      float len = std::sqrt(backDir.x * backDir.x + backDir.y * backDir.y +
+                            backDir.z * backDir.z);
+      backDir = (len > 1e-4f) ? (backDir / len) : Vector3{0.0f, 0.0f, -1.0f};
+      Vector3 emitPos = GetWorldPosition() + Vector3{0.0f, -0.35f, 0.0f};
+      GpuParticleManager::GetInstance()->Emit("PlayerDash", emitPos, backDir);
+    }
+  } else {
+    dashEffectTimer_ = 0.0f;
+  }
+
   // 5. スクワッシュ演出＆サブパーツアニメーション＆レール座標・3Dモデル・コライダーの最終同期
   UpdateSquashStretch();
   UpdateSubPartAnimation();
@@ -971,8 +988,8 @@ void Player::UpdateRayCollisions() {
 
   // 1フレーム遅れの object_->GetTranslate() ではなく、現在のレール進捗と
   // worldY_ から最新中心座標を取得
-  Vector3 railPos = railMover_->GetCurrentPosition();
-  Vector3 center = {railPos.x, worldY_, railPos.z};
+  const RailPath *path = railMover_->GetRailPath();
+  float currentDist = railMover_->GetCurrentDistance();
 
   // 壁レイの発射方向は坂道レールでも地面を撃たないよう水平面（XZ平面）に投影
   Vector3 railDir = railMover_->GetCurrentDirection();
@@ -980,6 +997,46 @@ void Player::UpdateRayCollisions() {
   Vector3 forwardDir = (Length(horizDir) > 0.001f) ? Normalize(horizDir)
                                                    : Vector3{0.0f, 0.0f, 1.0f};
   Vector3 rightDir = Normalize(Cross({0.0f, 1.0f, 0.0f}, forwardDir));
+
+  // ─── Phase 0: 高速移動時の壁スイープ判定（トンネリング防止） ───
+  if (hasPrevSafeDistance_ && path && !triangles.empty()) {
+    float moveDelta = currentDist - prevSafeDistance_;
+    if (std::abs(moveDelta) > 0.0001f) {
+      Vector3 prevPos = path->GetPosition(path->GetTFromDistance(prevSafeDistance_));
+      Vector3 sweepOrigin = {prevPos.x, worldY_ + config_.collider.wallRayHeight,
+                             prevPos.z};
+      Vector3 sweepDir =
+          (moveDelta > 0.0f) ? forwardDir : Multiply(-1.0f, forwardDir);
+      float targetWallDist = config_.collider.modelRadius + 0.005f;
+      float sweepLen = std::abs(moveDelta) + targetWallDist;
+
+      Ray sweepRay;
+      sweepRay.origin = sweepOrigin;
+      sweepRay.diff = Multiply(sweepLen, sweepDir);
+      auto sweepHits = Physics::RaycastAll(sweepRay, triangles, 1000.0f,
+                                           CollisionLayer::All);
+      for (const auto &hit : sweepHits) {
+        if (hit.triangle.isOneway) {
+          continue;
+        }
+        if (hit.normal.y >= config_.movement.maxSlopeCos) {
+          continue;
+        }
+        if (hit.distance < sweepLen) {
+          float allowedMove = (std::max)(0.0f, hit.distance - targetWallDist);
+          float clampedDist =
+              prevSafeDistance_ +
+              (moveDelta > 0.0f ? allowedMove : -allowedMove);
+          railMover_->SetProgress(path->GetTFromDistance(clampedDist));
+          currentDist = railMover_->GetCurrentDistance();
+        }
+        break;
+      }
+    }
+  }
+
+  Vector3 railPos = railMover_->GetCurrentPosition();
+  Vector3 center = {railPos.x, worldY_, railPos.z};
 
   float wallLength = 1.5f;
 
@@ -1046,13 +1103,11 @@ void Player::UpdateRayCollisions() {
       if (rayInfo.name == "FrontWall" && moveDir >= 0) {
         float penetration = targetWallDist - rayInfo.distance;
         if (penetration > 0.0f) {
-          penetration = (std::min)(penetration, 0.25f);
           maxPushBackProgress = (std::max)(maxPushBackProgress, penetration);
         }
       } else if (rayInfo.name == "BackWall" && moveDir < 0) {
         float penetration = targetWallDist - rayInfo.distance;
         if (penetration > 0.0f) {
-          penetration = (std::min)(penetration, 0.25f);
           maxPushBackProgress = (std::min)(maxPushBackProgress, -penetration);
         }
       }
@@ -1125,9 +1180,8 @@ void Player::UpdateRayCollisions() {
   // 壁によるレール押し戻しを先に適用（壁の上面をFloorレイが誤検知してワープするのを防ぐ）
   // ───
   if (std::abs(maxPushBackProgress) > 0.0001f) {
-    float currentDist = railMover_->GetCurrentDistance();
-    float targetDist = currentDist - maxPushBackProgress;
-    const RailPath *path = railMover_->GetRailPath();
+    float curDist = railMover_->GetCurrentDistance();
+    float targetDist = curDist - maxPushBackProgress;
     if (path) {
       float targetT = path->GetTFromDistance(targetDist);
       railMover_->SetProgress(targetT);
@@ -1135,6 +1189,9 @@ void Player::UpdateRayCollisions() {
       center = {railPos.x, worldY_, railPos.z};
     }
   }
+
+  prevSafeDistance_ = railMover_->GetCurrentDistance();
+  hasPrevSafeDistance_ = true;
 
   wallPushOffset_ = {0.0f, 0.0f, 0.0f};
 

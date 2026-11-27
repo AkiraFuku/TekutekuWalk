@@ -432,6 +432,7 @@ private:
   float hoverEnergy_ = 1.0f;          // ホバーゲージ残量 (0.0～1.0)
   bool isHovering_ = false;           // ホバージャンプ中フラグ
   bool isDashAttackActive_ = false;   // ダッシュ派生攻撃中フラグ
+  float dashEffectTimer_ = 0.0f;      // ダッシュエフェクト発生間隔タイマー
   float shootCooldownTimer_ = 0.0f;   // 連射クールダウンタイマー
   float shootSlowdownTimer_ = 0.0f;   // 連射反動中の腰だめ歩行タイマー
   float shootRecoilTimer_ = 0.0f;     // 発砲1発ごとのリコイル振動タイマー
@@ -462,6 +463,8 @@ private:
   float dropThroughTimer_ = 0.0f;      // すり抜け足場（OneWay）下層降下タイマー
   bool isCurrentGroundOneway_ = false; // 現在乗っている床がすり抜け足場かどうか
   float lastGroundY_ = 0.0f;           // 直前フレームの確定接地高さ（段差落下判定用）
+  float prevSafeDistance_ = 0.0f;      // 前フレームの確定レール距離（壁スイープ判定用）
+  bool hasPrevSafeDistance_ = false;   // 前フレーム距離が記録済みか
 
   // 地面レイキャスト判定パラメータ
   struct GroundRayParam {

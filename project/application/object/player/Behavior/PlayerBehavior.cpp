@@ -179,6 +179,7 @@ void BehaviorAttack::HandleInput(Player *player, ICommand *command) {
 // --- BehaviorDashAttack（ダッシュ派生：高速突進打撃） ---
 void BehaviorDashAttack::Initialize(Player *player) {
   timer_ = 0.0f;
+  effectTimer_ = 0.0f;
   isStrikePhase_ = false;
   attackDir_ = player->GetMoveDirection();
   player->SetDashAttackActive(true);
@@ -207,25 +208,45 @@ void BehaviorDashAttack::Update(Player *player) {
     isStrikePhase_ = false;
     player->SetAttackHitboxActive(false);
   } else if (timer_ < strikeEnd) {
+    Vector3 forward =
+        player->GetDirection() * (attackDir_ < 0 ? -1.0f : 1.0f);
+    float len = std::sqrt(forward.x * forward.x + forward.y * forward.y +
+                          forward.z * forward.z);
+    if (len > 1e-4f) {
+      forward = forward / len;
+    } else {
+      forward = {0.0f, 0.0f, 1.0f};
+    }
+
     if (!isStrikePhase_) {
       isStrikePhase_ = true;
+      effectTimer_ = 0.0f;
       player->TriggerSquashStretch(0.18f, config.rushDuration);
 
-      Vector3 forward =
-          player->GetDirection() * (attackDir_ < 0 ? -1.0f : 1.0f);
-      float len = std::sqrt(forward.x * forward.x + forward.y * forward.y +
-                            forward.z * forward.z);
-      if (len > 1e-4f) {
-        forward = forward / len;
-      } else {
-        forward = {0.0f, 0.0f, 1.0f};
-      }
       const auto &colCfg = player->GetConfig().collider;
       Vector3 emitPos = player->GetWorldPosition() +
                         forward * (colCfg.attackOffsetForward * 0.45f);
       emitPos.y += colCfg.attackOffsetY;
-      GpuParticleManager::GetInstance()->Emit("PlayerMelee", emitPos, forward);
+      GpuParticleManager::GetInstance()->Emit("PlayerDashAttack", emitPos,
+                                              forward);
     }
+
+    effectTimer_ += dt;
+    if (effectTimer_ >= 0.04f) {
+      effectTimer_ = 0.0f;
+      const auto &colCfg = player->GetConfig().collider;
+      Vector3 emitPos = player->GetWorldPosition() +
+                        forward * (colCfg.attackOffsetForward * 0.45f);
+      emitPos.y += colCfg.attackOffsetY;
+      GpuParticleManager::GetInstance()->Emit("PlayerDashAttack", emitPos,
+                                              forward);
+
+      Vector3 backDir = {-forward.x, -forward.y, -forward.z};
+      Vector3 trailPos =
+          player->GetWorldPosition() + Vector3{0.0f, -0.25f, 0.0f};
+      GpuParticleManager::GetInstance()->Emit("PlayerDash", trailPos, backDir);
+    }
+
     player->SetAttackHitboxActive(true);
 
     float strikeProgress =
@@ -381,11 +402,16 @@ void BehaviorJump::HandleInput(Player *player, ICommand *command) {
 // --- BehaviorHover（ホバージャンプ：緩やかな上昇＆UIゲージ消費） ---
 void BehaviorHover::Initialize(Player *player) {
   isJumpHeldThisFrame_ = true;
+  effectTimer_ = 0.0f;
   player->SetHovering(true);
   player->SetGravityScale(0.0f);
   Vector3 vel = player->GetVelocity();
   vel.y = player->GetConfig().hover.ascendSpeed;
   player->SetVelocity(vel);
+
+  Vector3 emitPos = player->GetWorldPosition() + Vector3{0.0f, -0.45f, 0.0f};
+  GpuParticleManager::GetInstance()->Emit("PlayerHover", emitPos,
+                                          {0.0f, -1.0f, 0.0f});
 }
 
 void BehaviorHover::Update(Player *player) {
@@ -397,7 +423,7 @@ void BehaviorHover::Update(Player *player) {
   const bool reachedMaxHeight = (gainedHeight >= hoverCfg.maxTotalHeight);
 
   if (!isJumpHeldThisFrame_ || player->GetHoverEnergyRatio() <= 0.0f ||
-      reachedMaxHeight || player->IsGround()) {
+      player->IsGround()) {
     if (auto state = player->GetState()) {
       if (auto factory = state->GetFactory()) {
         BehaviorType next =
@@ -408,8 +434,16 @@ void BehaviorHover::Update(Player *player) {
     }
   }
 
+  effectTimer_ += dt;
+  if (effectTimer_ >= 0.03f) {
+    effectTimer_ = 0.0f;
+    Vector3 emitPos = player->GetWorldPosition() + Vector3{0.0f, -0.45f, 0.0f};
+    GpuParticleManager::GetInstance()->Emit("PlayerHover", emitPos,
+                                            {0.0f, -1.0f, 0.0f});
+  }
+
   Vector3 vel = player->GetVelocity();
-  vel.y = hoverCfg.ascendSpeed;
+  vel.y = reachedMaxHeight ? 0.0f : hoverCfg.ascendSpeed;
   player->SetVelocity(vel);
   isJumpHeldThisFrame_ = false;
 }
@@ -489,6 +523,7 @@ void BehaviorHover::HandleInput(Player *player, ICommand *command) {
 // --- BehaviorSlide ---
 void BehaviorSlide::Initialize(Player *player) {
   timer_ = 0.0f;
+  effectTimer_ = 0.0f;
   slideDir_ = player->GetMoveDirection();
   player->SetInvincible(true); // スライディング中は無敵判定
   player->SetDashStepActive(true);
@@ -503,7 +538,20 @@ void BehaviorSlide::Update(Player *player) {
   // 向き反転バグ（マイナス符号）と deltaTime 二重掛けを解消し、実速度(m/s)で前進
   player->MoveAtSpeed(float(slideDir_) * config.initialSpeed * speedFactor);
 
-  timer_ += player->GetDeltaTime();
+  const float dt = player->GetDeltaTime();
+  effectTimer_ += dt;
+  if (effectTimer_ >= 0.04f) {
+    effectTimer_ = 0.0f;
+    Vector3 backDir =
+        player->GetDirection() * (slideDir_ < 0 ? 1.0f : -1.0f);
+    float len = std::sqrt(backDir.x * backDir.x + backDir.y * backDir.y +
+                          backDir.z * backDir.z);
+    backDir = (len > 1e-4f) ? (backDir / len) : Vector3{0.0f, 0.0f, -1.0f};
+    Vector3 emitPos = player->GetWorldPosition() + Vector3{0.0f, -0.35f, 0.0f};
+    GpuParticleManager::GetInstance()->Emit("PlayerDash", emitPos, backDir);
+  }
+
+  timer_ += dt;
   if (timer_ >= config.duration) {
     auto state = player->GetState();
     if (state && state->GetFactory()) {

@@ -399,6 +399,170 @@ void GameScene::Initialize() {
             gpuParticle->RegisterEffectGroup("PlayerMelee", "PlayerMelee_SlashSparks", "resources/circle2.png", sparks, false, true, BlendMode::Add, GpuParticleManager::EffectType::Plane);
         }
 
+        // 2.5. プレイヤーダッシュ＆スライディングエフェクト ("PlayerDash")
+        {
+            GpuParticleManager::EmitterConfig dashRing{};
+            dashRing.count = 1;
+            dashRing.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            dashRing.emitRangeMax = { 0.0f, 0.0f, 0.05f };
+            dashRing.lifeTimeMin = 0.16f;
+            dashRing.lifeTimeMax = 0.22f;
+            dashRing.startScaleMin = { 0.20f, 0.20f, 0.20f };
+            dashRing.startScaleMax = { 0.26f, 0.26f, 0.26f };
+            dashRing.endScaleMin = { 0.70f, 0.70f, 0.70f };
+            dashRing.endScaleMax = { 0.85f, 0.85f, 0.85f };
+            dashRing.velocityMin = { 0.0f, 0.0f, 1.5f };
+            dashRing.velocityMax = { 0.0f, 0.0f, 2.5f };
+            dashRing.startColorMin = { 0.80f, 1.35f, 1.85f, 0.90f };
+            dashRing.startColorMax = { 1.00f, 1.55f, 2.00f, 0.95f };
+            dashRing.endColorMin = { 0.20f, 0.60f, 1.00f, 0.0f };
+            dashRing.endColorMax = { 0.35f, 0.75f, 1.00f, 0.0f };
+            gpuParticle->RegisterEffectGroup("PlayerDash", "PlayerDash_Ring", "resources/Efect.png", dashRing, false, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
+
+            GpuParticleManager::EmitterConfig dashSparks{};
+            dashSparks.count = 8;
+            dashSparks.emitRangeMin = { -0.15f, -0.10f, 0.0f };
+            dashSparks.emitRangeMax = {  0.15f,  0.15f, 0.10f };
+            dashSparks.lifeTimeMin = 0.16f;
+            dashSparks.lifeTimeMax = 0.24f;
+            dashSparks.startScaleMin = { 0.10f, 0.12f, 0.10f };
+            dashSparks.startScaleMax = { 0.15f, 0.18f, 0.15f };
+            dashSparks.endScaleMin = { 0.02f, 0.02f, 0.02f };
+            dashSparks.endScaleMax = { 0.04f, 0.04f, 0.04f };
+            dashSparks.velocityMin = { -0.8f, 0.2f, 2.5f };
+            dashSparks.velocityMax = {  0.8f, 1.4f, 4.8f };
+            dashSparks.startColorMin = { 1.00f, 1.50f, 1.90f, 1.0f };
+            dashSparks.startColorMax = { 1.40f, 1.80f, 2.00f, 1.0f };
+            dashSparks.endColorMin = { 0.25f, 0.70f, 1.00f, 0.0f };
+            dashSparks.endColorMax = { 0.40f, 0.85f, 1.00f, 0.0f };
+            dashSparks.drag = 5.0f;
+            gpuParticle->RegisterEffectGroup("PlayerDash", "PlayerDash_Sparks", "resources/circle2.png", dashSparks, false, true, BlendMode::Add, GpuParticleManager::EffectType::Plane);
+        }
+
+        // 2.6. プレイヤーホバリングエフェクト ("PlayerHover")
+        {
+            GpuParticleManager::EmitterConfig hoverRing{};
+            hoverRing.count = 1;
+            hoverRing.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            hoverRing.emitRangeMax = { 0.0f, 0.0f, 0.02f };
+            hoverRing.lifeTimeMin = 0.12f;
+            hoverRing.lifeTimeMax = 0.16f;
+            hoverRing.startScaleMin = { 0.24f, 0.24f, 0.24f };
+            hoverRing.startScaleMax = { 0.30f, 0.30f, 0.30f };
+            hoverRing.endScaleMin = { 0.75f, 0.75f, 0.75f };
+            hoverRing.endScaleMax = { 0.90f, 0.90f, 0.90f };
+            hoverRing.velocityMin = { 0.0f, 0.0f, 3.2f };
+            hoverRing.velocityMax = { 0.0f, 0.0f, 4.2f };
+            hoverRing.startColorMin = { 0.65f, 1.40f, 1.85f, 0.90f };
+            hoverRing.startColorMax = { 0.90f, 1.65f, 2.00f, 0.95f };
+            hoverRing.endColorMin = { 0.15f, 0.65f, 1.00f, 0.0f };
+            hoverRing.endColorMax = { 0.30f, 0.80f, 1.00f, 0.0f };
+            gpuParticle->RegisterEffectGroup("PlayerHover", "PlayerHover_Ring", "resources/Efect.png", hoverRing, false, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
+
+            GpuParticleManager::EmitterConfig hoverJet{};
+            hoverJet.count = 6;
+            hoverJet.emitRangeMin = { -0.18f, -0.18f, 0.0f };
+            hoverJet.emitRangeMax = {  0.18f,  0.18f, 0.04f };
+            hoverJet.lifeTimeMin = 0.10f;
+            hoverJet.lifeTimeMax = 0.15f;
+            hoverJet.startScaleMin = { 0.10f, 0.14f, 0.10f };
+            hoverJet.startScaleMax = { 0.15f, 0.20f, 0.15f };
+            hoverJet.endScaleMin = { 0.02f, 0.03f, 0.02f };
+            hoverJet.endScaleMax = { 0.04f, 0.05f, 0.04f };
+            hoverJet.velocityMin = { -0.6f, -0.6f, 4.5f };
+            hoverJet.velocityMax = {  0.6f,  0.6f, 6.5f };
+            hoverJet.startColorMin = { 0.90f, 1.55f, 1.95f, 1.0f };
+            hoverJet.startColorMax = { 1.30f, 1.80f, 2.00f, 1.0f };
+            hoverJet.endColorMin = { 0.20f, 0.70f, 1.00f, 0.0f };
+            hoverJet.endColorMax = { 0.40f, 0.85f, 1.00f, 0.0f };
+            hoverJet.drag = 3.0f;
+            gpuParticle->RegisterEffectGroup("PlayerHover", "PlayerHover_Jet", "resources/circle2.png", hoverJet, false, true, BlendMode::Add, GpuParticleManager::EffectType::Plane);
+        }
+
+        // 2.7. プレイヤーダッシュ攻撃エフェクト ("PlayerDashAttack": オレンジ・ゴールド系)
+        {
+            GpuParticleManager::EmitterConfig dashAtkFlash{};
+            dashAtkFlash.count = 1;
+            dashAtkFlash.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            dashAtkFlash.emitRangeMax = { 0.0f, 0.0f, 0.0f };
+            dashAtkFlash.lifeTimeMin = 0.08f;
+            dashAtkFlash.lifeTimeMax = 0.11f;
+            dashAtkFlash.startScaleMin = { 0.85f, 0.85f, 0.85f };
+            dashAtkFlash.startScaleMax = { 1.05f, 1.05f, 1.05f };
+            dashAtkFlash.endScaleMin = { 0.10f, 0.10f, 0.10f };
+            dashAtkFlash.endScaleMax = { 0.15f, 0.15f, 0.15f };
+            dashAtkFlash.velocityMin = { 0.0f, 0.0f, 20.0f };
+            dashAtkFlash.velocityMax = { 0.0f, 0.0f, 23.0f };
+            dashAtkFlash.startColorMin = { 1.8f, 1.3f, 0.5f, 1.0f };
+            dashAtkFlash.startColorMax = { 2.0f, 1.6f, 0.8f, 1.0f };
+            dashAtkFlash.endColorMin = { 1.0f, 0.45f, 0.10f, 0.0f };
+            dashAtkFlash.endColorMax = { 1.0f, 0.65f, 0.20f, 0.0f };
+            gpuParticle->RegisterEffectGroup("PlayerDashAttack", "PlayerDashAttack_Flash", "resources/circle2.png", dashAtkFlash, true, false, BlendMode::Add, GpuParticleManager::EffectType::Plane);
+
+            GpuParticleManager::EmitterConfig dashAtkRing{};
+            dashAtkRing.count = 1;
+            dashAtkRing.emitRangeMin = { 0.0f, 0.0f, 0.05f };
+            dashAtkRing.emitRangeMax = { 0.0f, 0.0f, 0.12f };
+            dashAtkRing.lifeTimeMin = 0.12f;
+            dashAtkRing.lifeTimeMax = 0.16f;
+            dashAtkRing.startScaleMin = { 0.35f, 0.35f, 0.35f };
+            dashAtkRing.startScaleMax = { 0.42f, 0.42f, 0.42f };
+            dashAtkRing.endScaleMin = { 1.10f, 1.10f, 1.10f };
+            dashAtkRing.endScaleMax = { 1.35f, 1.35f, 1.35f };
+            dashAtkRing.angularVelocityMin = { 0.0f, 0.0f, 5.0f };
+            dashAtkRing.angularVelocityMax = { 0.0f, 0.0f, 8.0f };
+            dashAtkRing.velocityMin = { 0.0f, 0.0f, 20.0f };
+            dashAtkRing.velocityMax = { 0.0f, 0.0f, 24.0f };
+            dashAtkRing.startColorMin = { 1.60f, 0.95f, 0.25f, 1.0f };
+            dashAtkRing.startColorMax = { 2.00f, 1.35f, 0.45f, 1.0f };
+            dashAtkRing.endColorMin = { 1.00f, 0.35f, 0.05f, 0.0f };
+            dashAtkRing.endColorMax = { 1.00f, 0.55f, 0.15f, 0.0f };
+            gpuParticle->RegisterEffectGroup("PlayerDashAttack", "PlayerDashAttack_ShockRing", "resources/Efect.png", dashAtkRing, false, false, BlendMode::Add, GpuParticleManager::EffectType::Ring);
+
+            GpuParticleManager::EmitterConfig dashAtkThrust{};
+            dashAtkThrust.count = 1;
+            dashAtkThrust.emitRangeMin = { 0.0f, 0.0f, 0.0f };
+            dashAtkThrust.emitRangeMax = { 0.0f, 0.0f, 0.05f };
+            dashAtkThrust.lifeTimeMin = 0.10f;
+            dashAtkThrust.lifeTimeMax = 0.14f;
+            dashAtkThrust.rotateMin = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            dashAtkThrust.rotateMax = { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f };
+            dashAtkThrust.startScaleMin = { 0.65f, 0.95f, 0.65f };
+            dashAtkThrust.startScaleMax = { 0.78f, 1.15f, 0.78f };
+            dashAtkThrust.endScaleMin = { 0.30f, 0.45f, 0.30f };
+            dashAtkThrust.endScaleMax = { 0.40f, 0.55f, 0.40f };
+            dashAtkThrust.velocityMin = { 0.0f, 0.0f, 21.0f };
+            dashAtkThrust.velocityMax = { 0.0f, 0.0f, 25.0f };
+            dashAtkThrust.startColorMin = { 1.60f, 1.05f, 0.30f, 1.0f };
+            dashAtkThrust.startColorMax = { 2.00f, 1.40f, 0.55f, 1.0f };
+            dashAtkThrust.endColorMin = { 1.00f, 0.40f, 0.10f, 0.0f };
+            dashAtkThrust.endColorMax = { 1.00f, 0.60f, 0.20f, 0.0f };
+            dashAtkThrust.uvScrollSpeed = { 0.0f, -6.0f };
+            dashAtkThrust.flipUvY = true;
+            dashAtkThrust.drag = 1.0f;
+            gpuParticle->RegisterEffectGroup("PlayerDashAttack", "PlayerDashAttack_Thrust", "resources/gradationLine.png", dashAtkThrust, false, false, BlendMode::Add, GpuParticleManager::EffectType::Cylinder);
+
+            GpuParticleManager::EmitterConfig dashAtkSparks{};
+            dashAtkSparks.count = 10;
+            dashAtkSparks.emitRangeMin = { -0.20f, -0.20f, 0.0f };
+            dashAtkSparks.emitRangeMax = {  0.20f,  0.20f, 0.20f };
+            dashAtkSparks.lifeTimeMin = 0.14f;
+            dashAtkSparks.lifeTimeMax = 0.20f;
+            dashAtkSparks.startScaleMin = { 0.12f, 0.20f, 0.12f };
+            dashAtkSparks.startScaleMax = { 0.18f, 0.28f, 0.18f };
+            dashAtkSparks.endScaleMin = { 0.02f, 0.04f, 0.02f };
+            dashAtkSparks.endScaleMax = { 0.04f, 0.08f, 0.04f };
+            dashAtkSparks.velocityMin = { -2.4f, -1.8f, 16.0f };
+            dashAtkSparks.velocityMax = {  2.4f,  2.2f, 24.0f };
+            dashAtkSparks.startColorMin = { 1.80f, 1.25f, 0.40f, 1.0f };
+            dashAtkSparks.startColorMax = { 2.00f, 1.75f, 0.90f, 1.0f };
+            dashAtkSparks.endColorMin = { 1.00f, 0.45f, 0.10f, 0.0f };
+            dashAtkSparks.endColorMax = { 1.00f, 0.70f, 0.25f, 0.0f };
+            dashAtkSparks.drag = 3.0f;
+            dashAtkSparks.gravity = 1.0f;
+            gpuParticle->RegisterEffectGroup("PlayerDashAttack", "PlayerDashAttack_Sparks", "resources/circle2.png", dashAtkSparks, false, true, BlendMode::Add, GpuParticleManager::EffectType::Plane);
+        }
+
         // 3. 敵被弾エフェクト ("EnemyHit": シリンダー)
         {
             // 敵を縦に包んで広がる衝撃シリンダー
