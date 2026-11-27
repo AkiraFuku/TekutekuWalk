@@ -233,6 +233,8 @@
     <ClInclude Include="engine\Tool\ParticleManager.h" />
     <ClInclude Include="engine\Tool\GpuParticleManager.h" />
     <ClInclude Include="engine\base\SrvManager.h" />
+    <ClInclude Include="engine\base\Singleton.h" />
+    <ClInclude Include="engine\math\GameMath.h" />
     <ClInclude Include="engine\Tool\ParticleEmitter.h" />
     <ClInclude Include="engine\GAME\Framework.h" />
     <ClInclude Include="engine\GAME\GameEngine.h" />

@@ -13,21 +13,6 @@
 #include "imgui.h"
 #endif
 
-std::unique_ptr<PrimitiveDrawer> PrimitiveDrawer::instance_ = nullptr;
-
-PrimitiveDrawer* PrimitiveDrawer::GetInstance() {
-    if (instance_ == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public PrimitiveDrawer {
-            Helper() : PrimitiveDrawer() {}
-        };
-        instance_ = std::make_unique<Helper>();
-    }
-    return instance_.get();
-}
-
-void PrimitiveDrawer::Finalize() {}
-
 void PrimitiveDrawer::AddPSO() {
 #ifdef USE_LINE
     PsoConfig config{};

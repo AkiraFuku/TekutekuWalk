@@ -6,6 +6,7 @@
 #include "DXCommon.h"
 #include "OffScreen.h"
 #include <functional>
+#include "Singleton.h"
 // アニメーション付きエフェクトのリクエスト構造体
 struct EffectRequest {
     PostEffectFlag flag;
@@ -17,14 +18,11 @@ struct EffectRequest {
 };
 
 
-class EffectManager
+class EffectManager : public Singleton<EffectManager>
 {
 
 public:
-    static EffectManager* GetInstance();
-
-    EffectManager(const EffectManager&) = delete;
-    EffectManager& operator=(const EffectManager&) = delete;
+    friend class Singleton<EffectManager>;
     friend struct std::default_delete<EffectManager>;
     void TriggerEffect(PostEffectFlag flag, float duration, std::function<void(float progress)> onUpdate = nullptr);
     void Update();
@@ -49,12 +47,11 @@ public:
     /// <param name="maxBlurWidth">最大のブラー幅</param>
     static std::function<void(float)> CreateRadialBlurImpulseFunctional(float maxBlurWidth = 0.04f);
 
-private:
+protected:
     EffectManager() = default;
-    ~EffectManager() = default;
+    ~EffectManager() override = default;
 
-    static std::unique_ptr<EffectManager> instance;
-
+private:
     float DeltaTime=DXCommon::kDeltaTime;
     std::vector<EffectRequest> activeRequests_;
 

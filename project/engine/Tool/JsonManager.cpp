@@ -3,21 +3,7 @@
 #include <iostream>
 #include "Logger.h"
 
-// 静的メンバ変数の実体化
-std::unique_ptr<JsonManager> JsonManager::instance = nullptr;
 const nlohmann::json JsonManager::emptyJson_ = nlohmann::json::object();
-
-JsonManager* JsonManager::GetInstance()
-{
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public JsonManager {
-            Helper() : JsonManager() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
 
 void JsonManager::Initialize()
 {
@@ -27,7 +13,7 @@ void JsonManager::Initialize()
 void JsonManager::Finalize()
 {
     jsonCache_.clear();
-    instance.reset();
+    Singleton<JsonManager>::Finalize();
 }
 
 bool JsonManager::Load(const std::string& key, const std::string& filePath)

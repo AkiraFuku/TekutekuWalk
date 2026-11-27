@@ -2,24 +2,17 @@
 #include "Scene.h"
 #include "AbstractSceneFactory.h"
 #include <memory>
-class SceneManager
+#include "Singleton.h"
+class SceneManager : public Singleton<SceneManager>
 {
-private:
-    // シングルトン用静的インスタンス
-    static std::unique_ptr<SceneManager> instance;
-
-    // コンストラクタ・デストラクタをprivateにする
+protected:
+    // コンストラクタ・デストラクタをprotectedにする
     SceneManager() = default;
-    ~SceneManager();
-
-    // コピー禁止
-    SceneManager(const SceneManager&) = delete;
-    SceneManager& operator=(const SceneManager&) = delete;
+    ~SceneManager() override;
 
 public:
-    // インスタンス取得
-    static SceneManager* GetInstance();
-     friend struct std::default_delete<SceneManager>;
+    friend class Singleton<SceneManager>;
+    friend struct std::default_delete<SceneManager>;
     // 終了処理（インスタンスの破棄）
     void Finalize();
 

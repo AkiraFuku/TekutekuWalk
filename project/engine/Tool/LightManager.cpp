@@ -7,25 +7,12 @@
 #include <wrl.h>
 #include <functional>
 
-// 静的メンバ変数の実体定義
-std::unique_ptr<LightManager> LightManager::instance = nullptr;
-
-LightManager* LightManager::GetInstance() {
-    if (instance == nullptr) {
-        struct Helper : public LightManager {
-            Helper() : LightManager() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
-
 void LightManager::Finalize() {
     if (indirectArgumentsBuffer_ && indirectData_) {
         indirectArgumentsBuffer_->Unmap(0, nullptr);
         indirectData_ = nullptr;
     }
-    instance.reset();
+    Singleton<LightManager>::Finalize();
 }
 
 void LightManager::Initialize() {

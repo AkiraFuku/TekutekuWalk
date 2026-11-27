@@ -3,22 +3,6 @@
 #include "DXCommon.h"
 #include "Logger.h"
 
-std::unique_ptr<PbdCommon> PbdCommon::instance_ = nullptr;
-
-PbdCommon* PbdCommon::GetInstance() {
-    if (instance_ == nullptr) {
-        struct Helper : public PbdCommon {
-            Helper() : PbdCommon() {}
-        };
-        instance_ = std::make_unique<Helper>();
-    }
-    return instance_.get();
-}
-
-void PbdCommon::Finalize() {
-    instance_.reset();
-}
-
 void PbdCommon::Initialize() {
     PsoConfig config{};
 

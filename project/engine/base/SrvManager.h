@@ -4,16 +4,15 @@
 #include <d3d12.h>
 #include <memory>
 #include <wrl.h>
+#include "Singleton.h"
 
-class SrvManager {
+class SrvManager : public Singleton<SrvManager> {
 public:
+  friend class Singleton<SrvManager>;
+  friend struct std::default_delete<SrvManager>;
   // 最大テクスチャ数
   static const uint32_t kMaxSRVCount;
   void Initialize();
-  void Finalize();
-  // シングルトンインスタンス取得
-  static SrvManager *GetInstance();
-  friend struct std::default_delete<SrvManager>;
 
   //
   uint32_t AllocateSRV();
@@ -92,18 +91,11 @@ public:
 
   bool IsMax();
 
-private:
-  // シングルトン化に伴いコンストラクタ等をprivateへ
+protected:
   SrvManager() = default;
-  ~SrvManager() = default;
+  ~SrvManager() override = default;
 
-  // コピー禁止
-  SrvManager(const SrvManager &) = delete;
-  SrvManager &operator=(const SrvManager &) = delete;
-
-  // インスタンス保持用スマートポインタ
-  static std::unique_ptr<SrvManager> instance;
-
+private:
   uint32_t descriptorSize_;
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap_;
   uint32_t useIndex = 0;

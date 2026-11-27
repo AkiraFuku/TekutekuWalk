@@ -7,12 +7,13 @@
 #include "Vector4.h"
 #include "Vector3.h"
 #include "RenderTypes.h"
+#include "Singleton.h"
 
-class LightManager
+class LightManager : public Singleton<LightManager>
 {
 public:
-    // シングルトンインスタンスの取得
-    static LightManager* GetInstance();
+    friend class Singleton<LightManager>;
+    friend struct std::default_delete<LightManager>;
 
     // 初期化・更新・描画・終了処理
     void Initialize();
@@ -98,13 +99,11 @@ public:
     void SetSpotLight(size_t index, const Vector4& color, const Vector3& position, float intensity, const Vector3& direction, float distance, float decay, float cosAngle, float cosFalloffStart);
     void SetSpotLightDirection(size_t index, const Vector3& direction);
 
-private:
+protected:
     LightManager() = default;
-    ~LightManager() = default;
-    LightManager(const LightManager&) = delete;
-    LightManager& operator=(const LightManager&) = delete;
-    friend struct std::default_delete<LightManager>;
+    ~LightManager() override = default;
 
+private:
     // バッファ生成ヘルパー (既存リソースからのコピー付き再割り当て対応)
     void CreateStructuredBuffer(size_t sizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& resource, ID3D12Resource* oldResource = nullptr, size_t oldSizeInBytes = 0);
     void CreateConstBuffer(size_t sizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& resource);
@@ -141,7 +140,4 @@ private:
     // DrawIndirect / カウントバッファ (IndirectArguments 互換)
     Microsoft::WRL::ComPtr<ID3D12Resource> indirectArgumentsBuffer_;
     IndirectArguments* indirectData_ = nullptr;
-
-    // シングルトンインスタンス
-    static std::unique_ptr<LightManager> instance;
 };

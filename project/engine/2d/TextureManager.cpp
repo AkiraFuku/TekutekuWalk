@@ -2,7 +2,6 @@
 #include "DXCommon.h"
 #include "StringUtility.h"
 #include "SrvManager.h"
-std::unique_ptr<TextureManager> TextureManager::instance = nullptr;
 uint32_t TextureManager::kSRVIndexTop = 1;
 
 void TextureManager::Initialize() {
@@ -11,22 +10,6 @@ void TextureManager::Initialize() {
 
 }
 
-TextureManager* TextureManager::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public TextureManager {
-            Helper() : TextureManager() {
-            }
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-};
-
-void TextureManager::Finalize() {
-
-    instance.reset();
-}
 void TextureManager::LoadTexture(const std::string& filePath) {
 
     if (textureDates.contains(filePath)) {

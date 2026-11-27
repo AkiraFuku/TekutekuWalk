@@ -8,11 +8,13 @@
 #include <unordered_map>
 #include <memory>
 #include <cstdint>
+#include "Singleton.h"
 
 
-class Audio
+class Audio : public Singleton<Audio>
 {
 public:
+     friend class Singleton<Audio>;
      friend struct std::default_delete<Audio>;
     // 型を明確に分離
     using SoundHandle = uint32_t;
@@ -36,7 +38,6 @@ public:
         float baseVolume = 1.0f;
     };
 
-    static Audio* GetInstance();
     void Initialize();
     void Finalize();
     void Update();
@@ -57,12 +58,11 @@ public:
     void SetCategoryVolume(const std::string& category, float volume);
     void StopCategory(const std::string& category);
 
-private:
+protected:
     Audio() = default;
-    ~Audio() = default;
-    Audio(const Audio&) = delete;
-    Audio& operator=(const Audio&) = delete;
+    ~Audio() override = default;
 
+private:
     VoiceHandle MakeVoiceHandle(uint32_t index, uint32_t generation);
 
     Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;

@@ -11,21 +11,6 @@
 
 using namespace Microsoft::WRL;
 
-std::unique_ptr<PSOManager> PSOManager::instance_ = nullptr;
-
-PSOManager* PSOManager::GetInstance() {
-    if (instance_ == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public PSOManager {
-            Helper() : PSOManager() {}
-        };
-        instance_ = std::make_unique<Helper>();
-    }
-    return instance_.get();
-}
-
-
-
 void PSOManager::Initialize() {
     psoCache_.clear();
     rootSigCache_.clear();
@@ -36,6 +21,7 @@ void PSOManager::Finalize() {
     psoCache_.clear();
     rootSigCache_.clear();
     psoConfigs_.clear();
+    Singleton<PSOManager>::Finalize();
 }
 
 void PSOManager::RegisterPsoGenerator(const std::string& name, const PsoConfig& psoConfig) {

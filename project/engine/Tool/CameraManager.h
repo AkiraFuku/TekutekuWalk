@@ -3,13 +3,14 @@
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include "Singleton.h"
 
-class CameraManager
+class CameraManager : public Singleton<CameraManager>
 {
 public:
-    // シングルトン取得
-    static CameraManager* GetInstance();
-    ~CameraManager() = default;
+    friend class Singleton<CameraManager>;
+    friend struct std::default_delete<CameraManager>;
+    ~CameraManager() override = default;
 
     // カメラの登録・削除
     void RegisterCamera(const std::string& name, Camera* camera);
@@ -31,17 +32,10 @@ public:
     bool IsEditorMode() const { return isEditorMode_; }
     void SetEditorMode(bool enable) { isEditorMode_ = enable; }
 
-    // 終了処理
-    void Finalize();
+protected:
+    CameraManager() = default;
 
 private:
-    // シングルトンパターン
-    CameraManager() = default;
-    CameraManager(const CameraManager&) = delete;
-    CameraManager& operator=(const CameraManager&) = delete;
-
-    static std::unique_ptr<CameraManager> instance_;
-
     // カメラ管理
     std::unordered_map<std::string, Camera*> cameras_;
     std::string activeGameCameraName_;

@@ -3,17 +3,6 @@
 #include <algorithm>
 #include <numbers>
 #include "MathFunction.h"
-std::unique_ptr<EffectManager> EffectManager::instance = nullptr;
-EffectManager* EffectManager::GetInstance()
-{
-    if (instance == nullptr) {
-        struct Helper : public EffectManager {
-            Helper() : EffectManager() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
 
 void EffectManager::TriggerEffect(PostEffectFlag flag, float duration, std::function<void(float progress)> onUpdate)
 {

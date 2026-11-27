@@ -6,13 +6,13 @@
 #include <Xinput.h>
 #pragma comment(lib, "xinput.lib")
 #include <memory>
-class Input
+#include "Singleton.h"
+class Input : public Singleton<Input>
 {
 public:
     template<class T> using ComPtr = Microsoft::WRL::ComPtr<T>;
 
-    // シングルトン化に伴う追記
-    static Input* GetInstance();
+    friend class Singleton<Input>;
     friend struct std::default_delete<Input>;
     void Finalize();
 
@@ -93,16 +93,11 @@ public:
     /// </summary>
     bool TriggerPadUp(int32_t stickNo, WORD button) const;
 
-      static std::unique_ptr<Input> instance;
-private:
-
-    // シングルトンパターン: コンストラクタ等を隠蔽
-  
+protected:
     Input() = default;
-    ~Input() = default;
-    Input(const Input&) = delete;
-    Input& operator=(const Input&) = delete;
+    ~Input() override = default;
 
+private:
     ComPtr<IDirectInputDevice8> keyboard;
     ComPtr<IDirectInputDevice8> mouse;
     BYTE preKey[256] = {};

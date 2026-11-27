@@ -11,9 +11,10 @@
 #include <map>
 
 #include"DrawFunction.h"
+#include "Singleton.h"
 class Camera;
 
-class PrimitiveDrawer {
+class PrimitiveDrawer : public Singleton<PrimitiveDrawer> {
 public:
 
     struct VertexData {
@@ -49,10 +50,9 @@ public:
         BlendMode blendMode;
     };
 
-    static PrimitiveDrawer* GetInstance();
+    friend class Singleton<PrimitiveDrawer>;
     friend struct std::default_delete<PrimitiveDrawer>;
     void Initialize();
-    void Finalize();
     void SetCamera(Camera* camera) {
         camera_ = camera;
     }
@@ -84,11 +84,11 @@ public:
     // ImGuiデバッグ用コントロール描画
     void DrawImGui();
 
-private:
+protected:
     PrimitiveDrawer() = default;
-    ~PrimitiveDrawer() = default;
-    static std::unique_ptr<PrimitiveDrawer> instance_;
+    ~PrimitiveDrawer() override = default;
 
+private:
    // 単一の大きな頂点バッファ
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
     D3D12_VERTEX_BUFFER_VIEW vbv_;

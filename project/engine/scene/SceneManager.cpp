@@ -9,23 +9,8 @@
 #include "EffectManager.h"
 #include "Fade.h"
 
-// 静的メンバ変数の実体
-std::unique_ptr<SceneManager> SceneManager::instance = nullptr;
-
-SceneManager* SceneManager::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public SceneManager {
-            Helper() : SceneManager() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
-
 void SceneManager::Finalize() {
-    // staticなhelperInstanceはdeleteしない
-    instance = nullptr;
+    Singleton<SceneManager>::Finalize();
 }
 
 SceneManager::~SceneManager()

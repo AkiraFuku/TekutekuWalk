@@ -5,8 +5,6 @@
 #include "MathFunction.h"
 #include <numbers>
 #include "PSOManager.h"
-#pragma once
-std::unique_ptr<ParticleManager>  ParticleManager::instance;
 uint32_t ParticleManager::kMaxNumInstance = 1024;
 void ParticleManager::Initialize() {
     //DXCommonとSRVマネージャーの受け取り
@@ -186,22 +184,6 @@ void ParticleManager::Initialize() {
     CreateVertexBuffer(EffectType::Ring);
     CreateVertexBuffer(EffectType::Cylinder);
     CreateMaterialBuffer();
-}
-ParticleManager* ParticleManager::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public ParticleManager {
-            Helper() : ParticleManager() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-
-};
-void ParticleManager::Finalize() {
-
-    // インスタンスの破棄
-    instance.reset();
 }
 
 //void ParticleManager::ReleaseParticleGroup()

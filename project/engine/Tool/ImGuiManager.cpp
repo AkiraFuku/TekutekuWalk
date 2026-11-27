@@ -8,20 +8,6 @@
 #include"imgui_impl_win32.h"
 #endif // USE_IMGUI
 
-// 静的メンバ変数の実体
-std::unique_ptr<ImGuiManager> ImGuiManager::instance = nullptr;
-
-ImGuiManager* ImGuiManager::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public ImGuiManager {
-            Helper() : ImGuiManager() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
-
 void ImGuiManager::Initialize() {
     #ifdef USE_IMGUI
 

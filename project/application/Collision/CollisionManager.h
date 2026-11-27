@@ -4,6 +4,7 @@
 #include <map>
 #include <utility>
 #include "GameObject.h" // CollisionCategoryが定義されているヘッダー
+#include "Singleton.h"
 
 class Collider;
 
@@ -14,11 +15,10 @@ enum class CollisionResponseType {
     Block,    // 重ならない（めり込みを押し出して位置補正。障害物、壁など）
 };
 
-class CollisionManager {
+class CollisionManager : public Singleton<CollisionManager> {
+    friend class Singleton<CollisionManager>;
+    friend struct std::default_delete<CollisionManager>;
 public:
-    static CollisionManager* GetInstance();
-    void Finalize();
-
     /// <summary>
     /// シーン等から渡されたコライダーリスト全体の衝突チェックを実行
     /// </summary>
@@ -35,14 +35,9 @@ public:
     /// </summary>
     void SetCollisionResponse(CollisionCategory a, CollisionCategory b, CollisionResponseType response);
 
-private:
+protected:
     CollisionManager();
-    ~CollisionManager() = default;
-    CollisionManager(const CollisionManager&) = delete;
-    CollisionManager& operator=(const CollisionManager&) = delete;
-
-    static std::unique_ptr<CollisionManager> instance;
-    friend struct std::default_delete<CollisionManager>;
+    ~CollisionManager() override = default;
 
     // デフォルトの衝突応答マトリクスを初期化
     void InitializeDefaultMatrix();

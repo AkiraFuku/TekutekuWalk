@@ -14,8 +14,9 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include "Singleton.h"
 
-class GpuParticleManager {
+class GpuParticleManager : public Singleton<GpuParticleManager> {
 public:
     static constexpr uint32_t kMaxParticles = 1024;
     static constexpr uint32_t kMaxEmitRequestsPerFrame = 64;
@@ -185,7 +186,7 @@ public:
         std::array<EmitterConfigGPU*, kMaxEmitRequestsPerFrame> emitRequestData{};
     };
 
-    static GpuParticleManager* GetInstance();
+    friend class Singleton<GpuParticleManager>;
     friend struct std::default_delete<GpuParticleManager>;
 
     void Initialize();
@@ -237,12 +238,11 @@ public:
     // GPU側のバッファを再初期化するフラグを立てる（シーン切り替え時など）
     void ResetParticles();
 
-private:
+protected:
     GpuParticleManager() = default;
-    ~GpuParticleManager() = default;
-    GpuParticleManager(const GpuParticleManager&) = delete;
-    GpuParticleManager& operator=(const GpuParticleManager&) = delete;
+    ~GpuParticleManager() override = default;
 
+private:
     void RegisterPsos();
     void CreateSharedResources();
     void CreatePrimitiveBuffers();
@@ -252,8 +252,6 @@ private:
     std::vector<VertexData> PrimitiveVertexCylinder();
     void InitGroupResources(GpuParticleGroup& group);
     EmitterConfigGPU MakeGpuConfig(GpuParticleGroup& group, const EmitRequest& req) const;
-
-    static std::unique_ptr<GpuParticleManager> instance_;
 
     Camera* camera_ = nullptr;
     bool isActive_ = true;

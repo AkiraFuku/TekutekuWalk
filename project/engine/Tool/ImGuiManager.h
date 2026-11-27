@@ -1,15 +1,12 @@
 #pragma once
 #include <wrl.h>
 #include <memory>
-class ImGuiManager
+#include "Singleton.h"
+class ImGuiManager : public Singleton<ImGuiManager>
 {
 public:
-
-    // インスタンス取得
-    static ImGuiManager* GetInstance();
-    // スマートポインタ用
-    static std::unique_ptr<ImGuiManager> instance;
-     friend struct std::default_delete<ImGuiManager>;
+    friend class Singleton<ImGuiManager>;
+    friend struct std::default_delete<ImGuiManager>;
     void Initialize();
     void Finalize();
     void Begin();
@@ -20,13 +17,11 @@ public:
     bool IsShow() const { return isShow_; }
     void SetShow(bool show);
     void ToggleShow();
-private:
-    // シングルトン化のためコンストラクタ類をprivateにする
+protected:
     ImGuiManager() = default;
-    ~ImGuiManager() = default;
-    ImGuiManager(const ImGuiManager&) = delete;
-    ImGuiManager& operator=(const ImGuiManager&) = delete;
+    ~ImGuiManager() override = default;
 
+private:
     bool isShow_ = true;
 
     

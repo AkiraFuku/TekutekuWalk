@@ -7,21 +7,6 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif // USE_IMGUI
 
-
-// 静的メンバ変数の定義
-std::unique_ptr<WinApp> WinApp::instance = nullptr;
-
-WinApp* WinApp::GetInstance() {
-    if (instance == nullptr) {
-        // privateコンストラクタを呼び出せるヘルパー構造体
-        struct Helper : public WinApp {
-            Helper() : WinApp() {}
-        };
-        instance = std::make_unique<Helper>();
-    }
-    return instance.get();
-}
-
 bool WinApp::ShouldHideCursor()
 {
 #if defined(NDEBUG)
@@ -139,7 +124,7 @@ void WinApp::Finalize()
     CloseWindow(hwnd);
 
     ///デバッグレイヤーのライブオブジェクトのレポート
-
+    Singleton<WinApp>::Finalize();
 }
 bool WinApp::ProcessMessage()
 {

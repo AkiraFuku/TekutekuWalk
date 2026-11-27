@@ -13,15 +13,11 @@
 #include "d3dx12.h"
 #include <chrono>
 #include <memory>
+#include "Singleton.h"
 
-class DXCommon {
+class DXCommon : public Singleton<DXCommon> {
 public:
-    // シングルトンインスタンス取得
-    static DXCommon* GetInstance();
-
-    // コピー禁止
-    DXCommon(const DXCommon& obj) = delete;
-    DXCommon& operator=(const DXCommon& obj) = delete;
+    friend class Singleton<DXCommon>;
     friend struct std::default_delete<DXCommon>;
 
     void Initialize();
@@ -94,15 +90,13 @@ public:
         return depthTexture_.srvIndex;
     }
 
-private:
-    // コンストラクタ・デストラクタをprivateにして外部生成を禁止
+protected:
     DXCommon() = default;
-    ~DXCommon() = default;
+    ~DXCommon() override = default;
 
+private:
     void RenderTextureDraw(size_t index = 0);
     void DepthTextureDraw();
-
-    static std::unique_ptr<DXCommon> instance;
 
     // FPS固定
     void InitializeFixFPS();
