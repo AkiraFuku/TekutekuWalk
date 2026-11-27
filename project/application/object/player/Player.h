@@ -215,8 +215,19 @@ public:
   // サブパーツ（手足）アニメーション制御
   void StartAttackAnimation();
   void StopAttackAnimation();
-  void SetDashStepActive(bool active) { isDashStepActive_ = active; }
+  void SetDashStepActive(bool active) {
+    isDashStepActive_ = active;
+    if (!active) {
+      dashStepProgress_ = 0.0f;
+    }
+  }
   bool IsDashStepActive() const { return isDashStepActive_; }
+  void SetDashStepProgress(float progress) {
+    dashStepProgress_ = std::clamp(progress, 0.0f, 1.0f);
+  }
+  float GetDashStepRecoveryRatio() const {
+    return isDashStepActive_ ? dashStepProgress_ : 1.0f;
+  }
   void UpdateSubPartAnimation();
 
   void Attack();
@@ -276,6 +287,18 @@ public:
   void SetAttackHitboxActive(bool active);
   bool IsAttackHitboxActive() const;
   bool IsAttacking() const;
+  float GetMeleeRecoveryRatio() const {
+    if (!IsAttacking()) {
+      return 1.0f;
+    }
+    const float totalDuration = config_.attackAction.windupDuration +
+                                config_.attackAction.rushDuration +
+                                config_.attackAction.recoveryDuration;
+    if (totalDuration <= 0.0f) {
+      return 1.0f;
+    }
+    return std::clamp(attackAnimTimer_ / totalDuration, 0.0f, 1.0f);
+  }
   void OnAttackHit(GameObject *target);
 
   bool IsHit() const { return isDamaged_; }
@@ -445,6 +468,7 @@ private:
   float walkAnimTimer_ = 0.0f;
   bool isAttackAnimActive_ = false;
   bool isDashStepActive_ = false;
+  float dashStepProgress_ = 0.0f;
   float attackAnimTimer_ = 0.0f;
   EulerTransform rightHandAnim_ = {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
   EulerTransform leftHandAnim_ = {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};

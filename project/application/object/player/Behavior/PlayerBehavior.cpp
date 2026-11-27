@@ -264,6 +264,7 @@ void BehaviorSlide::Update(Player *player) {
   const auto &config = player->GetConfig().slide;
   // 時間経過とともに滑らかに減速（終盤も余速を維持して自然な停止に）
   float progress = (config.duration > 0.0f) ? (timer_ / config.duration) : 1.0f;
+  player->SetDashStepProgress(progress);
   float speedFactor = (1.0f - progress * 0.65f);
   // 向き反転バグ（マイナス符号）と deltaTime 二重掛けを解消し、実速度(m/s)で前進
   player->MoveAtSpeed(float(slideDir_) * config.initialSpeed * speedFactor);

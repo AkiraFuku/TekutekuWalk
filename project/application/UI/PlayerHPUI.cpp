@@ -1,7 +1,10 @@
 #include "PlayerHPUI.h"
+#include "Input.h"
 #include "Player.h"
 #include "PlayerState.h"
 #include "Sprite.h"
+#include "TextureManager.h"
+#include <algorithm>
 #include <string>
 
 void PlayerHPUI::Initialize(Player *player) {
@@ -64,30 +67,36 @@ void PlayerHPUI::Initialize(Player *player) {
   stateSprite_->SetPosition({1162.0f, position_.y + 15.0f});
   stateSprite_->SetSize({markSize_, markSize_});
 
-  // 4. マシンガンクールダウン（熱量／残量）ゲージ
-  const float gaugeX = position_.x + shootGaugePos_.x;
-  const float gaugeY = position_.y + shootGaugePos_.y;
+  // 4. 操作・武器アイコンUI（移動・ジャンプ・ダッシュ・近接攻撃・マシンガン）
+  wasMoving_ = player_->IsMoving();
+  InitializeWeaponSlot(
+      moveIcon_, {500.0f, 50.0f}, "resources/UI/MoveIcon.png",
+      "resources/UI/BtnKeyAD.png", "resources/UI/BtnPadLStick.png", 1.0f);
 
-  shootGaugeFrameSprite_ = std::make_unique<Sprite>();
-  shootGaugeFrameSprite_->Initialize("resources/white.png");
-  shootGaugeFrameSprite_->SetColor({0.32f, 0.20f, 0.10f, 1.0f});
-  shootGaugeFrameSprite_->SetAnchorPoint({Anchor::TopLeft});
-  shootGaugeFrameSprite_->SetPosition({gaugeX - 3.0f, gaugeY - 3.0f});
-  shootGaugeFrameSprite_->SetSize({shootGaugeSize_.x + 6.0f, shootGaugeSize_.y + 6.0f});
+  wasAirborne_ = !player_->IsGround();
+  InitializeWeaponSlot(
+      jumpIcon_, {596.0f, 50.0f}, "resources/UI/JumpIcon.png",
+      "resources/UI/BtnKeySpace.png", "resources/UI/BtnPadA.png",
+      wasAirborne_ ? 0.0f : 1.0f);
 
-  shootGaugeBgSprite_ = std::make_unique<Sprite>();
-  shootGaugeBgSprite_->Initialize("resources/white.png");
-  shootGaugeBgSprite_->SetColor({0.14f, 0.14f, 0.16f, 0.95f});
-  shootGaugeBgSprite_->SetAnchorPoint({Anchor::TopLeft});
-  shootGaugeBgSprite_->SetPosition({gaugeX, gaugeY});
-  shootGaugeBgSprite_->SetSize(shootGaugeSize_);
+  wasDashStepping_ = player_->IsDashStepActive();
+  InitializeWeaponSlot(
+      dashIcon_, {692.0f, 50.0f}, "resources/UI/DashIcon.png",
+      "resources/UI/BtnKeyShift.png", "resources/UI/BtnPadRB.png",
+      player_->GetDashStepRecoveryRatio());
 
-  shootGaugeFillSprite_ = std::make_unique<Sprite>();
-  shootGaugeFillSprite_->Initialize("resources/white.png");
-  shootGaugeFillSprite_->SetColor({0.20f, 0.85f, 1.0f, 1.0f});
-  shootGaugeFillSprite_->SetAnchorPoint({Anchor::TopLeft});
-  shootGaugeFillSprite_->SetPosition({gaugeX, gaugeY});
-  shootGaugeFillSprite_->SetSize(shootGaugeSize_);
+  wasMeleeAttacking_ = player_->IsAttacking();
+  InitializeWeaponSlot(
+      meleeIcon_, {788.0f, 50.0f}, "resources/UI/MeleeIcon.png",
+      "resources/UI/BtnMouseLeft.png", "resources/UI/BtnPadB.png",
+      player_->GetMeleeRecoveryRatio());
+
+  prevShootEnergyRatio_ = player_->GetShootEnergyRatio();
+  wasShootOverheated_ = player_->IsShootOverheated();
+  InitializeWeaponSlot(
+      shootIcon_, {884.0f, 50.0f}, "resources/UI/MachineGunIcon.png",
+      "resources/UI/BtnMouseRight.png", "resources/UI/BtnPadX.png",
+      prevShootEnergyRatio_);
 }
 
 void PlayerHPUI::Update() {
@@ -149,35 +158,48 @@ void PlayerHPUI::Update() {
     stateSprite_->Update();
   }
 
-  // --- マシンガンクールダウンゲージ更新 ---
-  if (shootGaugeFrameSprite_) {
-    shootGaugeFrameSprite_->Update();
-  }
-  if (shootGaugeBgSprite_) {
-    shootGaugeBgSprite_->Update();
-  }
-  if (shootGaugeFillSprite_) {
-    float ratio = player_->GetShootEnergyRatio();
-    bool overheated = player_->IsShootOverheated();
+  // --- 操作・武器アイコンUI更新 ---
+  const float dt = player_->GetDeltaTime();
 
-    shootGaugeFillSprite_->SetSize({shootGaugeSize_.x * ratio, shootGaugeSize_.y});
+  // 移動
+  const bool isMoving = player_->IsMoving();
+  const bool movePop = (!wasMoving_ && isMoving);
+  wasMoving_ = isMoving;
+  UpdateWeaponSlot(moveIcon_, dt, 1.0f, false, movePop, false);
 
-    if (overheated) {
-      shootGaugeBlinkTimer_ += player_->GetDeltaTime();
-      bool blink = (std::fmod(shootGaugeBlinkTimer_, 0.24f) < 0.12f);
-      shootGaugeFillSprite_->SetColor(
-          blink ? Vector4{1.0f, 0.22f, 0.18f, 1.0f}
-                : Vector4{1.0f, 0.55f, 0.15f, 1.0f});
-    } else {
-      shootGaugeBlinkTimer_ = 0.0f;
-      if (ratio <= 0.30f) {
-        shootGaugeFillSprite_->SetColor({1.0f, 0.78f, 0.15f, 1.0f});
-      } else {
-        shootGaugeFillSprite_->SetColor({0.20f, 0.85f, 1.0f, 1.0f});
-      }
-    }
-    shootGaugeFillSprite_->Update();
-  }
+  // ジャンプ（空中はグレー、着地で有効化＋ポップ）
+  const bool isAirborne = !player_->IsGround();
+  const bool jumpPop = (wasAirborne_ != isAirborne);
+  wasAirborne_ = isAirborne;
+  UpdateWeaponSlot(jumpIcon_, dt, isAirborne ? 0.0f : 1.0f, isAirborne, jumpPop,
+                   false);
+
+  // ダッシュ / ステップ（ステップ中は進捗に応じて貯まり、終了で有効化＋ポップ）
+  const bool isDashStep = player_->IsDashStepActive();
+  const float dashRatio =
+      std::clamp(player_->GetDashStepRecoveryRatio(), 0.0f, 1.0f);
+  const bool dashPop = (wasDashStepping_ != isDashStep);
+  wasDashStepping_ = isDashStep;
+  UpdateWeaponSlot(dashIcon_, dt, dashRatio, isDashStep, dashPop, false);
+
+  // 近接攻撃（再度攻撃できるモーション終了タイミングで有効化）
+  const bool isMeleeAttacking = player_->IsAttacking();
+  const float meleeRatio =
+      std::clamp(player_->GetMeleeRecoveryRatio(), 0.0f, 1.0f);
+  const bool meleePop = (wasMeleeAttacking_ != isMeleeAttacking);
+  wasMeleeAttacking_ = isMeleeAttacking;
+  UpdateWeaponSlot(meleeIcon_, dt, meleeRatio, isMeleeAttacking, meleePop,
+                   false);
+
+  // マシンガン
+  const float shootRatio =
+      std::clamp(player_->GetShootEnergyRatio(), 0.0f, 1.0f);
+  const bool overheated = player_->IsShootOverheated();
+  const bool shootPop = (shootRatio < prevShootEnergyRatio_ - 0.001f) ||
+                        (wasShootOverheated_ && !overheated);
+  prevShootEnergyRatio_ = shootRatio;
+  wasShootOverheated_ = overheated;
+  UpdateWeaponSlot(shootIcon_, dt, shootRatio, overheated, shootPop, true);
 }
 
 void PlayerHPUI::Draw() {
@@ -201,13 +223,147 @@ void PlayerHPUI::Draw() {
     stateSprite_->Draw();
   }
 
-  if (shootGaugeFrameSprite_) {
-    shootGaugeFrameSprite_->Draw();
+  DrawWeaponSlot(moveIcon_, 1.0f);
+  DrawWeaponSlot(jumpIcon_, player_->IsGround() ? 1.0f : 0.0f);
+  DrawWeaponSlot(dashIcon_, player_->GetDashStepRecoveryRatio());
+  DrawWeaponSlot(meleeIcon_, player_->GetMeleeRecoveryRatio());
+  DrawWeaponSlot(shootIcon_, player_->GetShootEnergyRatio());
+}
+
+void PlayerHPUI::InitializeWeaponSlot(WeaponIconSlot &slot,
+                                      const Vector2 &centerOffset,
+                                      const std::string &iconPath,
+                                      const std::string &keyMouseBtnPath,
+                                      const std::string &gamepadBtnPath,
+                                      float initialRatio) {
+  slot.centerOffset = centerOffset;
+  slot.scale = 1.0f;
+
+  const Vector2 iconCenter = {position_.x + slot.centerOffset.x,
+                              position_.y + slot.centerOffset.y};
+  const float clampedRatio = std::clamp(initialRatio, 0.0f, 1.0f);
+
+  // 1. 後ろの暗い下地枠
+  slot.cardBgSprite = std::make_unique<Sprite>();
+  slot.cardBgSprite->Initialize("resources/white.png");
+  slot.cardBgSprite->SetColor({0.18f, 0.18f, 0.20f, 0.90f});
+  slot.cardBgSprite->SetAnchorPoint(Anchor::Center);
+  slot.cardBgSprite->SetPosition(iconCenter);
+  slot.cardBgSprite->SetSize(weaponIconCardSize_);
+
+  // 2. 後ろの白いゲージ本体（下基準で高さが ratio に応じて増減）
+  slot.cardFillSprite = std::make_unique<Sprite>();
+  slot.cardFillSprite->Initialize("resources/white.png");
+  slot.cardFillSprite->SetColor({0.96f, 0.96f, 0.96f, 0.95f});
+  slot.cardFillSprite->SetAnchorPoint(Anchor::BottomMin);
+  slot.cardFillSprite->SetPosition(
+      {iconCenter.x, iconCenter.y + weaponIconCardSize_.y * 0.5f});
+  slot.cardFillSprite->SetSize(
+      {weaponIconCardSize_.x, weaponIconCardSize_.y * clampedRatio});
+
+  // 3. 手前の武器アイコン本体（常にフルサイズで表示）
+  slot.iconSprite = std::make_unique<Sprite>();
+  slot.iconSprite->Initialize(iconPath);
+  slot.iconSprite->SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+  slot.iconSprite->SetAnchorPoint(Anchor::Center);
+  slot.iconSprite->SetPosition(iconCenter);
+  slot.iconSprite->SetSize(weaponIconBaseSize_);
+
+  // 4. 上部の発動ボタンマーク
+  slot.buttonMarkSprite = std::make_unique<Sprite>();
+  slot.buttonMarkSprite->Initialize(keyMouseBtnPath);
+  slot.btnTexIndexKeyMouse = 0;
+  slot.btnTexIndexGamepad =
+      slot.buttonMarkSprite->RegisterTexture(gamepadBtnPath);
+  slot.buttonMarkSprite->SetAnchorPoint(Anchor::Center);
+  slot.buttonMarkSprite->SetPosition(
+      {iconCenter.x + weaponBtnMarkOffset_.x,
+       iconCenter.y + weaponBtnMarkOffset_.y});
+  slot.buttonMarkSprite->SetSize(weaponBtnMarkSize_);
+
+  slot.isBtnGamepad = Input::GetInstance()->IsUsingGamepad();
+  slot.buttonMarkSprite->SetTextureByIndex(
+      slot.isBtnGamepad ? slot.btnTexIndexGamepad : slot.btnTexIndexKeyMouse);
+  slot.buttonMarkSprite->SetSize(weaponBtnMarkSize_);
+}
+
+void PlayerHPUI::UpdateWeaponSlot(WeaponIconSlot &slot, float dt, float ratio,
+                                  bool isCooldown, bool triggerPop,
+                                  bool lowEnergyWarning) {
+  if (triggerPop) {
+    slot.scale = 1.18f;
   }
-  if (shootGaugeBgSprite_) {
-    shootGaugeBgSprite_->Draw();
+  slot.scale += (1.0f - slot.scale) * std::min(1.0f, dt * 12.0f);
+
+  const float clampedRatio = std::clamp(ratio, 0.0f, 1.0f);
+  const Vector2 iconCenter = {position_.x + slot.centerOffset.x,
+                              position_.y + slot.centerOffset.y};
+  const Vector2 scaledCardSize = {weaponIconCardSize_.x * slot.scale,
+                                  weaponIconCardSize_.y * slot.scale};
+  const Vector2 scaledIconSize = {weaponIconBaseSize_.x * slot.scale,
+                                  weaponIconBaseSize_.y * slot.scale};
+
+  const Vector4 cardFillColor =
+      isCooldown
+          ? Vector4{0.55f, 0.55f, 0.58f, 0.92f}
+          : ((lowEnergyWarning && clampedRatio <= 0.30f)
+                 ? Vector4{1.0f, 0.80f, 0.20f, 0.95f}
+                 : Vector4{0.96f, 0.96f, 0.96f, 0.95f});
+  const Vector4 iconColor = isCooldown
+                                ? Vector4{0.48f, 0.48f, 0.52f, 0.95f}
+                                : Vector4{1.0f, 1.0f, 1.0f, 1.0f};
+  const Vector4 markColor = isCooldown
+                                ? Vector4{0.50f, 0.50f, 0.53f, 0.90f}
+                                : Vector4{1.0f, 1.0f, 1.0f, 1.0f};
+
+  if (slot.cardBgSprite) {
+    slot.cardBgSprite->SetPosition(iconCenter);
+    slot.cardBgSprite->SetSize(scaledCardSize);
+    slot.cardBgSprite->Update();
   }
-  if (shootGaugeFillSprite_) {
-    shootGaugeFillSprite_->Draw();
+  if (slot.cardFillSprite) {
+    slot.cardFillSprite->SetPosition(
+        {iconCenter.x, iconCenter.y + scaledCardSize.y * 0.5f});
+    slot.cardFillSprite->SetSize(
+        {scaledCardSize.x, scaledCardSize.y * clampedRatio});
+    slot.cardFillSprite->SetColor(cardFillColor);
+    slot.cardFillSprite->Update();
+  }
+  if (slot.iconSprite) {
+    slot.iconSprite->SetPosition(iconCenter);
+    slot.iconSprite->SetSize(scaledIconSize);
+    slot.iconSprite->SetColor(iconColor);
+    slot.iconSprite->Update();
+  }
+  if (slot.buttonMarkSprite) {
+    const bool usePad = Input::GetInstance()->IsUsingGamepad();
+    if (usePad != slot.isBtnGamepad) {
+      slot.isBtnGamepad = usePad;
+      slot.buttonMarkSprite->SetTextureByIndex(
+          slot.isBtnGamepad ? slot.btnTexIndexGamepad
+                            : slot.btnTexIndexKeyMouse);
+    }
+    slot.buttonMarkSprite->SetPosition(
+        {iconCenter.x + weaponBtnMarkOffset_.x * slot.scale,
+         iconCenter.y + weaponBtnMarkOffset_.y * slot.scale});
+    slot.buttonMarkSprite->SetSize(
+        {weaponBtnMarkSize_.x * slot.scale, weaponBtnMarkSize_.y * slot.scale});
+    slot.buttonMarkSprite->SetColor(markColor);
+    slot.buttonMarkSprite->Update();
+  }
+}
+
+void PlayerHPUI::DrawWeaponSlot(const WeaponIconSlot &slot, float ratio) const {
+  if (slot.cardBgSprite) {
+    slot.cardBgSprite->Draw();
+  }
+  if (slot.cardFillSprite && ratio > 0.001f) {
+    slot.cardFillSprite->Draw();
+  }
+  if (slot.iconSprite) {
+    slot.iconSprite->Draw();
+  }
+  if (slot.buttonMarkSprite) {
+    slot.buttonMarkSprite->Draw();
   }
 }

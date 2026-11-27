@@ -22,6 +22,10 @@ public:
         Right = 1,
         Middle = 2,
     };
+    enum class InputDeviceType {
+        KeyboardMouse,
+        Gamepad,
+    };
     struct MoveMouse
     {
         LONG x;
@@ -93,6 +97,16 @@ public:
     /// </summary>
     bool TriggerPadUp(int32_t stickNo, WORD button) const;
 
+    /// <summary>
+    /// 直近の操作がゲームパッドによるものかを取得
+    /// </summary>
+    bool IsUsingGamepad() const { return lastInputDevice_ == InputDeviceType::Gamepad; }
+
+    /// <summary>
+    /// 直近で使用された入力デバイス種別を取得
+    /// </summary>
+    InputDeviceType GetLastInputDevice() const { return lastInputDevice_; }
+
 protected:
     Input() = default;
     ~Input() override = default;
@@ -117,5 +131,7 @@ private:
 
     XINPUT_STATE state_[XUSER_MAX_COUNT];    // 現在の状態
     XINPUT_STATE preState_[XUSER_MAX_COUNT]; // 1フレーム前の状態
+
+    InputDeviceType lastInputDevice_ = InputDeviceType::KeyboardMouse;
 };
 

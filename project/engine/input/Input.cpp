@@ -90,6 +90,48 @@ void Input::Update()
             ZeroMemory(&state_[i], sizeof(XINPUT_STATE));
         }
     }
+
+    // --- 直近使用入力デバイスの判定 ---
+    bool hasKeyMouseInput = false;
+    for (int k = 0; k < 256; ++k) {
+        if (key[k] & 0x80) {
+            hasKeyMouseInput = true;
+            break;
+        }
+    }
+    if (!hasKeyMouseInput) {
+        if ((mouseState.rgbButtons[0] & 0x80) ||
+            (mouseState.rgbButtons[1] & 0x80) ||
+            (mouseState.rgbButtons[2] & 0x80) ||
+            std::abs(mouseState.lX) > 2 ||
+            std::abs(mouseState.lY) > 2) {
+            hasKeyMouseInput = true;
+        }
+    }
+
+    bool hasPadInput = false;
+    for (int i = 0; i < XUSER_MAX_COUNT; ++i) {
+        if (state_[i].dwPacketNumber == 0) {
+            continue;
+        }
+        const auto& gp = state_[i].Gamepad;
+        if (gp.wButtons != 0 ||
+            gp.bLeftTrigger > 30 ||
+            gp.bRightTrigger > 30 ||
+            std::abs(gp.sThumbLX) > deadZoneL_[i] ||
+            std::abs(gp.sThumbLY) > deadZoneL_[i] ||
+            std::abs(gp.sThumbRX) > deadZoneR_[i] ||
+            std::abs(gp.sThumbRY) > deadZoneR_[i]) {
+            hasPadInput = true;
+            break;
+        }
+    }
+
+    if (hasPadInput) {
+        lastInputDevice_ = InputDeviceType::Gamepad;
+    } else if (hasKeyMouseInput) {
+        lastInputDevice_ = InputDeviceType::KeyboardMouse;
+    }
 }
 
 bool Input::PushedKeyDown(BYTE keys)

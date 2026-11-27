@@ -1,6 +1,8 @@
 #pragma once
 #include "Vector2.h"
+#include "Vector4.h"
 #include <memory>
+#include <string>
 #include <vector>
 class Player;
 class Sprite;
@@ -110,13 +112,59 @@ private:
     Vector2 counterSize_ = { 40.0f, 54.0f };    // カウンタースプライトのサイズ
     float hpSpriteWidth_ = 1280.0f;             // HP UIの幅
 
-    // マシンガンクールダウンゲージ用スプライト
-    std::unique_ptr<Sprite> shootGaugeFrameSprite_ = nullptr;
-    std::unique_ptr<Sprite> shootGaugeBgSprite_ = nullptr;
-    std::unique_ptr<Sprite> shootGaugeFillSprite_ = nullptr;
-    Vector2 shootGaugePos_ = { 520.0f, 34.0f };
-    Vector2 shootGaugeSize_ = { 280.0f, 20.0f };
-    float shootGaugeBlinkTimer_ = 0.0f;
+    /// <summary>
+    /// 武器・スキルアイコンUIの共通スロット
+    /// </summary>
+    struct WeaponIconSlot {
+        std::unique_ptr<Sprite> cardBgSprite = nullptr;     // 後ろの暗い下地枠
+        std::unique_ptr<Sprite> cardFillSprite = nullptr;   // 後ろの白いゲージ本体（下基準で増減）
+        std::unique_ptr<Sprite> iconSprite = nullptr;       // 手前の武器アイコン本体（常にフル表示）
+        std::unique_ptr<Sprite> buttonMarkSprite = nullptr; // 上部の発動ボタンマーク
+
+        size_t btnTexIndexKeyMouse = 0;
+        size_t btnTexIndexGamepad = 1;
+        bool isBtnGamepad = false;
+
+        Vector2 centerOffset = { 0.0f, 50.0f };
+        float scale = 1.0f;
+    };
+
+    void InitializeWeaponSlot(
+        WeaponIconSlot& slot,
+        const Vector2& centerOffset,
+        const std::string& iconPath,
+        const std::string& keyMouseBtnPath,
+        const std::string& gamepadBtnPath,
+        float initialRatio);
+
+    void UpdateWeaponSlot(
+        WeaponIconSlot& slot,
+        float dt,
+        float ratio,
+        bool isCooldown,
+        bool triggerPop,
+        bool lowEnergyWarning);
+
+    void DrawWeaponSlot(const WeaponIconSlot& slot, float ratio) const;
+
+    // 操作・武器アイコンUI（移動・ジャンプ・ダッシュ・近接攻撃・マシンガン）
+    WeaponIconSlot moveIcon_;
+    WeaponIconSlot jumpIcon_;
+    WeaponIconSlot dashIcon_;
+    WeaponIconSlot meleeIcon_;
+    WeaponIconSlot shootIcon_;
+
+    Vector2 weaponIconCardSize_ = { 68.0f, 68.0f };
+    Vector2 weaponIconBaseSize_ = { 56.0f, 56.0f };
+    Vector2 weaponBtnMarkOffset_ = { 0.0f, -44.0f };
+    Vector2 weaponBtnMarkSize_ = { 30.0f, 30.0f };
+
+    bool wasMoving_ = false;            // 前フレームの移動状態
+    bool wasAirborne_ = false;          // 前フレームの空中状態
+    bool wasDashStepping_ = false;      // 前フレームのステップ状態
+    bool wasMeleeAttacking_ = false;    // 前フレームの近接攻撃モーション状態
+    float prevShootEnergyRatio_ = 1.0f; // 前フレームのマシンガンエネルギー残量
+    bool wasShootOverheated_ = false;   // 前フレームのオーバーヒート状態
 
 };
 
